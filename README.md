@@ -74,11 +74,15 @@ where cython
 ## 3.) Insert correct paths to the `.exe` files, for example:
 
 ```
-C:\Users\[USERNAME]\AppData\Roaming\Python\Python310\Scripts\pyinstaller.exe
-C:\Users\[USERNAME]\AppData\Roaming\Python\Python310\Scripts\pyarmor.exe
-C:\Users\[USERNAME]\AppData\Roaming\Python\Python310\Scripts\nuitka.cmd
-C:\Users\[USERNAME]\AppData\Roaming\Python\Python310\Scripts\cython.exe
-TCL:\Program Files (x86)\YOUR_IDE\tcl
+C:\Users\[USERNAME]\AppData\Roaming\Python\Python310\Scripts\pyinstaller.exe   # PY -> .exe
+C:\Users\[USERNAME]\AppData\Roaming\Python\Python310\Scripts\pyarmor.exe       # PY -> PYC (encryption)
+C:\Users\[USERNAME]\AppData\Roaming\Python\Python310\Scripts\nuitka.cmd        # PY -> batch script (Nuitka compiler)
+C:\Users\[USERNAME]\AppData\Roaming\Python\Python310\Scripts\cython.exe        # PY/PYX -> C/C++
+C:\msys64\mingw64\bin\g++.exe                                                  # C++ compiler (MinGW)
+C:\msys64\mingw64\bin\gcc.exe                                                  # C compiler (MinGW)
+C:\Program Files (x86)\Thonny\tcl                                              # Tcl runtime for Python GUI
+
+
 ```
 
 ---
