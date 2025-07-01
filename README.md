@@ -200,7 +200,7 @@ gcc --version
 - Switch between C or C++ compiler  
 - GCC/GPP improved GUI for pipeline with Cython
 
-### Version 2.25
+### (latest) Version 2.25
 
 - GCC/GPP editor new functions  
 - Advanced build settings for GPP and Cython  
