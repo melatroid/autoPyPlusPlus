@@ -47,7 +47,7 @@ Before you use this software:
 
 ---
 
-## 1.) Go to IDE console and install the following packages:
+## 1.) Install over Requirements.txt or go to IDE console and install the following packages:
 
 ```bash
 pip install pyinstaller    # Python -> exe          -> direct result
