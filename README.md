@@ -1,4 +1,6 @@
-# autoPy++ - Setup & Usage Guide
+![Alt-Text](https://autopyplusplus.wordpress.com/wp-content/uploads/2025/05/autopy-2.png)
+
+# Setup & Usage Guide
 **autopyplusplus.wordpress.com**  
 **Version 2.25**
 
