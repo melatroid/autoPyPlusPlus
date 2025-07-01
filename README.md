@@ -180,8 +180,8 @@ gcc --version
 | PyArmor     | works well (not fully tested) |
 | Nuitka      | works      (not fully tested) |
 | Cython      | works well (not fully tested) |
-| Inspector   | works well                    |
 | GPP/GCC     | not working (buggy)           |
+| Inspector   | works well                    |
 | Secure_compilers | coming soon              |
 
 # Known Bugs
@@ -204,8 +204,7 @@ gcc --version
 # Versions
 ### (Preview) Version 2.27
 
-- Inspector reads specific logs on top  
-- Switch between C or C++ compiler
+- Inspector reads specific logs for each typ of output
 
 ### (Preview) Version 2.26
 
