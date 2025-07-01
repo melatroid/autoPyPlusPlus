@@ -1,4 +1,5 @@
-![Alt-Text](https://autopyplusplus.wordpress.com/wp-content/uploads/2025/05/autopy-2.png)
+<img src="https://autopyplusplus.wordpress.com/wp-content/uploads/2025/05/autopy-2.png" alt="Alt-Text" width="300" />
+
 
 # Setup & Usage Guide
 **autopyplusplus.wordpress.com**  
