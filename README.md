@@ -18,7 +18,7 @@
   Open Command Prompt (cmd) or PowerShell and enter
    ```cmd/ powershell
    git clone https://github.com/melatroid/autoPyPlusPlus.git
-   cd autoPyPlusPlus
+   cd c:\pathto\autoPyPlusPlus
 
 4. **Install Requirements**
     ```cmd/ powershell
