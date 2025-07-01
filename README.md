@@ -165,15 +165,15 @@ gcc --version
 
 # Status
 
-| Component   | Status                       |
-|-------------|------------------------------|
-| PyInstaller | works well (not fully tested)|
-| PyArmor     | works well (not fully tested)|
-| Nuitka      | works (not fully tested)     |
-| Cython      | works well (not fully tested)|
-| Inspector   | works well                   |
-| GPP/GCC     | not working (buggy)          |
-| Secure_compilers | coming soon             |
+| Component   | Status                        |
+|-------------|-------------------------------|
+| PyInstaller | works well (not fully tested) |
+| PyArmor     | works well (not fully tested) |
+| Nuitka      | works      (not fully tested) |
+| Cython      | works well (not fully tested) |
+| Inspector   | works well                    |
+| GPP/GCC     | not working (buggy)           |
+| Secure_compilers | coming soon              |
 
 # Known Bugs
 
