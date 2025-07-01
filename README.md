@@ -50,10 +50,11 @@ Before you use this software:
 ## 1.) Install over Requirements.txt or go to IDE console and install the following packages:
 
 ```bash
-pip install pyinstaller    # Python -> exe          -> direct result
-pip install nuitka         # Python -> C -> exe     -> direct result
-pip install cython         # Python -> C/C++        -> needs runtime DLLs and GCC compiler
-pip install pyarmor        # Trial mode, buy license: https://pyarmor.readthedocs.io/en/latest/licenses.html#terms-of-use -> direct
+pip install pyinstaller    # Python -> exe (direct result)
+pip install nuitka         # Python -> C -> exe (direct result)
+pip install cython         # Python -> C/C++ (requires runtime DLLs and GCC compiler)
+pip install pyarmor        # Code obfuscation (trial mode, license available: https://pyarmor.readthedocs.io/en/latest/licenses.html#terms-of-use)
+
 ```
 
 Check the installed paths with:
