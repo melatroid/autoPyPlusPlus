@@ -119,8 +119,10 @@ Low-Bugs:
 - nuitka created exe files was detected by antivirus (close your antivirus temporary)
 
 ###################################################
+
                       Versions
 ###################################################
+
 ----Preview----------------Version 2.26 ::
 - Inspector could reads specific logs on top
 - switch between c oder c++ compiler
