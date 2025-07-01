@@ -1,0 +1,18 @@
+{
+  "language": "de",
+  "dark_mode": true,
+  "theme": 3,
+  "compile_mode": "A",
+  "color_a": "#3372d0",
+  "color_b": "#48287d",
+  "thread_count": 12,
+  "saved_searches": [
+    "error",
+    "warning",
+    "exception",
+    "failed",
+    "success",
+    "info"
+  ],
+  "color_c": "#832c12"
+}
