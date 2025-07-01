@@ -1,4 +1,18 @@
+###################################################
 
+                    Important!
+###################################################
+Overwrite myProject.apyscript to set the Opening project for autoPy++
+
+More Important!:
+Bevor you using this Software.:
+This Software is currently under development.
+Backup your files before you start compiling, errors in the software or incorrectly flags could be delete your files!
+It can contain Bugs that crash your hole System... use it carefully
+Send us error reports with detailed text and screenshots to dseccg@gmail.com
+
+
+###################################################
 1.) go to ide console:
 
 -pip install pyinstaller   (Python -> exe)   	    ->direct result
@@ -86,19 +100,10 @@ PowerShell as Admin:
 - gcc --version 
 
 
-###################################################
-                    Important!
-###################################################
-Overwrite myProject.apyscript to set the Opening project for autoPy++
 
-More Important!:
-Bevor you using this Software.:
-This Software is currently under development.
-Backup your files before you start compiling, errors in the software or incorrectly flags could be delete your files!
-It can contain Bugs that crash your hole System... use it carefully
-Send us error reports with detailed text and screenshots to dseccg@gmail.com
 
 ###################################################
+
                       Status
 ###################################################
 Pyinstaller:      works well (not fully tested)
