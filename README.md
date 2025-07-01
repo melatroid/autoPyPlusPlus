@@ -82,8 +82,6 @@ C:\Users\[USERNAME]\AppData\Roaming\Python\Python310\Scripts\cython.exe        #
 C:\msys64\mingw64\bin\g++.exe                                                  # C++ compiler (MinGW)
 C:\msys64\mingw64\bin\gcc.exe                                                  # C compiler (MinGW)
 C:\Program Files (x86)\Thonny\tcl                                              # Tcl runtime for Python GUI
-
-
 ```
 
 ---
@@ -196,7 +194,7 @@ gcc --version
 
 # Versions
 
-### Preview Version 2.26
+### (Preview) Version 2.26
 
 - Inspector reads specific logs on top  
 - Switch between C or C++ compiler  
