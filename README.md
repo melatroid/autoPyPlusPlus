@@ -1,10 +1,8 @@
-
 # AutoPy++ Compiler Setup & Usage Guide
-** autopyplusplus.wordpress.com**
-** Version 2.25**
+**autopyplusplus.wordpress.com**  
+**Version 2.25**
 
 ---
-
 ## Important!
 
 **Overwrite `myProject.apyscript` to set the opening project for AutoPy++.**
