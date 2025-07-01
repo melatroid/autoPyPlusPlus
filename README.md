@@ -21,12 +21,14 @@
    cd autoPyPlusPlus
 
 4. **Install Requiremnts**
+    ```cmd/ powershell
     pip install -r requirements.txt
    
 6. **Start autoPy++**
+   ```cmd/ powershell
    python autoPyPlusPlus.py
 
-   
+ 
 ---
 
 ## More Important!
