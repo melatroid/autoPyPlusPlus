@@ -14,11 +14,19 @@
 2. **Install Python 3.10 or newer (if not already installed):**  
    https://www.python.org/downloads/windows/
 
-3. **Repository klonen:**  
+3. **Repository clone:**  
   Open Command Prompt (cmd) or PowerShell and enter
    ```cmd/ powershell
    git clone https://github.com/melatroid/autoPyPlusPlus.git
    cd autoPyPlusPlus
+
+4. **Install Requiremnts**
+    pip install -r requirements.txt
+   
+6. **Start autoPy++**
+   python autoPyPlusPlus.py
+
+   
 ---
 
 ## More Important!
