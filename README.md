@@ -5,7 +5,7 @@
 ---
 ## Important!
 
-**Overwrite `myProject.apyscript` to set the opening project for AutoPy++.**
+**Overwrite `myProject.apyscript` to set the home project for AutoPy++.**
 ## Installation for Windows 10/11
 
 1. **Install Git (if not already installed):**
@@ -24,9 +24,16 @@
     ```cmd/ powershell
     pip install -r requirements.txt
    
-6. **Start autoPy++**
+5. **Start autoPy++**
    ```cmd/ powershell
+   cd path\to\autoPyPlusPlus
    python autoPyPlusPlus.py
+   
+6. **Update autoPy++ to newer version**
+   ```cmd/ powershell
+   cd path\to\autoPyPlusPlus
+   git pull origin main
+   pip install -r requirements.txt --upgrade
 ---
 
 ## More Important!
