@@ -80,10 +80,6 @@ TCL:\Program Files (x86)\YOUR_IDE\tcl
 
 ---
 
-## 5.) Put all files from AutoPy++ into a new folder.
-
----
-
 # For GCC/G++ Users Only
 
 Install full MSYS2 (includes MinGW-w64):  
