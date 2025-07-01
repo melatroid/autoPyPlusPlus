@@ -169,15 +169,6 @@ gcc --version
 | GPP/GCC     | not working (buggy)          |
 | Secure_compilers | coming soon             |
 
-# Summary
-
-- PyInstaller: stable and working  
-- PyArmor: working but not fully tested  
-- Nuitka: working (not fully tested)  
-- Cython: integrated with advanced features  
-- GCC/GPP: still buggy, ongoing work
-
-
 # Known Bugs
 
 **Hard Bugs:**
