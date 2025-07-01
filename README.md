@@ -169,7 +169,14 @@ gcc --version
 | GPP/GCC     | not working (buggy)          |
 | Secure_compilers | coming soon             |
 
----
+# Summary
+
+- PyInstaller: stable and working  
+- PyArmor: working but not fully tested  
+- Nuitka: working (not fully tested)  
+- Cython: integrated with advanced features  
+- GCC/GPP: still buggy, ongoing work
+
 
 # Known Bugs
 
@@ -221,15 +228,138 @@ gcc --version
 - All compilers updated for fallback logic via `extensions_path.ini`  
 - MinGW/GCC (preview)
 
----
+### Version 2.21
+- Neue Cython GUI  
+- Cython kann Runtime-DLLs (z.B. python310.dll, tkinter.dll) packen  
 
-# Summary
+### Version 2.20
+- Einfacher Windows Bash Starter hinzugefügt  
+- `nutika.exe` wird zu `nuitka.cmd`  
+- Neue Extensions Path.ini Logik (Priorität vor Fallback auf IDE)  
+- Bugfix: Falscher PyInstaller-Pfad behoben  
+- Verbesserte Compiler-Ausnahmen  
 
-- PyInstaller: stable and working  
-- PyArmor: working but not fully tested  
-- Nuitka: working (not fully tested)  
-- Cython: integrated with advanced features  
-- GCC/GPP: still buggy, ongoing work
+### Version 2.16
+- Integration des Cython Compilers  
+- Erweiterte Features für Cython  
+- Unterstützung für `.pyx` Dateien  
+
+### Version 2.15
+- Cython (Preview)  
+- Modus C verfügbar  
+- Farbmodi für Modus C  
+- PyInstaller läuft nun direkt in neuester Python-Version  
+
+### Version 2.14
+- Neue und verbesserte Nuitka Compilerintegration  
+- Log-Löschung für `__pycache__`  
+
+
+### Version 2.13
+- Beta-Version von Nuitka („nutika“)  
+- Neue GUI für Nuitka Editor  
+- Integration des Nuitka Compilers  
+- Bugfix für Farbmodus  
+
+
+### Version 2.12
+- Neue GUI für Nuitka Editor  
+- Bugfixes im Window Management  
+
+
+### Version 2.11
+- Nuitka Editor Preview  
+- Funktioniert: py -> pyarmor -> pyinstaller -> exe (GUI/Console getestet)  
+- Bugfixes: PyArmor / Dist-Folder / Parameter  
+- Diverse ältere Bugfixes, z.B. Inspector Jumper  
+
+### Version 2.10
+- Compiler Update  
+- py -> PyArmor -> PyInstaller -> exe Workflow funktioniert (nicht vollständig getestet)  
+- PyArmor Runtime in PyInstaller eingebunden (nur PyArmor-Builds benötigen das)  
+
+### Version 2.09
+- Bugfixes und Updates  
+- PyArmor Tests  
+- Bugfix Dist-Folder bei PyArmor (verschiedene Ordner)  
+- Bugfix für Modus A/B Switch  
+
+### Version 2.08
+- Feature Updates  
+- Analyzer für Editor  
+- Button Bounce Fix (nicht final)  
+- Sicherheitslevel Features  
+- Neue PyArmor Features & Compiler  
+- Verbesserte PyArmor GUI  
+
+### Version 2.07
+- Helfer für AutoPy++  
+- Hotkeys für schnellere Bedienung  
+- Verbesserte Inspector-Funktionen  
+- Fix Line Runner im Inspector  
+
+
+### Version 2.06
+- Start mit Testdateien / Testordner hinzugefügt  
+- Verbesserte Ausnahmebehandlung  
+- Helfer für Editoren  
+- Fix Save As -> Spec Export  
+- Große Bugfixes (Main, Editor, Inspector)  
+- Syntax Highlighting  
+
+### Version 2.05
+- Neue GUI  
+- Symbole hinzugefügt  
+
+### Version 2.04
+- CPP Save Compiler Preview  
+- Erweiterter Debug Inspector  
+- Set Source Directory  
+- Set Output Name  
+- Besseres Design  
+
+
+### Version 2.03
+- „Load as“ Deklaration  
+- „Export as“ Deklaration  
+- Log-Dateien vor Löschen anzeigen  
+- Optionen zum Löschen von Build- und Spec-Ordnern  
+- Lade/Edite/Speichere .spec vanilla  
+- Verbesserungen im Design und GUI  
+- Logfile Reporter  
+
+### Version 2.02
+- Verbesserte Compiler-Debugging  
+- Animationen über Softwarestatus  
+- Direkter Log nach Export  
+
+
+### Version 2.01
+- Verbesserte Compiler-Debugs  
+- Compiler in einzelne Klassen aufgeteilt  
+- TCL Optionen (on/off)  
+- Spez-Dateien Parsing und Building (bumpy, ungetestet)  
+- Verbesserte GUI und Design  
+- Reengineering der Projektdateien  
+- Import von AutoPy++ ini Dateien  
+- Neue Farbthemen  
+
+### Version 2.00
+- Module aufgeteilt  
+- Compiler aufgeteilt  
+- Bessere GUI  
+- Import/Export Spec Fix  
+- Modus A/B für mehr Flexibilität  
+- Freie Farbauswahl  
+- Neue Themes  
+- Viele Bugfixes  
+- PyInstaller stabil  
+- PyArmor (nicht getestet)  
+
+### Version 1.5
+- PyInstaller stabil (nicht getestet)  
+- PyArmor funktioniert  
+
 
 ---
 
