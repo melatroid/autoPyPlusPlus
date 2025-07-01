@@ -20,7 +20,7 @@
    git clone https://github.com/melatroid/autoPyPlusPlus.git
    cd autoPyPlusPlus
 
-4. **Install Requiremnts**
+4. **Install Requirements**
     ```cmd/ powershell
     pip install -r requirements.txt
    
