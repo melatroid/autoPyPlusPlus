@@ -1,7 +1,7 @@
 
 # AutoPy++ Compiler Setup & Usage Guide
-# Website autopyplusplus.wordpress.com
-# Version 2.25
+** autopyplusplus.wordpress.com**
+** Version 2.25**
 
 ---
 
