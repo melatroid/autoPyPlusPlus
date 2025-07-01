@@ -31,8 +31,13 @@
    ```cmd/ powershell
    cd c:\pathto\autoPyPlusPlus
    python autoPyPlusPlus.py
+
+6. **Alternative Start autoPy++**
+   ```cmd/ powershell
+   cd c:\pathto\autoPyPlusPlus
+   windows_start.bat
    
-6. **Update autoPy++ to newer version**
+7. **Update autoPy++ to newer version**
    ```cmd/ powershell
    cd c:\pathto\autoPyPlusPlus
    git pull origin main
