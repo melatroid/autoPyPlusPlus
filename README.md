@@ -27,8 +27,6 @@
 6. **Start autoPy++**
    ```cmd/ powershell
    python autoPyPlusPlus.py
-
- 
 ---
 
 ## More Important!
