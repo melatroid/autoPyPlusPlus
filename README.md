@@ -202,12 +202,17 @@ gcc --version
 ---
 
 # Versions
+### (Preview) Version 2.27
+
+- Inspector reads specific logs on top  
+- Switch between C or C++ compiler
 
 ### (Preview) Version 2.26
 
-- Inspector reads specific logs on top  
-- Switch between C or C++ compiler  
 - GCC/GPP improved GUI for pipeline with Cython
+- Autosave apyscript
+- Load/Store for extensions_path.ini
+- Project name is output name ...
 
 ### (latest) Version 2.25
 
