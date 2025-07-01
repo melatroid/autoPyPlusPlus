@@ -119,11 +119,9 @@ echo $MSYSTEM
 ### Software Updates
 
 - Make sure your personal file `extensions_path.ini` is backed up somewhere.
-- Only backup the complete `src` folder.
 - Ensure new paths for software features are inside your ini file (via Load Config in main GUI).
 - Save your custom `.apyscript` file and replace it after updates.
 - Every update rollout starts with tests that could fail.
-
 ---
 
 # Practice
