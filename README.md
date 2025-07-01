@@ -26,12 +26,12 @@
    
 5. **Start autoPy++**
    ```cmd/ powershell
-   cd path\to\autoPyPlusPlus
+   cd c:\pathto\autoPyPlusPlus
    python autoPyPlusPlus.py
    
 6. **Update autoPy++ to newer version**
    ```cmd/ powershell
-   cd path\to\autoPyPlusPlus
+   cd c:\pathto\autoPyPlusPlus
    git pull origin main
    pip install -r requirements.txt --upgrade
 ---
