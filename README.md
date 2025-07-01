@@ -1,283 +1,218 @@
-###################################################
 
-                    Important!
-###################################################
-Overwrite myProject.apyscript to set the Opening project for autoPy++
+# AutoPy++ Compiler Setup & Usage Guide
 
-More Important!:
-Bevor you using this Software.:
-This Software is currently under development.
-Backup your files before you start compiling, errors in the software or incorrectly flags could be delete your files!
-It can contain Bugs that crash your hole System... use it carefully
-Send us error reports with detailed text and screenshots to dseccg@gmail.com
+---
 
+## Important!
 
-###################################################
-1.) go to ide console:
+**Overwrite `myProject.apyscript` to set the opening project for AutoPy++.**
 
--pip install pyinstaller   (Python -> exe)   	    ->direct result
--pip install nuitka        (Python -> c -> exe)     ->direct result
--pip install cython        (Python -> c/c++)        ->result need runtime dlls and compilation with gcc compiler
--pip install pyarmor (Trial Modus, buy a Licence = https://pyarmor.readthedocs.io/en/latest/licenses.html#terms-of-use) ->direct
+---
 
--where pyinstaller
--where pyarmor
--where nuitka
--where cython
+## More Important!
 
-2.) Open the extensions_path.ini with Texteditor 
+Before you use this software:
 
-3.) Insert correct path to the .exe: 
+> This software is currently under development.  
+> **Backup your files before you start compiling!** Errors in the software or incorrect flags could delete your files!  
+> It can contain bugs that crash your whole system... use it carefully.  
+> Send us error reports with detailed text and screenshots to: dseccg@gmail.com
 
-    C:\Users\[USERNAME]\AppData\Roaming\Python\Python310\Scripts\pyinstaller.exe
-    C:\Users\[USERNAME]\AppData\Roaming\Python\Python310\Scripts\pyarmor.exe
-    C:\Users\[USERNAME]\AppData\Roaming\Python\Python310\Scripts\nuitka.cmd
-    C:\Users\[USERNAME]\AppData\Roaming\Python\Python310\Scripts\cython.exe
-    TCL:\Program Files (x86)\YOUR_IDE\tcl
+---
 
-4.) Replace the link to the .exe
+## 1.) Go to IDE console and install the following packages:
 
-5.) Put all files from Autopy++ to a new Folder.
+```bash
+pip install pyinstaller    # Python -> exe           -> direct result
+pip install nuitka         # Python -> C -> exe     -> direct result
+pip install cython         # Python -> C/C++        -> needs runtime DLLs and GCC compiler
+pip install pyarmor        # Trial mode, buy license: https://pyarmor.readthedocs.io/en/latest/licenses.html#terms-of-use -> direct
+```
 
-###################################################
-For GCC/GPP Users only.:
-###################################################
-Install full mingw64 -> https://www.msys2.org/
+Check the installed paths with:
 
-GCC is for C-Files
-G++ is for C++-Files
+```bash
+where pyinstaller
+where pyarmor
+where nuitka
+where cython
+```
 
-MSYS2.:
-- pacman -Syu
-- pacman -Su
-- pacman -S mingw-w64-x86_64-toolchain
-- pacman -S mingw-w64-x86_64-python 
-- pacman -S python-devel
-- close
+---
 
-MSYS2. MinGW 64-bit:
-- gcc --version
-- python --version
-- echo $MSYSTEM
+## 2.) Open `extensions_path.ini` with a text editor
 
-###################################################
-                  HINTS AND ERRORS
-###################################################
-                  SoftwareUpdates
-###################################################
-Make shure that your pesonal file that called "extensions_path.ini" is backuped anywhere.
+---
 
-1.) Only Backup "src" Folder completly
-2.) Be shure that new paths for software featueres are inside of your ini-file. -> load config - main gui
-3.) Save your home apiscipt-file for your customizing, after update replace it.
-4.) Every Update rollout starts with tests, they could be failed.
+## 3.) Insert correct paths to the `.exe` files, for example:
 
-###################################################
-                      Practice
-###################################################
-1.) For Best and Clean using, dont change already existing names or paths to diffrent files -> create new project
-2.) Press "Save as" Button often, if you take changes on settings  
+```
+C:\Users\[USERNAME]\AppData\Roaming\Python\Python310\Scripts\pyinstaller.exe
+C:\Users\[USERNAME]\AppData\Roaming\Python\Python310\Scripts\pyarmor.exe
+C:\Users\[USERNAME]\AppData\Roaming\Python\Python310\Scripts\nuitka.cmd
+C:\Users\[USERNAME]\AppData\Roaming\Python\Python310\Scripts\cython.exe
+TCL:\Program Files (x86)\YOUR_IDE\tcl
+```
 
-###################################################
-                      Pyarmor
-###################################################
-To use Pyarmor you need this in your pycode:
-------------------------------------------
+---
+
+## 4.) Replace the links to the `.exe` files accordingly.
+
+---
+
+## 5.) Put all files from AutoPy++ into a new folder.
+
+---
+
+# For GCC/G++ Users Only
+
+Install full MSYS2 (includes MinGW-w64):  
+https://www.msys2.org/
+
+- GCC is for C files  
+- G++ is for C++ files
+
+### MSYS2 commands:
+
+```bash
+pacman -Syu
+pacman -Su
+pacman -S mingw-w64-x86_64-toolchain
+pacman -S mingw-w64-x86_64-python
+pacman -S python-devel
+exit
+```
+
+### Check versions:
+
+```bash
+gcc --version
+g++ --version
+python --version
+echo $MSYSTEM
+```
+
+---
+
+# Hints and Errors
+
+### Software Updates
+
+- Make sure your personal file `extensions_path.ini` is backed up somewhere.
+- Only backup the complete `src` folder.
+- Ensure new paths for software features are inside your ini file (via Load Config in main GUI).
+- Save your custom `.apyscript` file and replace it after updates.
+- Every update rollout starts with tests that could fail.
+
+---
+
+# Practice
+
+- For clean usage, **do not change existing names or paths of files** — create new projects instead.
+- Press the "Save As" button often when making changes to settings.
+
+---
+
+# PyArmor Usage
+
+To use PyArmor, include the following in your Python code:
+
+```python
 from pyarmor_runtime import __pyarmor__
 __pyarmor__(__name__, __file__, b'\x28\x83\x20\x58....')
-------------------------------------------
+```
 
-###################################################
-                      GCC/GPP
-###################################################
-If you have Problems with founding .dll files, set the Compiler to global system path under windows 11/10.
-Look for the correct path to your gcc/gpp compiler
+---
 
-PowerShell as Admin:
-- [Environment]::SetEnvironmentVariable("Path", $env:Path + ";C:\msys64\mingw64\bin", [EnvironmentVariableTarget]::Machine)
-- echo $env:Path
-- g++ --version
-- gcc --version 
+# GCC/G++ Notes
 
+If you have problems with missing `.dll` files, set the compiler path to the global system path under Windows 10/11.
 
+Example PowerShell commands (run as admin):
 
+```powershell
+[Environment]::SetEnvironmentVariable("Path", $env:Path + ";C:\msys64\mingw64\bin", [EnvironmentVariableTarget]::Machine)
+echo $env:Path
+g++ --version
+gcc --version
+```
 
-###################################################
+---
 
-                      Status
-###################################################
-Pyinstaller:      works well (not fully tested)
-PyArmor:          works well (not fully tested)
-Nuitka:       	  works      (not fully tested)  
-Cython:       	  works well (not fully tested) 
-Inspector:    	  works well
-GPP/GCC:          not works  (buggy)
-Secure_compilers: coming soon
+# Status
 
-Hard Bugs:
-- Permisson denied with compiling spec files -> WARNING: Execution of '_append_data_to_exe'
-- Error with test_01_no_gui: Command '['C:/msys64/mingw64/bin/g++.exe', '-O2', '-o', ....returned non-zero exit status 1.
+| Component   | Status                       |
+|-------------|------------------------------|
+| PyInstaller | works well (not fully tested)|
+| PyArmor     | works well (not fully tested)|
+| Nuitka      | works (not fully tested)     |
+| Cython      | works well (not fully tested)|
+| Inspector   | works well                   |
+| GPP/GCC     | not working (buggy)          |
+| Secure_compilers | coming soon             |
 
-Low-Bugs:
-- GCC/GPP dll files not found -> look up under GCC/CPP
-- Problems with losing binäry libarys (not a critical error) 
-- nuitka created exe files was detected by antivirus (close your antivirus temporary)
+---
 
-###################################################
+# Known Bugs
 
-                      Versions
-###################################################
+**Hard Bugs:**
 
-----Preview----------------Version 2.26 ::
-- Inspector could reads specific logs on top
-- switch between c oder c++ compiler
-- gcc/gpp ,better gui for Pipeline with cython 
+- Permission denied when compiling spec files:  
+  WARNING: Execution of '_append_data_to_exe'  
+- Error with `test_01_no_gui`:  
+  Command `'C:/msys64/mingw64/bin/g++.exe' ... returned non-zero exit status 1`
 
----------------------------Version 2.25 ::
-- gcc/gpp editor new functions
-- advancd Building Settings for gpp and cython building
-- better pipelining with Cython (not works)
+**Low Bugs:**
 
----------------------------Version 2.24 ::
-- Bugfixes generally
-- Bugfix Cython C++ Output
+- GCC/GPP DLL files not found (see GCC/GPP section)  
+- Issues with missing binary libraries (not critical)  
+- Nuitka created exe files detected by antivirus (temporarily disable antivirus)
+
+---
+
+# Versions
+
+### Preview Version 2.26
+
+- Inspector reads specific logs on top  
+- Switch between C or C++ compiler  
+- GCC/GPP improved GUI for pipeline with Cython
+
+### Version 2.25
+
+- GCC/GPP editor new functions  
+- Advanced build settings for GPP and Cython  
+- Better pipelining with Cython (not working)
+
+### Version 2.24
+
+- General bug fixes  
+- Bugfix for Cython C++ output  
 - Choose GCC or G++ (preview)
 
----------------------------Version 2.23 ::
-- Direct Cython to gcc Compiler Pipeline
-- Compiler Autodetect
-- C++ Files Autodetect
-- New and Better gcc gui, with Compiler flags 
+### Version 2.23
 
----------------------------Version 2.22 ::
-- Cython -> C -> GCC -> .Exe Pipeline
-- All Compiler need update for fallback logic -> Extensions Path.ini logic
-- Mingw/GCC: (Preview)
+- Direct Cython to GCC compiler pipeline  
+- Compiler autodetect  
+- C++ files autodetect  
+- New and better GCC GUI with compiler flags
 
----------------------------Version 2.21 ::
-- new Cython Gui =) yeahah
-- Cython could pack .dll for your runtime like. python310.dll or tkinter.dll
+### Version 2.22
 
----------------------------Version 2.20 ::
-- Added a simple Windows bash starter
-- nutika.exe -> nuitka.cmd
-- New Extensions Path.ini logic -> Use paths before fallback, to default IDE
-- Bugfix Pyinstaller path was wrong
-- Better Compiler Exceptions
+- Cython -> C -> GCC -> exe pipeline  
+- All compilers updated for fallback logic via `extensions_path.ini`  
+- MinGW/GCC (preview)
 
----------------------------Version 2.16 ::
-- Cython comp. integration
-- Cython advanced feautures
-- Read .pyx files
+---
 
----------------------------Version 2.15 ::
-- Cython (preview)
-- Mode C is available
-- Colors Mode C
-- Pyinstaller now runs directly in newest python Version
+# Summary
 
----------------------------Version 2.14 ::
-- nuitka comp. new and better
-- log delete __pycache__
+- PyInstaller: stable and working  
+- PyArmor: working but not fully tested  
+- Nuitka: working (not fully tested)  
+- Cython: integrated with advanced features  
+- GCC/GPP: still buggy, ongoing work
 
----------------------------Version 2.13 ::
-- nutika (betaversion)
-- nuitka Editor new gui
-- nuitka comp. integration
-- Modeswitch for color Bugfix
+---
 
----------------------------Version 2.12 ::
-- nuitka Editor (new)
-- Bug Fixes Window Managment
-
----------------------------Version 2.11 ::
-- nuitka Editor (preview)
-- Works py->pyarmor->pyinstaller->exe  (gui/console tested) =) 
-- Bug fixes PyArmor /distfolder /better Parameter
-- Older Bug Fixes, like inspector Jumper
-
----------------------------Version 2.10 ::
--Compiler update
--py -> Pyarmor -> pyinstaller -> exe  (works, not fully testet)
--Include Pyarmor Runtime in pyinstaller (only pyarmor build need this)
-
----------------------------Version 2.09 ::
--Bux Fixes Update
--Pyarmor Tests
--Pyarmor Dist Folder Bug fixed (Different Folders)
--Modus A/B Switch Bug fixed
-
----------------------------Version 2.08 ::
--Features Update
--Analyzer for Editor
--Bouncing Buttons fix (not Finally)
--Security Level Features
--New Pyarmor Featuers
--New Pyarmor Comp.
--Better Pyarmor Gui
-
----------------------------Version 2.07 ::
--Helper for AutoPy++
--HotKeys for faster handling
--Better Inspector Functions
--Line runner fix in Inspector
-
----------------------------Version 2.06 ::
--Startup with Testfiles / Add Testfolder 
--Better Exception Managing
--Helper for Editors
--fix Save as-> Spec Export 
--Big Bug Fix- Main, Editor, Inspector
--Syntax Highlight
-
----------------------------Version 2.05 ::
--New Gui 
--Add Symbols
----------------------------Version 2.04 ::
--CPP Save Compiler Preview
--Advanced Debug Inspector
--Set Source Directory
--Set Outputname  
--Better Design
----------------------------Version 2.03 ::
--"Load as" decleration
--"Export as" decleration
--Show log files bevor erase
--Erase build Folder Option
--Erase spec. Option
--Load/edit/save as .spec is vanilla
--Better Design
--GUI fixes
--Logfile reporter
----------------------------Version 2.02 ::
--Better Compiler Debugging
--Animations about software Status
--Direct log after export
----------------------------Version 2.01 ::
--Better Compiler debugs
--compiler to single classes
--TCL Options 	off/on	     
--Spec files parsing/Building (bumpy,not tested)
--Better GUI
--Better Design
--reengineering project files 
--import your autopy++ ini files
--new colorthemes
-
-pyinstaller works (stable,bumpy)
-pyarmor           (-not tested)
-
----------------------------Version 2.00 ::
--Split Modules
--Split Compilers
--Better GUI
--Import/Export Spec fix
--Switch mode A/B for more flexibility
--Free Color choice
--New Themes
--Fix a lot of Bugs
-pyinstaller works stable
-pyarmor works -not tested
----------------------------Version 1.5 ::
-pyinstaller works stable- adds not tested
-pyarmor works 
+*End of README*
