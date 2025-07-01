@@ -6,7 +6,19 @@
 ## Important!
 
 **Overwrite `myProject.apyscript` to set the opening project for AutoPy++.**
+## Installation under Windows
 
+1. **Install Git (if not already installed):**
+   https://git-scm.com/download/win
+
+2. **Install Python 3.10 or newer (if not already installed):**  
+   https://www.python.org/downloads/windows/
+
+3. **Repository klonen:**  
+  Open Command Prompt (cmd) or PowerShell and enter
+   ```cmd/ powershell
+   git clone https://github.com/melatroid/autoPyPlusPlus.git
+   cd autoPyPlusPlus
 ---
 
 ## More Important!
