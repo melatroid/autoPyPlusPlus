@@ -36,7 +36,7 @@
    ```cmd/ powershell
    cd c:\pathto\autoPyPlusPlus
    windows_start.bat
-   (Create a shortcut from this to your taskbar shortcuts and change icon to src\autoPy++.ico)
+   (Create a shortcut from this to your taskbar and change icon to src\autoPy++.ico)
    
 7. **Update autoPy++ to newer version**
    ```cmd/ powershell
