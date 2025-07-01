@@ -6,7 +6,7 @@
 ## Important!
 
 **Overwrite `myProject.apyscript` to set the opening project for AutoPy++.**
-## Installation under Windows
+## Installation for Windows 10/11
 
 1. **Install Git (if not already installed):**
    https://git-scm.com/download/win
