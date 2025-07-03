@@ -202,7 +202,7 @@ gcc --version
 # Versions
 ### (Preview) Version 2.28
 
-- GCC/GPP improved GUI for pipeline with Cython
+- Inspector reads specific logs on top
 
 ### (Preview) Version 2.27
 
