@@ -83,21 +83,35 @@ class NuitkaEditor:
         self.e_plugins = add_entry_row("Plugins:", self.project.nuitka_plugins, 0)
         self.e_extra_opts = add_entry_row("Extra Options:", self.project.nuitka_extra_opts, 1)
         self.e_output_dir = add_entry_row("Output Dir:", self.project.nuitka_output_dir, 2, self._choose_dir)
+        
+        # --- Output Name Feld (neu) ---
+        self._output_user_edited = False
+        # Standard: Projektnamen nehmen, .exe anhängen
+        if self.project.name:
+            default_output_name = f"{self.project.name}.exe"
+        else:
+            default_output_name = "output.exe"
+        self.e_output_name = add_entry_row("Output Name:", default_output_name, 3)
+        self.e_output_name.bind('<KeyRelease>', self._on_output_name_edited)
+        # Outputname-Feld nur initial setzen, falls leer
+        if not self.e_output_name.get().strip():
+            self.e_output_name.delete(0, tk.END)
+            self.e_output_name.insert(0, default_output_name)
 
         # --- LTO Combobox ---
-        ttk.Label(entry_frame, text="LTO:").grid(row=3, column=0, sticky="e", pady=2)
+        ttk.Label(entry_frame, text="LTO:").grid(row=4, column=0, sticky="e", pady=2)
         self.var_lto = tk.StringVar(value=self.project.nuitka_lto or "auto")
         self.cmb_lto = ttk.Combobox(entry_frame, textvariable=self.var_lto, values=["auto", "yes", "no"], state="readonly", width=18)
-        self.cmb_lto.grid(row=3, column=1, sticky="ew", pady=2)
+        self.cmb_lto.grid(row=4, column=1, sticky="ew", pady=2)
 
         # --- Jobs Combobox ---
-        ttk.Label(entry_frame, text="Jobs:").grid(row=4, column=0, sticky="e", pady=2)
+        ttk.Label(entry_frame, text="Jobs:").grid(row=5, column=0, sticky="e", pady=2)
         self.var_jobs = tk.StringVar(value=str(self.project.nuitka_jobs or 1))
         self.cmb_jobs = ttk.Combobox(entry_frame, textvariable=self.var_jobs, values=["1", "2", "4", "8"], state="readonly", width=10)
-        self.cmb_jobs.grid(row=4, column=1, sticky="ew", pady=2)
+        self.cmb_jobs.grid(row=5, column=1, sticky="ew", pady=2)
 
-        self.e_windows_icon = add_entry_row("Windows Icon:", self.project.nuitka_windows_icon, 5, self._choose_file)
-        self.e_windows_splash = add_entry_row("Windows Splash:", self.project.nuitka_windows_splash, 6, self._choose_file)
+        self.e_windows_icon = add_entry_row("Windows Icon:", self.project.nuitka_windows_icon, 6, self._choose_file)
+        self.e_windows_splash = add_entry_row("Windows Splash:", self.project.nuitka_windows_splash, 7, self._choose_file)
 
         entry_frame.grid_columnconfigure(1, weight=1)
 
@@ -121,8 +135,19 @@ class NuitkaEditor:
         self.win.protocol("WM_DELETE_WINDOW", self.on_cancel)
         self.win.wait_window(self.win)
         return self.saved
-    
-    
+
+    def _on_output_name_edited(self, event=None):
+        self._output_user_edited = True
+
+    def set_output_name_from_project(self):
+        # Diese Funktion kann genutzt werden, um den Outputname zu aktualisieren
+        if not self._output_user_edited:
+            name = self.project.name
+            ext = ".exe"
+            if name:
+                self.e_output_name.delete(0, tk.END)
+                self.e_output_name.insert(0, f"{name}{ext}")
+
     def set_security_level(self, level):
         """Setzt vorgefertigte Einstellungen für verschiedene Sicherheitsstufen."""
         if level == "Easy":
@@ -233,6 +258,13 @@ class NuitkaEditor:
         if plugins and not plugins.startswith("--plugin-enable=") and not plugins.startswith("--enable-plugin="):
             issues.append("Plugins sollten mit '--plugin-enable=' oder '--enable-plugin=' beginnen oder leer sein.")
 
+        # Output Name prüfen (Dateiname)
+        output_name = self.e_output_name.get().strip()
+        if not output_name:
+            issues.append("Output Name ist leer.")
+        elif not output_name.endswith(".exe"):
+            issues.append("Output Name sollte auf '.exe' enden (für Windows).")
+
         if issues:
             messagebox.showwarning("Analyse-Ergebnis", "\n".join(issues))
         else:
@@ -257,7 +289,6 @@ class NuitkaEditor:
         p.nuitka_lto = self.var_lto.get()
         p.debug = self.var_debug.get()
 
-
         try:
             jobs = int(self.var_jobs.get())
             if jobs < 1:
@@ -269,10 +300,10 @@ class NuitkaEditor:
 
         p.nuitka_windows_icon = self.e_windows_icon.get().strip()
         p.nuitka_windows_splash = self.e_windows_splash.get().strip()
+        p.nuitka_output_name = self.e_output_name.get().strip()  # <--- NEU: Speichere Output Name
 
         # Wenn Use Nuitka deaktiviert ist, speichern wir trotzdem die Werte und setzen ggf. related Flags
         if not p.use_nuitka:
-            # z.B. kann man hier andere Flags zurücksetzen, wenn nötig:
             p.use_pyarmor = False
             self.saved = True
             if self.win:
@@ -292,9 +323,14 @@ class NuitkaEditor:
                 messagebox.showerror("Fehler", f"Output-Verzeichnis ist kein gültiges Verzeichnis: {p.nuitka_output_dir}")
                 return
 
+        # Output Dir Default
         if not p.nuitka_output_dir:
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
             p.nuitka_output_dir = str(Path("dist") / f"{p.name}_nuitka_{timestamp}")
+
+        # Output Name Default
+        if not p.nuitka_output_name:
+            p.nuitka_output_name = (p.name or "output") + ".exe"
 
         p.use_pyarmor = False
         self.saved = True

@@ -281,6 +281,5 @@ def show_nuitka_helper(parent_window):
         "• **Cancel**: Schließt ohne Speichern.\n"
         "• **Help**: Öffnet dieses Hilfefenster.\n"
     )
-    from .help import show_help_window
     show_help_window(parent_window, help_text, title="Hilfe – Nuitka Compilation Editor")    
     

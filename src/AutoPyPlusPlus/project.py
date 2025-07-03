@@ -1,6 +1,6 @@
 import json
 from pathlib import Path
-
+from typing import Any
 
 class Project:
     """
@@ -52,7 +52,6 @@ class Project:
         self.cython_path: str      | None = None
         self.cpp_path: str         | None = None
         
-        # ── weitere Build-Optionen ──────────────────────
         self.icon: str = ""
         self.add_data: str = ""
         self.hidden_imports: str = ""
@@ -170,7 +169,7 @@ class Project:
 
             
 
-    def to_dict(self) -> dict[str, any]:
+    def to_dict(self) -> dict[str, Any]:
         data = {
             "script": self.script,
             "display_script": self.display_script,
@@ -281,7 +280,7 @@ class Project:
         return data
 
     @classmethod
-    def from_dict(cls, d: dict[str, any]) -> "Project":
+    def from_dict(cls, d: dict[str, Any]) -> "Project":
         p = cls(
             script=d.get("script", ""),
             name=d.get("name", ""),

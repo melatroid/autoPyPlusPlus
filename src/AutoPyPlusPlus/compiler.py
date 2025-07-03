@@ -4,7 +4,6 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 import time
 from typing import List, Callable
 import shutil
-import sys
 
 from .project import Project
 from .CPA0000000 import CPA0000000  # PyInstaller

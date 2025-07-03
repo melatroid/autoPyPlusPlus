@@ -155,6 +155,11 @@ class CythonEditor:
             ", ".join(getattr(self.project, "cython_extra_link_args", [])),
             8
         )
+        self.e_output_name = add_entry_row(
+            "Output Name (optional):",
+            getattr(self.project, "cython_output_name", ""),  # default: leer
+            9  # nächste freie Zeile (nach extra_link_args ist 8)
+        )
 
         file_frame.grid_columnconfigure(1, weight=1)
 
@@ -217,6 +222,8 @@ class CythonEditor:
 
     def _refresh_files_listbox(self):
         self.files_listbox.delete(0, tk.END)
+        if not hasattr(self.project, "additional_files"):
+            self.project.additional_files = []
         for f in self.project.additional_files:
             self.files_listbox.insert(tk.END, f)
 
@@ -228,6 +235,8 @@ class CythonEditor:
         )
         if not paths:
             return
+        if not hasattr(self.project, "additional_files"):
+            self.project.additional_files = []
         for p in paths:
             if p not in self.project.additional_files:
                 self.project.additional_files.append(p)
@@ -238,6 +247,8 @@ class CythonEditor:
         if not selected_indices:
             messagebox.showinfo("Info", "Please select at least one file to remove.")
             return
+        if not hasattr(self.project, "additional_files"):
+            self.project.additional_files = []
         for index in reversed(selected_indices):
             del self.project.additional_files[index]
         self._refresh_files_listbox()
@@ -272,7 +283,13 @@ class CythonEditor:
     def analyze_inputs(self):
         issues = []
         script = self.e_script.get().strip()
+        output_name = self.e_output_name.get().strip()
         output = self.e_output.get().strip()
+        if output_name:
+            forbidden = set('/\\:*?"<>|')
+            if any(c in forbidden for c in output_name):
+                issues.append("Output Name enthält ungültige Zeichen.")
+
         icon = self.e_icon.get().strip()
         language_level = self.var_language_level.get()
 
@@ -320,6 +337,7 @@ class CythonEditor:
         p.script = self.e_script.get().strip()
         p.icon = self.e_icon.get().strip()
         p.cython_output_dir = self.e_output.get().strip()
+        p.cython_output_name = self.e_output_name.get().strip()
         p.cython_language = self.var_language.get()
         p.cython_profile = self.var_profile.get()
         p.cython_linemap = self.var_linemap.get()
@@ -363,6 +381,10 @@ class CythonEditor:
             if not p.cython_output_dir:
                 messagebox.showerror("Error", "Output folder is empty!")
                 return
+
+        if not p.cython_output_name:
+            # z.B. dateiname ohne Endung oder einfach 'output'
+            p.cython_output_name = (Path(p.script).stem if p.script else "output")
 
         self.saved = True
         if self.win:

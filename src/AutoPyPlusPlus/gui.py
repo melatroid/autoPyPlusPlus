@@ -1,7 +1,6 @@
 from __future__ import annotations  # Enables postponed evaluation of type annotations for forward references
 
 import os  # For interacting with the operating system (e.g., file/directory handling)
-import json  # For reading and writing JSON data
 
 import tkinter as tk  # Tkinter: main module for creating GUIs
 from tkinter import ttk, filedialog, messagebox, colorchooser  # Tkinter modules for advanced GUI widgets, file dialogs, message boxes, and color pickers
@@ -10,7 +9,6 @@ from datetime import datetime  # For working with date and time
 from typing import Optional  # For type hinting optional variables
 from pathlib import Path  # For object-oriented filesystem paths
 
-import shutil  # For high-level file operations delete, move, Actually needet for cleanup function
 
 import threading  # For running code in separate threads (concurrent tasks)
 import time  # For time-related functions (e.g., delays, measuring time)
@@ -37,7 +35,11 @@ from .language import LANGUAGES
 
 from .projecteditor import ProjectEditor
 
-from .core import save_projects, load_projects
+from .core import (
+    save_projects, load_projects,
+    export_extensions_ini, load_extensions_ini,
+    find_cleanup_targets, delete_files_and_dirs
+)
 
 from .hotkeys import register_hotkeys
 
@@ -48,14 +50,6 @@ from .themes import (
     set_cyberpunk_mode, set_obsidian_mode, set_nebula_mode, set_midnight_forest_mode,
     set_phantom_mode, set_deep_space_mode, set_onyx_mode, set_lava_flow_mode,
 )
-
-
-try:
-    from .speceditor import SpecEditor
-    _SPECEDITOR_AVAILABLE = True
-except Exception:                
-    SpecEditor = None             
-    _SPECEDITOR_AVAILABLE = False
 
 
 class AutoPyPlusPlusGUI:
@@ -137,19 +131,22 @@ class AutoPyPlusPlusGUI:
             "tooltip_clear_work_dir_btn": "Löscht alle Logdateien (compile_*.log) im Arbeitsverzeichnis.",
             "about_btn": "About",
             "tooltip_about_btn": "Show information about AutoPy++",
-            "tooltip_edit_btn": "Projekt bearbeiten",
-            "tooltip_add_btn": "Projekt hinzufügen",
-            "delete_btn": "Löschen",
-            "tooltip_delete_btn": "Projekt löschen",
-            "save_btn": "Speichern",
-            "tooltip_save_btn": "Projekte speichern",
+            "tooltip_edit_btn": "edit project",
+            "tooltip_add_btn": "add project",
+            "delete_btn": "delete project",
+            "tooltip_delete_btn": "delete a project",
+            "save_btn": "Save current project",
+            "tooltip_save_btn": "overwrite apyscript",
+            "save_as_btn": "Save",
+            "tooltip_save_as_btn": "Save",
+
             "load_btn": "Laden",
             "tooltip_load_btn": "Projekte laden",
             "clear_btn": "Leeren",
             "tooltip_clear_btn": "Liste leeren",
             "compile_all_btn": "Alle kompilieren",
             "tooltip_compile_all_btn": "Alle ausgewählten Projekte kompilieren",
-            "language_label": "Spr bleach:",
+            "language_label": "Change language:",
             "name_label": "Name:",
             "icon_label": "Iconpfad:",
             "add_data_label": "Add-Data:",
@@ -169,7 +166,12 @@ class AutoPyPlusPlusGUI:
             "splash_label": "Splash-Bild:",
             "spec_file_label": "Spec-Datei:",
             "debug_btn": "Inspector",
-            "tooltip_debug_btn": "Öffnet den Debug-Inspector",
+            "tooltip_debug_btn": "Open the Debug-Inspector",
+            "extensions_btn": "Extensions",
+            "tooltip_extensions_btn": "Extensions",
+            "load_ini_popup_btn": "load extensions_path.ini",
+            "store_ini_popup_btn": "export extensions_path.ini",
+
         }
         for k, v in fb.items():
             self.texts.setdefault(k, v)
@@ -214,9 +216,9 @@ class AutoPyPlusPlusGUI:
             self.language_cmb.pack(side="left", padx=5)
             self.language_cmb.bind("<<ComboboxSelected>>", self._change_language)
 
-            self.btn_load_ini = ttk.Button(left_frame, text=self.texts["load_ini_btn"], command=self._load_ini)
-            self.btn_load_ini.pack(side="left", padx=5)
-            CreateToolTip(self.btn_load_ini, self.texts["tooltip_load_ini_btn"])
+            self.btn_extensions = ttk.Button(left_frame, text=self.texts["extensions_btn"], command=self._show_extensions_popup)
+            self.btn_extensions.pack(side="left", padx=5)
+            CreateToolTip(self.btn_extensions, self.texts["tooltip_extensions_btn"])
 
             # About button
             self.btn_about = ttk.Button(
@@ -228,7 +230,7 @@ class AutoPyPlusPlusGUI:
             CreateToolTip(self.btn_about, self.texts["tooltip_about_btn"])
 
 
-            # Help button (NEU!)
+            # Help button
             self.btn_help = ttk.Button(
                 left_frame,
                 text="Help",
@@ -267,7 +269,8 @@ class AutoPyPlusPlusGUI:
             
             self.clear_btn = _btn("clear_btn", self._clear, "tooltip_clear_btn") 
             self.load_btn = _btn("load_btn", self._load, "tooltip_load_btn")
-            self.save_btn = _btn("save_btn", self._save, "tooltip_save_btn")
+            self.save_btn = _btn("save_btn", self._save_current_file, "tooltip_save_btn")
+            self.save_as_btn = _btn("save_as_btn", self._save_as, "tooltip_save_as_btn")
             
             ttk.Label(self.bar, text="|").pack(side="left", padx=5)
             
@@ -390,7 +393,7 @@ class AutoPyPlusPlusGUI:
             return
 
         latest_log = logs[0]
-        debuginspector(self.master, latest_log, self.projects, self.style, self.config)
+        debuginspector(self.master, str(latest_log), self.projects, self.style, self.config)
 
     def _update_ui_texts(self) -> None:
         print("Updating UI texts...")
@@ -400,10 +403,6 @@ class AutoPyPlusPlusGUI:
 
         # Sprache-Label
         self.language_label.config(text=self.texts["language_label"])
-
-        # INI-Laden-Button
-        self.btn_load_ini.config(text=self.texts["load_ini_btn"])
-        CreateToolTip(self.btn_load_ini, self.texts["tooltip_load_ini_btn"])
 
         # About-Button
         self.btn_about.config(text=self.texts["about_btn"])
@@ -431,6 +430,7 @@ class AutoPyPlusPlusGUI:
             ("edit_btn", "tooltip_edit_btn"),
             ("delete_btn", "tooltip_delete_btn"),
             ("save_btn", "tooltip_save_btn"),
+            ("save_as_btn", "tooltip_save_as_btn"), 
             ("load_btn", "tooltip_load_btn"),
             ("clear_btn", "tooltip_clear_btn"),
         ]
@@ -467,7 +467,7 @@ class AutoPyPlusPlusGUI:
 
         print("UI texts updated.")
 
-    def _save_thread_count(self, *args):
+    def _save_thread_count(self, *args):  # pylint: disable=unused-argument
         self.config["thread_count"] = self.thread_count_var.get()
         save_config(self.config)
 
@@ -550,7 +550,7 @@ class AutoPyPlusPlusGUI:
             elif mode == "C":
                 tags = ("mode_c",)
             else:
-                tags = ()
+                tags: tuple = ()
 
 
             # Treeview-Eintrag aktualisieren oder einfügen
@@ -631,8 +631,6 @@ class AutoPyPlusPlusGUI:
         else:
             self.status_var.set("Projekt konnte nicht hinzugefügt werden (parse_spec_file gab None zurück)")
             
-        
-        
 
     def _edit(self) -> None:
         stop_event = threading.Event()
@@ -735,46 +733,19 @@ class AutoPyPlusPlusGUI:
         self._refresh_tree()
 
     def clear_work_dir(self):
-        # This part runs in the main thread
         work_dir = Path.cwd()
-        files_to_delete = []
-        files = []
-        folders = []
+        files, folders = find_cleanup_targets(work_dir)
+        targets = files + folders
 
-        for f in work_dir.iterdir():
-            if f.is_file() and (f.name.startswith("compile_") or f.suffix == ".spec"):
-                files_to_delete.append(f)
-                files.append(f.name)
-        
-        build_dir = work_dir / "build"
-        if build_dir.exists() and build_dir.is_dir():
-            files_to_delete.append(build_dir)
-            folders.append(build_dir.name)
-
-
-        build_dir = work_dir / "dist"
-        if build_dir.exists() and build_dir.is_dir():
-            files_to_delete.append(build_dir)
-            folders.append(build_dir.name)
-
-        # AutoPyplusplus/__pycache__/
-        auto_dir = work_dir / "AutoPyplusplus"
-        pycache_dir = auto_dir / "__pycache__"
-        if pycache_dir.exists() and pycache_dir.is_dir():
-            files_to_delete.append(pycache_dir)
-            folders.append(str(pycache_dir.relative_to(work_dir)))
-
-
-        if not files_to_delete:
+        if not targets:
             messagebox.showinfo("Nothing to delete", "No matching files or folders found.")
             return
 
-        # Create categorized file list
         file_list = ""
         if files:
-            file_list += "Files to delete:\n" + "\n".join(f"- {name}" for name in files) + "\n\n"
+            file_list += "Files to delete:\n" + "\n".join(f"- {f.name}" for f in files) + "\n\n"
         if folders:
-            file_list += "Folders to delete:\n" + "\n".join(f"- {name}" for name in folders)
+            file_list += "Folders to delete:\n" + "\n".join(f"- {f.name}" for f in folders)
 
         confirm = messagebox.askyesno(
             "Confirm Deletion",
@@ -784,26 +755,14 @@ class AutoPyPlusPlusGUI:
         if not confirm:
             return
 
-        # Move deletion to a background thread
-        threading.Thread(target=self._delete_files, args=(files_to_delete,)).start()
+        # Jetzt in Thread auslagern, wie gehabt:
+        threading.Thread(target=self._delete_files, args=(targets,)).start()
 
-    def _delete_files(self, files_to_delete):
-        deleted_files = 0
-        for f in files_to_delete:
-            try:
-                if f.is_file():
-                    f.unlink()
-                    deleted_files += 1
-                elif f.is_dir():
-                    shutil.rmtree(f)
-                    deleted_files += 1
-                    print(f"Deleted folder: {f}")
-            except Exception as e:
-                print(f"Error deleting {f}: {e}")
-
+    def _delete_files(self, targets):
+        deleted_files = delete_files_and_dirs(targets)
         self.status_var.set(f"{deleted_files} files/folders deleted in working directory.")
-        # Must call showinfo in main thread
         self.master.after(0, lambda: messagebox.showinfo("Done", f"{deleted_files} files/folders deleted."))
+
 
     def _save(self):
         if not self.projects:
@@ -817,44 +776,41 @@ class AutoPyPlusPlusGUI:
         if not f:
             return
 
-        from .core import save_projects
-
-        # Unterscheidung anhand der Dateiendung
+        # NEU: save_projects aus core.py
         if f.lower().endswith(".apyscript"):
-            # ALLE Projekte speichern
             save_projects(self.projects, f)
             self.status_var.set(f"Alle Projekte gespeichert: {f}")
         elif f.lower().endswith(".spec"):
-            # Nur selektiertes Projekt speichern
             sel = self.tree.selection()
             if not sel:
                 messagebox.showerror("Fehler", "Kein Projekt ausgewählt, um als .spec zu exportieren.")
                 return
-
             row_id = sel[0]
             if not row_id.startswith("proj_"):
                 messagebox.showerror("Fehler", "Nur Projekte können als .spec exportiert werden.")
                 return
-
             idx = int(row_id.split("_")[1])
-            project = self.projects[idx]
-
-            # Speichere dieses Projekt als .spec
-            with open(f, "w", encoding="utf-8") as spec_file:
-                spec_file.write(project.to_spec_format())
-            self.status_var.set(f"{project.name} als .spec exportiert: {f}")
+            save_projects([self.projects[idx]], f)
+            self.status_var.set(f"{self.projects[idx].name} als .spec exportiert: {f}")
         else:
             messagebox.showerror("Fehler", "Unbekanntes Exportformat!")
 
-    def load_file(self):
-        if FILE.exists():
-            try:
-                data = json.loads(FILE.read_text(encoding="utf-8"))
-                self.projects = [Project.from_dict(d) for d in data]
-                self.update_treeview()
-            except Exception as e:
-                self.status_var.set(f"Fehler beim Laden von {FILE}: {e}")
-                messagebox.showerror("Error", f"Laden fehlgeschlagen: {e}")
+
+    def _export_ini(self):
+        ini_path = Path(__file__).parent / "extensions_path.ini"
+        # User wählt nur den Zielordner, nicht den Dateinamen
+        folder = filedialog.askdirectory(title="Zielordner wählen")
+        if not folder:
+            return
+        target = Path(folder) / "extensions_path.ini"
+        try:
+            export_extensions_ini(ini_path, target)
+            self.status_var.set(f"extensions_path.ini exportiert: {target}")
+        except Exception as e:
+            messagebox.showerror("Fehler beim Exportieren", str(e))
+
+
+
 
     def _load_ini(self):
         file_path = filedialog.askopenfilename(
@@ -864,11 +820,12 @@ class AutoPyPlusPlusGUI:
         if not file_path:
             return
         target_file = Path(__file__).parent / "extensions_path.ini"
-        with open(file_path, "r", encoding="utf-8") as f_in:
-            content = f_in.read()
-        with open(target_file, "w", encoding="utf-8") as f_out:
-            f_out.write(content)
-        self.status_var.set(f"INI-Datei {file_path} geladen und überschrieben.")
+        try:
+            load_extensions_ini(Path(file_path), target_file)
+            self.status_var.set(f"INI-Datei {file_path} geladen und überschrieben.")
+        except Exception as e:
+            messagebox.showerror("Fehler beim Laden", str(e))
+
 
     def update_treeview(self):
         self._refresh_tree()
@@ -907,17 +864,61 @@ class AutoPyPlusPlusGUI:
             except Exception as e:
                 self.status_var.set(f"Fehler beim automatischen Laden von {default_file}: {e}")
 
+
     def _save_current_file(self):
-        if self.current_apyscript:
-            save_projects(self.projects, self.current_apyscript)
-            self.status_var.set(f"{self.current_apyscript} automatisch gespeichert.")
-            
+        """Speichert Projekte in der zuletzt verwendeten .apyscript-Datei (wie STRG+S)."""
+        if not self.projects:
+            self.status_var.set(self.texts["error_no_entry"])
+            return
+
+        if not self.current_apyscript or not str(self.current_apyscript).lower().endswith(".apyscript"):
+            # Wenn keine gültige Datei gesetzt → "Speichern unter..."
+            self._save_as()
+            return
+
+        save_projects(self.projects, self.current_apyscript)
+        self.status_var.set(f"{self.current_apyscript} gespeichert.")
+        
+        
+    def _save_as(self):
+        """Speichern unter... – fragt nach Dateiname."""
+        if not self.projects:
+            self.status_var.set(self.texts["error_no_entry"])
+            return
+
+        f = filedialog.asksaveasfilename(
+            defaultextension=".apyscript",
+            filetypes=[("apyscript", "*.apyscript"), ("Spec File", "*.spec")]
+        )
+        if not f:
+            return
+
+        # Speichern und merken!
+        if f.lower().endswith(".apyscript"):
+            save_projects(self.projects, f)
+            self.current_apyscript = Path(f)
+            self.status_var.set(f"Alle Projekte gespeichert: {f}")
+        elif f.lower().endswith(".spec"):
+            sel = self.tree.selection()
+            if not sel:
+                messagebox.showerror("Fehler", "Kein Projekt ausgewählt, um als .spec zu exportieren.")
+                return
+            row_id = sel[0]
+            if not row_id.startswith("proj_"):
+                messagebox.showerror("Fehler", "Nur Projekte können als .spec exportiert werden.")
+                return
+            idx = int(row_id.split("_")[1])
+            save_projects([self.projects[idx]], f)
+            self.status_var.set(f"{self.projects[idx].name} als .spec exportiert: {f}")
+        else:
+            messagebox.showerror("Fehler", "Unbekanntes Exportformat!")
+                
             
     def run_status_animation(self, stop_event: threading.Event, message: str = "Work...", interval: float = 0.2) -> None:
         idx = 0
         chars = ["⠁", "⠃", "⠇", "⠧", "⠷", "⠿", "⠷", "⠧", "⠇", "⠃", "⠁", " "]
         while not stop_event.is_set():
-            current_status = self.status_var.get()
+            #current_status = self.status_var.get()
             # Animation nur anzeigen, wenn der Status derzeit "bereit" oder leer ist
             self.status_var.set(chars[idx % len(chars)])
             idx += 1
@@ -1026,3 +1027,38 @@ class AutoPyPlusPlusGUI:
                 self._refresh_tree()  # Refresh tree after debug changes
 
         threading.Thread(target=do_compile, daemon=True).start()
+
+
+
+    def _show_extensions_popup(self):
+        # Nur ein Popup gleichzeitig!
+        if hasattr(self, "_ext_popup") and self._ext_popup.winfo_exists():
+            self._ext_popup.lift()
+            return
+
+        popup = tk.Toplevel(self.master)
+        popup.title(self.texts["extensions_btn"])
+        popup.transient(self.master)
+        popup.resizable(False, False)
+        popup.geometry("+%d+%d" % (self.master.winfo_rootx() + 200, self.master.winfo_rooty() + 80))
+        self._ext_popup = popup
+
+        frame = ttk.Frame(popup, padding=15)
+        frame.pack(fill="both", expand=True)
+
+        ttk.Label(frame, text="extensions_path.ini", font=("", 12, "bold")).pack(pady=(0, 12))
+
+        btn1 = ttk.Button(
+            frame, text=self.texts["load_ini_popup_btn"], command=lambda: (popup.destroy(), self._load_ini()), width=32
+        )
+        btn1.pack(fill="x", pady=(0,8))
+
+        btn2 = ttk.Button(
+            frame, text=self.texts["store_ini_popup_btn"], command=lambda: (popup.destroy(), self._export_ini()), width=32
+        )
+        btn2.pack(fill="x", pady=(0,2))
+
+        popup.bind("<Escape>", lambda e: popup.destroy())
+        popup.focus_set()
+        popup.grab_set()
+        popup.wait_window()
