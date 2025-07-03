@@ -3,7 +3,7 @@
 
 # Setup & Usage Guide
 **autopyplusplus.wordpress.com**  
-**Version 2.25**
+**Version 2.26**
 
 ---
 ## Important!
