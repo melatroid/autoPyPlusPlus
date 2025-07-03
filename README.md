@@ -211,7 +211,7 @@ gcc --version
 - GCC/GPP improved GUI for pipeline with Cython
 
 ### (latest) Version 2.26
-
+- better windows_start.bat
 - add core functions
 - Save current Project Button
 - Load/Store for extensions_path.ini
