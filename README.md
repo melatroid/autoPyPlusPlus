@@ -202,18 +202,22 @@ gcc --version
 ---
 
 # Versions
-### (Preview) Version 2.27
-
-- Inspector reads specific logs for each typ of output
-
-### (Preview) Version 2.26
+### (Preview) Version 2.28
 
 - GCC/GPP improved GUI for pipeline with Cython
-- Autosave apyscript
+
+### (Preview) Version 2.27
+
+- GCC/GPP improved GUI for pipeline with Cython
+
+### (latest) Version 2.26
+
+- add core functions
+- Save current Project Button
 - Load/Store for extensions_path.ini
 - Project name is output name ...
 
-### (latest) Version 2.25
+### Version 2.25
 
 - GCC/GPP editor new functions  
 - Advanced build settings for GPP and Cython  
