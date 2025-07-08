@@ -216,12 +216,11 @@ class AutoPyPlusPlusGUI:
             self.delete_btn = _btn("delete_btn", self._delete, "tooltip_delete_btn")  # Added Delete button
 
             ttk.Label(self.bar, text="|").pack(side="left", padx=5)
-            
-            self.clear_btn = _btn("clear_btn", self._clear, "tooltip_clear_btn") 
-            self.load_btn = _btn("load_btn", self._load, "tooltip_load_btn")
-            self.save_btn = _btn("save_btn", self._save_current_file, "tooltip_save_btn")
-            self.save_as_btn = _btn("save_as_btn", self._save_as, "tooltip_save_as_btn")
-            
+            self.save_btn       = _btn("save_btn",       self._save_current_file,"tooltip_save_btn")
+            self.save_as_btn    = _btn("save_as_btn",    self._save_as,          "tooltip_save_as_btn")
+            self.load_btn       = _btn("load_btn",       self._load,             "tooltip_load_btn")
+            self.clear_btn      = _btn("clear_btn",      self._clear,            "tooltip_clear_btn")
+
             ttk.Label(self.bar, text="|").pack(side="left", padx=5)
             
             self.debug_btn = _btn("debug_btn", self._open_debuginspector, "tooltip_debug_btn")
