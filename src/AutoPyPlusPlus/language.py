@@ -20,7 +20,7 @@ LANGUAGES = {
         "extensions_btn": "⚙ Erweiterungen",
         "mode_a": "Modus A",
         "mode_b": "Modus B",
-        "mode_b": "Modus C",
+        "mode_c": "Modus C",
         "tooltip_compile_mode": "Aktiven Kompilier-Modus wählen (A oder B)",
         "status_ready": "💤",
         "error_no_entry": "Kein Eintrag ausgewählt.",
