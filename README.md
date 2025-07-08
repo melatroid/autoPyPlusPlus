@@ -99,7 +99,7 @@ C:\Program Files (x86)\Thonny\tcl                                              #
 
 ---
 
-# For GCC/G++ Pipeline Users Only
+# For MSVC Pipeline Users Only
 
 **Install newest Python Version**
 - https://www.python.org/downloads/windows/
