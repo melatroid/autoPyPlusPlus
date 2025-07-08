@@ -101,10 +101,10 @@ C:\Program Files (x86)\Thonny\tcl                                              #
 
 # For GCC/G++ Pipeline Users Only
 
-** Install newest Python Version **
+**Install newest Python Version**
 https://www.python.org/downloads/windows/
 
-** Install full development libarys C++ ** 
+**Install full development libarys C++** 
 https://visualstudio.microsoft.com/de/visual-cpp-build-tools/
 Needet compiler for Windows Applications is MSVC 
 
