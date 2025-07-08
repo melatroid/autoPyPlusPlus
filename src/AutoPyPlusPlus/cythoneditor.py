@@ -76,8 +76,10 @@ class CythonEditor:
         ttk.Combobox(stdopt_frame, textvariable=self.var_language_level, values=["2", "3"], width=5, state="readonly").pack(anchor="w", pady=2)
 
         ttk.Label(stdopt_frame, text="Language (C/C++):").pack(anchor="w", pady=(7,0))
-        self.var_language = tk.StringVar(value=getattr(self.project, "cython_language", "c"))
-        ttk.Combobox(stdopt_frame, textvariable=self.var_language, values=["c", "c++"], width=6, state="readonly").pack(anchor="w", pady=2)
+        self.var_language = tk.StringVar(value=getattr(self.project, "cython_language", "c++"))
+        cb_lang = ttk.Combobox(stdopt_frame, textvariable=self.var_language, values=["c", "c++"], width=6, state="readonly")
+        cb_lang.pack(anchor="w", pady=2)
+        self.var_language.set("c++")
 
         # ------- Mitte: Erweiterte Checkboxen -------
         self.var_build_with_setup = tk.BooleanVar(value=getattr(self.project, "cython_build_with_setup", True))
@@ -261,7 +263,7 @@ class CythonEditor:
             self.var_nonecheck.set(True)
             self.var_keep_pyx.set(True)
             self.var_language_level.set("3")
-            self.var_language.set("c")
+            self.var_language.set("c++")
             messagebox.showinfo(
                 "Security Level: Easy",
                 "All security checks enabled for optimal debugging and error detection."
@@ -273,7 +275,7 @@ class CythonEditor:
             self.var_nonecheck.set(False)
             self.var_keep_pyx.set(False)
             self.var_language_level.set("3")
-            self.var_language.set("c")
+            self.var_language.set("c++")
             messagebox.showwarning(
                 "Security Level: Hard",
                 "All checks disabled! Maximum speed and harder to analyze bytecode.\n"

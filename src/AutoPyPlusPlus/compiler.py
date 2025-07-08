@@ -50,7 +50,15 @@ def compile_single(project: Project, log_file, compiler: str = "both") -> str:
 
             # Falls C++ nach Cython ausführen (nur im Cython-Kontext)
             if project.use_cpp:
-                print("[DEBUG] Running C++ compiler after Cython")
+                # Automatische Erkennung von MSVC cl.exe, falls noch nicht gesetzt
+                if not project.cpp_compiler_path or project.cpp_compiler_path.lower() == "g++":
+                    msvc_path = shutil.which("cl.exe")
+                    if msvc_path:
+                        project.cpp_compiler_path = msvc_path
+                    else:
+                        project.cpp_compiler_path = "g++"  # fallback
+
+                print(f"[DEBUG] Using C++ compiler: {project.cpp_compiler_path}")
                 CPE0000000.run_cpp(project, log_file)
         else:
             print(f"[DEBUG] Cython NOT executed (compiler={compiler}, use_cython={project.use_cython})")

@@ -120,58 +120,6 @@ class AutoPyPlusPlusGUI:
             "mode_a": "Modus A",
             "mode_b": "Modus B",
             "mode_c": "Modus C",
-            "tooltip_compile_mode": "Aktiven Kompilier-Modus wählen (A B C)",
-            "status_ready": "💤",
-            "status_project_added": "Projekt {name} hinzugefügt.",
-            "status_entry_edited": "Eintrag {name} bearbeitet.",
-            "error_no_entry": "Kein Eintrag ausgewählt.",
-            "load_ini_btn": "INI laden",
-            "tooltip_load_ini_btn": "INI-Datei auswählen und überschreiben",
-            "clear_work_dir_btn": "Arbeitsverzeichnis leeren",
-            "tooltip_clear_work_dir_btn": "Löscht alle Logdateien (compile_*.log) im Arbeitsverzeichnis.",
-            "about_btn": "About",
-            "tooltip_about_btn": "Show information about AutoPy++",
-            "tooltip_edit_btn": "edit project",
-            "tooltip_add_btn": "add project",
-            "delete_btn": "delete project",
-            "tooltip_delete_btn": "delete a project",
-            "save_btn": "Save current project",
-            "tooltip_save_btn": "overwrite apyscript",
-            "save_as_btn": "Save",
-            "tooltip_save_as_btn": "Save",
-
-            "load_btn": "Laden",
-            "tooltip_load_btn": "Projekte laden",
-            "clear_btn": "Leeren",
-            "tooltip_clear_btn": "Liste leeren",
-            "compile_all_btn": "Alle kompilieren",
-            "tooltip_compile_all_btn": "Alle ausgewählten Projekte kompilieren",
-            "language_label": "Change language:",
-            "name_label": "Name:",
-            "icon_label": "Iconpfad:",
-            "add_data_label": "Add-Data:",
-            "hidden_imports_label": "Hidden Imports:",
-            "version_label": "Version-Datei:",
-            "output_label": "Ausgabeordner:",
-            "onefile_label": "Onefile",
-            "windowed_label": "Fenster-Modus",
-            "console_label": "Konsole",
-            "upx_label": "UPX",
-            "debug_label": "Debug",
-            "options_label": "Weitere Optionen:",
-            "clean_label": "Clean",
-            "strip_label": "Strip",
-            "noupx_label": "No UPX",
-            "runtime_hook_label": "Runtime Hook:",
-            "splash_label": "Splash-Bild:",
-            "spec_file_label": "Spec-Datei:",
-            "debug_btn": "Inspector",
-            "tooltip_debug_btn": "Open the Debug-Inspector",
-            "extensions_btn": "Extensions",
-            "tooltip_extensions_btn": "Extensions",
-            "load_ini_popup_btn": "load extensions_path.ini",
-            "store_ini_popup_btn": "export extensions_path.ini",
-
         }
         for k, v in fb.items():
             self.texts.setdefault(k, v)
@@ -219,6 +167,7 @@ class AutoPyPlusPlusGUI:
             self.btn_extensions = ttk.Button(left_frame, text=self.texts["extensions_btn"], command=self._show_extensions_popup)
             self.btn_extensions.pack(side="left", padx=5)
             CreateToolTip(self.btn_extensions, self.texts["tooltip_extensions_btn"])
+            
 
             # About button
             self.btn_about = ttk.Button(
@@ -230,10 +179,11 @@ class AutoPyPlusPlusGUI:
             CreateToolTip(self.btn_about, self.texts["tooltip_about_btn"])
 
 
+
             # Help button
             self.btn_help = ttk.Button(
                 left_frame,
-                text="Help",
+                text="ℹ️ Help",
                 command=lambda: show_main_helper(self.master)
             )
             self.btn_help.pack(side="left", padx=5)
@@ -395,6 +345,7 @@ class AutoPyPlusPlusGUI:
         latest_log = logs[0]
         debuginspector(self.master, str(latest_log), self.projects, self.style, self.config)
 
+
     def _update_ui_texts(self) -> None:
         print("Updating UI texts...")
 
@@ -408,29 +359,38 @@ class AutoPyPlusPlusGUI:
         self.btn_about.config(text=self.texts["about_btn"])
         CreateToolTip(self.btn_about, self.texts["tooltip_about_btn"])
 
+        # Extensions-Button
+        self.btn_extensions.config(text=self.texts["extensions_btn"])
+        CreateToolTip(self.btn_extensions, self.texts["tooltip_extensions_btn"])
 
-        # Modus-Checkbutton
-        #mode_label = self._mode_label()
-        #self.mode_btn.config(text=mode_label)
-        #CreateToolTip(self.mode_btn, self.texts["tooltip_compile_mode"])
+        # Modus-Radiobuttons
+        self.mode_a_btn.config(text=self.texts["mode_a"])
+        self.mode_b_btn.config(text=self.texts["mode_b"])
+        self.mode_c_btn.config(text=self.texts["mode_c"])
+        CreateToolTip(self.mode_a_btn, self.texts["tooltip_compile_mode"])
+        CreateToolTip(self.mode_b_btn, self.texts["tooltip_compile_mode"])
+        CreateToolTip(self.mode_c_btn, self.texts["tooltip_compile_mode"])
 
         # Treeview-Spaltenüberschriften
         self.tree.heading("A", text=self.texts["compile_a_col"])
         self.tree.heading("B", text=self.texts["compile_b_col"])
+        self.tree.heading("C", text=self.texts["compile_c_col"])
         self.tree.heading("Name", text=self.texts["name_col"])
         self.tree.heading("Script", text=self.texts["script_col"])
         self.tree.heading("PyArmor", text="PyArmor")
         self.tree.heading("Cython", text="Cython")
+        self.tree.heading("Nuitka", text="Nuitka")
+
         # Statusleiste
         self.status_var.set(self.texts["status_ready"])
 
-        # Buttons links (Add, Edit, Delete, Save, Load, Clear)
+        # Buttons links (Add, Edit, Delete, Save, Save As, Load, Clear)
         button_mapping = [
             ("add_btn", "tooltip_add_btn"),
             ("edit_btn", "tooltip_edit_btn"),
             ("delete_btn", "tooltip_delete_btn"),
             ("save_btn", "tooltip_save_btn"),
-            ("save_as_btn", "tooltip_save_as_btn"), 
+            ("save_as_btn", "tooltip_save_as_btn"),
             ("load_btn", "tooltip_load_btn"),
             ("clear_btn", "tooltip_clear_btn"),
         ]
@@ -449,24 +409,21 @@ class AutoPyPlusPlusGUI:
                 print(f"Warning: No button found for index {i} (key: {key})")
 
         # Buttons rechts (Clear Logs, Inspector, Start Export)
-        for w in self.bar.winfo_children():
-            if isinstance(w, ttk.Button) and w.pack_info()["side"] == "right":
-                txt = w.cget("text")
-                if txt in ("Start Export", self.texts["compile_all_btn"]):
-                    w.config(text=self.texts["compile_all_btn"])
-                    CreateToolTip(w, self.texts["tooltip_compile_all_btn"])
-                elif txt in ("Inspector", self.texts["debug_btn"]):
-                    w.config(text=self.texts["debug_btn"])
-                    CreateToolTip(w, self.texts["tooltip_debug_btn"])
-                elif txt in ("Clear Logs", self.texts["clear_work_dir_btn"]):
-                    w.config(text=self.texts["clear_work_dir_btn"])
-                    CreateToolTip(w, self.texts["tooltip_clear_work_dir_btn"])
+        right_buttons = [
+            (self.compile_all_btn, "compile_all_btn", "tooltip_compile_all_btn"),
+            (self.debug_btn, "debug_btn", "tooltip_debug_btn"),
+            (self.clear_work_dir_btn, "clear_work_dir_btn", "tooltip_clear_work_dir_btn"),
+        ]
+        for btn, text_key, tooltip_key in right_buttons:
+            btn.config(text=self.texts[text_key])
+            CreateToolTip(btn, self.texts[tooltip_key])
 
         # Erzwinge ein Update der GUI
         self.master.update_idletasks()
 
         print("UI texts updated.")
-
+        
+    
     def _save_thread_count(self, *args):  # pylint: disable=unused-argument
         self.config["thread_count"] = self.thread_count_var.get()
         save_config(self.config)
@@ -1028,37 +985,131 @@ class AutoPyPlusPlusGUI:
 
         threading.Thread(target=do_compile, daemon=True).start()
 
-
-
     def _show_extensions_popup(self):
-        # Nur ein Popup gleichzeitig!
-        if hasattr(self, "_ext_popup") and self._ext_popup.winfo_exists():
-            self._ext_popup.lift()
-            return
+        import configparser
+        from tkinter import messagebox, filedialog
+        import tkinter as tk
+        from tkinter import ttk
+        from pathlib import Path
+
+        KNOWN_TOOLS = [
+            "pyinstaller", "pyarmor", "nuitka", "cython",
+            "cpp", "gcc", "msvc", "tcl_base"
+        ]
+
+        ini_file = Path(__file__).parent / "extensions_path.ini"
+        cfg = configparser.ConfigParser()
+        cfg.optionxform = str  # Groß-/Kleinschreibung bewahren
+        cfg.read(ini_file, encoding="utf-8")
+
+        if "paths" not in cfg:
+            cfg["paths"] = {}
+
+        paths = dict(cfg["paths"])
+        entries = {}
 
         popup = tk.Toplevel(self.master)
-        popup.title(self.texts["extensions_btn"])
+        popup.title("Extensions")
         popup.transient(self.master)
         popup.resizable(False, False)
         popup.geometry("+%d+%d" % (self.master.winfo_rootx() + 200, self.master.winfo_rooty() + 80))
-        self._ext_popup = popup
+        popup.configure(background="#222222")
 
-        frame = ttk.Frame(popup, padding=15)
+        # White-on-dark Theme für Labels und Buttons
+
+        frame = ttk.Frame(popup, padding=12, style="White.TFrame")
         frame.pack(fill="both", expand=True)
 
-        ttk.Label(frame, text="extensions_path.ini", font=("", 12, "bold")).pack(pady=(0, 12))
+        ttk.Label(frame, text="extensions_path.ini", font=("", 13, "bold"), style="White.TLabel").pack(pady=(0, 12))
 
-        btn1 = ttk.Button(
-            frame, text=self.texts["load_ini_popup_btn"], command=lambda: (popup.destroy(), self._load_ini()), width=32
-        )
-        btn1.pack(fill="x", pady=(0,8))
+        container = ttk.Frame(frame, style="White.TFrame")
+        container.pack(fill="both", expand=True)
 
-        btn2 = ttk.Button(
-            frame, text=self.texts["store_ini_popup_btn"], command=lambda: (popup.destroy(), self._export_ini()), width=32
-        )
-        btn2.pack(fill="x", pady=(0,2))
+        def render_entries():
+            for child in container.winfo_children():
+                child.destroy()
+
+            for key, val in sorted(paths.items()):
+                row = ttk.Frame(container, style="White.TFrame")
+                row.pack(fill="x", pady=2)
+
+                ttk.Label(row, text=key, width=14, style="White.TLabel").pack(side="left", padx=(0, 6))
+
+                var = tk.StringVar(value=val)
+                entries[key] = var
+
+                entry = ttk.Entry(row, textvariable=var, width=52, style="White.TEntry")
+                entry.pack(side="left", fill="x", expand=True)
+
+                def make_browse(var, key):
+                    def _browse():
+                        if "dir" in key.lower() or key.endswith("_base"):
+                            p = filedialog.askdirectory(title=f"{key} wählen")
+                        else:
+                            p = filedialog.askopenfilename(title=f"{key} wählen")
+                        if p:
+                            var.set(p)
+                    return _browse
+
+                ttk.Button(row, text="...", width=3, command=make_browse(var, key), style="White.TButton").pack(side="left", padx=4)
+
+                def make_remove(k):
+                    def _remove():
+                        if k in paths:
+                            del paths[k]
+                        if k in entries:
+                            del entries[k]
+                        render_entries()
+                    return _remove
+
+                ttk.Button(row, text="🗑", width=2, command=make_remove(key), style="White.TButton").pack(side="left", padx=2)
+
+        render_entries()
+
+        def add_entry():
+            used_keys = set(paths.keys())
+            free_keys = [k for k in KNOWN_TOOLS if k not in used_keys]
+            if not free_keys:
+                messagebox.showinfo("Toolset is full", "No more free tools.")
+                return
+
+            # Auswahl per Combobox in eigenem Dialogfenster
+            dialog = tk.Toplevel(popup)
+            dialog.title("Tool auswählen")
+            dialog.resizable(False, False)
+            dialog.grab_set()
+            dialog.transient(popup)
+            dialog.configure(background="#222222")
+
+            ttk.Label(dialog, text="Choose Extension:", font=("", 11), style="White.TLabel").pack(padx=10, pady=(10, 4))
+            selected_key = tk.StringVar(value=free_keys[0])
+            combo = ttk.Combobox(dialog, values=free_keys, textvariable=selected_key, state="readonly", width=30)
+            combo.pack(padx=10, pady=4)
+
+            def confirm():
+                key = selected_key.get()
+                paths[key] = ""
+                dialog.destroy()
+                render_entries()
+
+            ttk.Button(dialog, text="OK", command=confirm, style="White.TButton").pack(pady=(8, 10))
+            dialog.bind("<Return>", lambda e: confirm())
+
+        ttk.Button(frame, text="+ Add Tool", command=add_entry, style="White.TButton").pack(pady=(10, 0), fill="x")
+
+        def save_and_close():
+            cfg["paths"] = {}
+            for k, var in entries.items():
+                cfg["paths"][k] = var.get()
+            with open(ini_file, "w", encoding="utf-8") as f:
+                cfg.write(f)
+            self.status_var.set("INI gespeichert.")
+            popup.destroy()
+
+        ttk.Button(frame, text="Save", command=save_and_close, style="White.TButton").pack(pady=(6, 0), fill="x")
 
         popup.bind("<Escape>", lambda e: popup.destroy())
         popup.focus_set()
         popup.grab_set()
         popup.wait_window()
+

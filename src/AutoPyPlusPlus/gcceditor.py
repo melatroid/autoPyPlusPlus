@@ -91,21 +91,40 @@ class GCCEditor:
             }
         return ext_map.get(target_type, ".out")
 
+
+    def on_compiler_choice_changed(self, event=None):
+        label = self.var_compiler_choice.get()
+        path = {
+            "MSVC (cl.exe)": self.extensions_paths.get("msvc"),
+            "G++": self.extensions_paths.get("cpp"),
+            "GCC": self.extensions_paths.get("gcc")
+        }.get(label)
+
+        if path:
+            self.e_cpp_compiler_path.delete(0, tk.END)
+            self.e_cpp_compiler_path.insert(0, path)
+            # Aktualisiere use_msvc sofort
+            self.project.use_msvc = Path(path).name.lower() == "cl.exe"
+            self.update_command_preview()
+
+
+
     def update_python_extension_flags(self):
-        # Aktuelle Flags holen und splitten
         flags = self.e_cpp_compiler_flags.get().strip().split()
         target_type = self.var_target_type.get()
         target_platform = self.var_target_platform.get()
+        compiler_path = self.e_cpp_compiler_path.get().strip().lower()
+        is_msvc = Path(compiler_path).name == "cl.exe"
         modified = False
 
         if target_type == "Python Extension":
             if "-shared" not in flags:
                 flags.append("-shared")
                 modified = True
-            if target_platform == "Windows" and "-DMS_WIN64" not in flags:
+            if target_platform == "Windows" and is_msvc and "-DMS_WIN64" not in flags:
                 flags.append("-DMS_WIN64")
                 modified = True
-            if target_platform != "Windows" and "-DMS_WIN64" in flags:
+            if (target_platform != "Windows" or not is_msvc) and "-DMS_WIN64" in flags:
                 flags.remove("-DMS_WIN64")
                 modified = True
         else:
@@ -119,6 +138,7 @@ class GCCEditor:
         if modified:
             self.e_cpp_compiler_flags.delete(0, tk.END)
             self.e_cpp_compiler_flags.insert(0, " ".join(flags))
+
 
     
 
@@ -140,7 +160,6 @@ class GCCEditor:
         self.win.transient(self.master)
         self.win.grab_set()
         self.win.minsize(800, 500)
-        #self.win = tk.Toplevel(self.master)
         
         main_frame = ttk.Frame(self.win, padding=15)
         main_frame.pack(fill="both", expand=True)
@@ -166,19 +185,55 @@ class GCCEditor:
         self.combo_language.grid(row=0, column=1, sticky="w", pady=5)
         self.combo_language.bind("<<ComboboxSelected>>", lambda e: self.on_language_changed())
 
-        # Compiler path + buttons
+                # Compiler path + buttons
+        compiler_paths_dict = {
+            "MSVC (cl.exe)": self.extensions_paths.get("msvc"),
+            "G++": self.extensions_paths.get("cpp"),
+            "GCC": self.extensions_paths.get("gcc")
+        }
+        # Nur gültige Pfade
+        compiler_paths = [v for v in compiler_paths_dict.values() if v]
+
+        self.var_compiler_choice = tk.StringVar()
+        self.combo_compiler = ttk.Combobox(
+            general_frame,
+            textvariable=self.var_compiler_choice,
+            values=[k for k, v in compiler_paths_dict.items() if v],
+            state="readonly",
+            width=25,
+        )
+        self.combo_compiler.grid(row=1, column=1, sticky="w", pady=5)
+        self.combo_compiler.bind("<<ComboboxSelected>>", self.on_compiler_choice_changed)
+
+        # Entry für Pfad daneben
         self.e_cpp_compiler_path = ttk.Entry(general_frame, width=40)
-        self.e_cpp_compiler_path.grid(row=1, column=1, sticky="ew", pady=5)
+        self.e_cpp_compiler_path.grid(row=1, column=2, sticky="ew", pady=5, padx=(5, 5))
+
         ttk.Button(general_frame, text="Set Compiler", command=lambda: self._choose_file(self.e_cpp_compiler_path)).grid(row=0, column=2, padx=5)
-        ttk.Button(general_frame, text="Find any Compiler",  command=self.auto_detect_gcc).grid(row=0, column=3, padx=5)
+        ttk.Button(general_frame, text="Find any Compiler",  command=self.auto_detect_compiler).grid(row=0, column=3, padx=5)
         ttk.Button(general_frame, text="Check Compiler", command=self.check_current_compiler).grid(row=0, column=4, padx=5)
 
-        # Set default compiler path
+        # Bevorzuge MSVC, aber nur wenn vorhanden
+        msvc_path = self.extensions_paths.get("msvc")
+        cpp_path = self.extensions_paths.get("cpp")
+        gcc_path = self.extensions_paths.get("gcc")
+
         if lang_default == "c":
-            default_compiler_path = self.extensions_paths.get("gcc", "gcc")
+            default_compiler_path = msvc_path or gcc_path or "gcc"
         else:
-            default_compiler_path = self.extensions_paths.get("cpp", "g++")
-        self.e_cpp_compiler_path.insert(0, default_compiler_path)
+            default_compiler_path = msvc_path or cpp_path or "g++"
+
+        # Übernehme gespeicherten Pfad, falls vorhanden, sonst Default
+        compiler_path_default = cast(str, getattr(self.project, "cpp_compiler_path", default_compiler_path))
+        self.e_cpp_compiler_path.insert(0, compiler_path_default)
+        for name, path in compiler_paths_dict.items():
+            if path == compiler_path_default:
+                self.var_compiler_choice.set(name)
+                break
+
+        # use_msvc nur setzen, wenn noch nicht vorhanden
+        if not hasattr(self.project, "use_msvc"):
+            self.project.use_msvc = Path(compiler_path_default).name.lower() == "cl.exe"
 
         ttk.Label(general_frame, text="Output Folder:").grid(row=1, column=0, sticky="e", pady=5, padx=(0, 5))
         output_dir_default = cast(str, getattr(self.project, "cpp_output_dir", self.default_values["cpp_output_dir"]))
@@ -187,6 +242,22 @@ class GCCEditor:
         ttk.Button(general_frame, text="Browse", command=lambda: self._choose_dir(self.e_cpp_output_dir)).grid(row=1, column=2, padx=5)
         self.e_cpp_output_dir.insert(0, output_dir_default)
 
+        # ----------------------------------------
+        # ZUERST: ALLE TK-Variablen initialisieren!
+        # ----------------------------------------
+        build_type_default = cast(str, getattr(self.project, "cpp_build_type", self.default_values["cpp_build_type"]))
+        self.var_build_type = tk.StringVar(value=build_type_default)
+
+        cpp_standard_default = cast(str, getattr(self.project, "cpp_standard", self.default_values["cpp_standard"]))
+        self.var_cpp_standard = tk.StringVar(value=cpp_standard_default)
+
+        target_type_default = cast(str, getattr(self.project, "cpp_target_type", self.default_values["cpp_target_type"]))
+        self.var_target_type = tk.StringVar(value=target_type_default)
+
+        target_platform_default = getattr(self.project, "cpp_target_platform", "Windows")
+        self.var_target_platform = tk.StringVar(value=target_platform_default)
+
+        # ----------------------------------------
         ttk.Label(general_frame, text="Output File Name:").grid(row=2, column=0, sticky="e", pady=5, padx=(0, 5))
         output_file_default = cast(str, getattr(self.project, "cpp_output_file", ""))
         if not output_file_default:
@@ -194,10 +265,7 @@ class GCCEditor:
         self.e_cpp_output_file = ttk.Entry(general_frame, width=40)
         self.e_cpp_output_file.grid(row=2, column=1, sticky="ew", pady=5)
         self.e_cpp_output_file.insert(0, output_file_default)
-        
 
-        build_type_default = cast(str, getattr(self.project, "cpp_build_type", self.default_values["cpp_build_type"]))
-        self.var_build_type = tk.StringVar(value=build_type_default)
         ttk.Label(general_frame, text="Build Type:").grid(row=3, column=0, sticky="e", pady=5, padx=(0, 5))
         self.combo_build_type = ttk.Combobox(
             general_frame, textvariable=self.var_build_type,
@@ -205,8 +273,6 @@ class GCCEditor:
         )
         self.combo_build_type.grid(row=3, column=1, sticky="w", pady=5)
 
-        cpp_standard_default = cast(str, getattr(self.project, "cpp_standard", self.default_values["cpp_standard"]))
-        self.var_cpp_standard = tk.StringVar(value=cpp_standard_default)
         ttk.Label(general_frame, text="C++ Standard:").grid(row=4, column=0, sticky="e", pady=5, padx=(0, 5))
         self.combo_cpp_standard = ttk.Combobox(
             general_frame, textvariable=self.var_cpp_standard,
@@ -214,8 +280,6 @@ class GCCEditor:
         )
         self.combo_cpp_standard.grid(row=4, column=1, sticky="w", pady=5)
 
-        target_type_default = cast(str, getattr(self.project, "cpp_target_type", self.default_values["cpp_target_type"]))
-        self.var_target_type = tk.StringVar(value=target_type_default)
         ttk.Label(general_frame, text="Target Type:").grid(row=5, column=0, sticky="e", pady=5, padx=(0, 5))
         self.combo_target_type = ttk.Combobox(
             general_frame,
@@ -227,11 +291,6 @@ class GCCEditor:
         self.combo_target_type.grid(row=5, column=1, sticky="w", pady=5)
         self.combo_target_type.bind("<<ComboboxSelected>>", self.on_target_type_or_platform_changed)
 
-
-
-        # Zielplattform auswählen
-        target_platform_default = getattr(self.project, "cpp_target_platform", "Windows")
-        self.var_target_platform = tk.StringVar(value=target_platform_default)
         ttk.Label(general_frame, text="Target Platform:").grid(row=5, column=2, sticky="e", pady=5, padx=(0, 5))
         self.combo_target_platform = ttk.Combobox(
             general_frame,
@@ -243,8 +302,6 @@ class GCCEditor:
         self.combo_target_platform.grid(row=5, column=3, sticky="w", pady=5)
         self.combo_target_platform.bind("<<ComboboxSelected>>", self.on_target_type_or_platform_changed)
 
-        
-        
         windowed_default = cast(bool, getattr(self.project, "cpp_windowed", self.default_values.get("cpp_windowed", False)))
         self.var_cpp_windowed = tk.BooleanVar(value=windowed_default)
 
@@ -330,7 +387,6 @@ class GCCEditor:
         self.var_verbose_compile = tk.BooleanVar(value=verbose_compile_default)
         ttk.Checkbutton(self.adv_frame, text="Verbose Compilation (-v)", variable=self.var_verbose_compile).grid(row=6, column=1, sticky="w", pady=5)
 
-
         ttk.Label(main_frame, text="Compilation Command Preview:").grid(row=1, column=0, columnspan=2, sticky="w", pady=5)
         self.command_preview = tk.Text(main_frame, height=3, wrap="word")
         self.command_preview.grid(row=2, column=0, columnspan=2, sticky="ew", padx=10, pady=5)
@@ -347,6 +403,7 @@ class GCCEditor:
         self.update_command_preview()
         self.win.wait_window(self.win)
         return self.saved
+
 
 
     def on_target_type_or_platform_changed(self, *_):
@@ -369,39 +426,59 @@ class GCCEditor:
         self.update_command_preview()
 
 
-
     def on_language_changed(self):
         lang = self.var_language.get()
 
-        gcc_path = self.extensions_paths.get("gcc", "gcc")
-        gpp_path = self.extensions_paths.get("cpp", "g++")
+        # Prüfe ob MSVC verfügbar ist, aber nur wenn das Flag gesetzt ist
+        use_msvc = getattr(self.project, "use_msvc", False)
+        if use_msvc:
+            msvc_path = self.extensions_paths.get("msvc") or shutil.which("cl.exe")
+        else:
+            msvc_path = None
 
+        gcc_path = self.extensions_paths.get("gcc") or shutil.which("gcc")
+        gpp_path = self.extensions_paths.get("cpp") or shutil.which("g++")
+
+        # Hole aktuellen Compiler-Pfad und Name
         current_compiler_path = self.e_cpp_compiler_path.get().strip()
-        current_compiler_name = Path(current_compiler_path).name if current_compiler_path else ""
+        current_compiler_name = Path(current_compiler_path).name.lower() if current_compiler_path else ""
 
-        if current_compiler_name in ("gcc", "g++", ""):
+        if msvc_path and Path(msvc_path).is_file():
+            new_compiler_path = msvc_path
+        else:
             if lang == "c":
-                new_compiler_path = gcc_path
+                new_compiler_path = gcc_path or "gcc"
             else:
-                new_compiler_path = gpp_path
+                new_compiler_path = gpp_path or "g++"
+
+        # Nur überschreiben, wenn leer oder nicht passend zur Sprache
+        should_replace = False
+        if not current_compiler_path:
+            should_replace = True
+        else:
+            if lang == "c" and current_compiler_name not in ["gcc", "cc", "clang"]:
+                should_replace = True
+            elif lang == "cpp" and current_compiler_name not in ["g++", "clang++"]:
+                should_replace = True
+
+        # Wenn MSVC deaktiviert ist, niemals auf cl.exe setzen
+        if not use_msvc and current_compiler_name == "cl.exe":
+            should_replace = True
+
+        if should_replace:
             self.e_cpp_compiler_path.delete(0, tk.END)
             self.e_cpp_compiler_path.insert(0, new_compiler_path)
 
+        # Rest wie gehabt: Output-Dateiendung anpassen
         output_file = self.e_cpp_output_file.get().strip()
         base_name = Path(output_file).stem if output_file else "name"
         ext = Path(output_file).suffix.lower() if output_file else ""
         target_type = self.var_target_type.get()
 
         if target_type == "Executable":
-            if sys.platform == "win32":
-                new_ext = ".exe"
-            else:
-                new_ext = ".out"
+            new_ext = ".exe" if sys.platform == "win32" else ".out"
         elif target_type == "Static Library":
-            if sys.platform == "win32":
-                new_ext = ".lib"
-            else:
-                new_ext = ".a"
+            new_ext = ".lib" if sys.platform == "win32" else ".a"
         elif target_type == "Shared Library":
             if sys.platform == "win32":
                 new_ext = ".dll"
@@ -417,6 +494,10 @@ class GCCEditor:
             self.e_cpp_output_file.insert(0, base_name + new_ext)
 
         self.update_command_preview()
+
+
+
+
 
     def _create_tooltip(self, widget, text):
         def enter(event):
@@ -442,12 +523,30 @@ class GCCEditor:
             return False, "Compiler is not executable."
 
         try:
-            result = subprocess.run([str(p), "--version"], capture_output=True, text=True, timeout=2)
-            if result.returncode == 0 and ("g++" in result.stdout or "clang" in result.stdout or "gcc" in result.stdout):
-                return True, f"Succesfully, Compiler found: {result.stdout.splitlines()[0]}"
-            return False, "File is not a valid g++, gcc or clang compiler."
+            if p.name.lower() == "cl.exe":
+                result = subprocess.run(
+                    [str(p)], input="\n", capture_output=True, text=True, timeout=3, encoding='utf-8', errors='replace'
+                )
+                stdout = result.stdout or ""
+                stderr = result.stderr or ""
+                if "Microsoft" in stdout or "Microsoft" in stderr:
+                    return True, f"MSVC/CL.EXE erkannt: {p}"
+                return False, "File is not a valid MSVC cl.exe."
+
+            else:
+                result = subprocess.run(
+                    [str(p), "--version"], capture_output=True, text=True, timeout=2, encoding='utf-8', errors='replace'
+                )
+                stdout = result.stdout or ""
+                stderr = result.stderr or ""
+                if result.returncode == 0 and (
+                    "g++" in stdout or "clang" in stdout or "gcc" in stdout
+                ):
+                    return True, f"Compiler found: {stdout.splitlines()[0]}"
+                return False, "File is not a valid g++, gcc or clang compiler."
         except Exception as e:
             return False, f"Error Compiler :: {e}"
+
 
     def check_current_compiler(self):
         path = self.e_cpp_compiler_path.get().strip()
@@ -648,26 +747,30 @@ class GCCEditor:
         self.on_language_changed()
         self.update_command_preview()
 
-    def auto_detect_gcc(self):
+    def auto_detect_compiler(self):
         lang = self.var_language.get()
         if lang == "c":
-            gcc_path = shutil.which("gcc")
-            compiler_name = "gcc"
+            candidates = [shutil.which("cl.exe"), shutil.which("gcc")]
+            compiler_names = ["MSVC (cl.exe)", "gcc"]
         else:
-            gcc_path = shutil.which("g++")
-            compiler_name = "g++"
+            candidates = [shutil.which("cl.exe"), shutil.which("g++")]
+            compiler_names = ["MSVC (cl.exe)", "g++"]
 
-        if gcc_path:
-            self.e_cpp_compiler_path.delete(0, tk.END)
-            self.e_cpp_compiler_path.insert(0, gcc_path)
-            valid, msg = self.check_compiler_validity(gcc_path)
-            if valid:
-                messagebox.showinfo("Auto-detect", f"{compiler_name} gefunden:\n{msg}")
-            else:
-                messagebox.showwarning("Auto-detect", f"{compiler_name} gefunden, aber Problem:\n{msg}")
-        else:
-            messagebox.showwarning("Auto-detect", f"{compiler_name} nicht im PATH gefunden.")
-        self.update_command_preview()
+        for candidate, name in zip(candidates, compiler_names):
+            if candidate:
+                self.e_cpp_compiler_path.delete(0, tk.END)
+                self.e_cpp_compiler_path.insert(0, candidate)
+                valid, msg = self.check_compiler_validity(candidate)
+                if valid:
+                    messagebox.showinfo("Auto-detect", f"{name} gefunden:\n{msg}")
+                    self.update_command_preview()
+                    return
+                else:
+                    messagebox.showwarning("Auto-detect", f"{name} gefunden, aber Problem:\n{msg}")
+        messagebox.showwarning("Auto-detect", "Kein Compiler gefunden.")
+
+
+
 
     def update_command_preview(self):
         self.command_preview.config(state="normal")
@@ -679,24 +782,103 @@ class GCCEditor:
     def _build_command(self):
         lang = self.var_language.get()
         compile_files = self.compile_files_listbox.get(0, tk.END)
-
-        if lang == "c":
-            compiler_cmd = "gcc"
-        else:
-            compiler_cmd = "g++"
-
         compiler_path = self.e_cpp_compiler_path.get().strip()
-        if compiler_path:
-            compiler_cmd = compiler_path
+        compiler_cmd = compiler_path if compiler_path else ("gcc" if lang == "c" else "g++")
+        # MSVC-Detection (entweder über Combobox oder automatisch am Pfad)
+        is_msvc = "cl.exe" in compiler_cmd.lower()
 
+        if is_msvc:
+            command = [compiler_cmd]
+            # Alle Quelldateien (mit Backslash als Trenner für Windows)
+            command.extend([str(Path(f)) for f in compile_files])
+
+            # Output file
+            output_file = self.e_cpp_output_file.get().strip()
+            output_dir = self.e_cpp_output_dir.get().strip()
+            if output_file:
+                if output_dir:
+                    output_path = str(Path(output_dir) / output_file)
+                else:
+                    output_path = output_file
+                command.append(f"/Fe{output_path}")
+
+            # Includes
+            if self.e_cpp_include_dirs is not None:
+                for include_dir in [s.strip() for s in self.e_cpp_include_dirs.get().split(",") if s.strip()]:
+                    command.append(f"/I{include_dir}")
+
+            # Defines
+            if self.e_cpp_defines is not None:
+                for define in [s.strip() for s in self.e_cpp_defines.get().split(",") if s.strip()]:
+                    # MSVC akzeptiert auch Werte: /DNAME=VALUE
+                    command.append(f"/D{define}")
+
+            # Build Type
+            build_type = self.var_build_type.get()
+            if build_type == "Debug":
+                command.append("/Zi")
+                command.append("/DEBUG")
+            else:
+                command.append("/O2")
+
+            # C++ Standard (ab MSVC 2015): /std:c++17 usw.
+            if lang == "cpp":
+                cpp_std = self.var_cpp_standard.get()
+                if cpp_std.startswith("c++"):
+                    std_map = {
+                        "c++11": "c++11",
+                        "c++14": "c++14",
+                        "c++17": "c++17",
+                        "c++20": "c++20",
+                        "c++23": "c++latest"
+                    }
+                    std_flag = std_map.get(cpp_std, None)
+                    if std_flag:
+                        command.append(f"/std:{std_flag}")
+
+            # Windowed (optional, für Windows GUI-Apps)
+            if getattr(self, "var_cpp_windowed", None) and self.var_cpp_windowed.get():
+                command.append("/SUBSYSTEM:WINDOWS")
+
+            # Custom Flags
+            compiler_flags = self.e_cpp_compiler_flags.get().strip()
+            if compiler_flags:
+                command.extend(compiler_flags.split())
+
+            # Linker flags & Libdirs
+            # Libdirs als /link /LIBPATH:dir
+            linker_flags = self.e_cpp_linker_flags.get().strip()
+            lib_dirs = []
+            if self.e_cpp_lib_dirs is not None:
+                lib_dirs = [s.strip() for s in self.e_cpp_lib_dirs.get().split(",") if s.strip()]
+            libraries = []
+            if self.e_cpp_libraries is not None:
+                libraries = [s.strip() for s in self.e_cpp_libraries.get().split(",") if s.strip()]
+
+            # /link nur einmal anhängen!
+            if linker_flags or lib_dirs or libraries:
+                command.append("/link")
+                for lib_dir in lib_dirs:
+                    command.append(f"/LIBPATH:{lib_dir}")
+                # Libraries .lib anhängen
+                for lib in libraries:
+                    if not lib.lower().endswith(".lib"):
+                        command.append(f"{lib}.lib")
+                    else:
+                        command.append(lib)
+                if linker_flags:
+                    command.extend(linker_flags.split())
+
+            return command
+
+        # ----- GCC/Clang (wie gehabt) -----
         command = [compiler_cmd]
 
         if lang == "cpp":
             command.append(f"-std={self.var_cpp_standard.get()}")
 
-        if "cl.exe" in compiler_cmd.lower():
-            command.extend(["/MD", "/EHsc"])
-        elif "g++" in compiler_cmd.lower() or "clang" in compiler_cmd.lower() or "gcc" in compiler_cmd.lower():
+        # Warnings
+        if "g++" in compiler_cmd.lower() or "clang" in compiler_cmd.lower() or "gcc" in compiler_cmd.lower():
             command.extend(["-Wall", "-Wextra", "-pedantic"])
 
         if self.var_generate_deps.get():
@@ -704,6 +886,7 @@ class GCCEditor:
         if self.var_verbose_compile.get():
             command.append("-v")
 
+        # Static Lib
         if self.var_target_type.get() == "Static Library":
             output_file = self.e_cpp_output_file.get().strip()
             if self.e_cpp_output_dir.get().strip():
@@ -712,13 +895,15 @@ class GCCEditor:
             command.extend(compile_files)
             return command
 
+        # Shared Lib
         if self.var_target_type.get() == "Shared Library":
             command.append("-shared")
 
+        # Windowed (nur Win)
         if sys.platform == "win32" and getattr(self, "var_cpp_windowed", None) and self.var_cpp_windowed.get():
             command.append("-mwindows")
 
-
+        # Custom Flags
         compiler_flags = self.e_cpp_compiler_flags.get().strip()
         if compiler_flags:
             command.extend(compiler_flags.split())
@@ -739,7 +924,6 @@ class GCCEditor:
         if output_dir and output_file:
             command.append(f"-o {Path(output_dir) / output_file}")
 
-
         if self.e_cpp_include_dirs is not None:
             for include_dir in [s.strip() for s in self.e_cpp_include_dirs.get().split(",") if s.strip()]:
                 command.append(f"-I{include_dir}")
@@ -758,6 +942,7 @@ class GCCEditor:
 
         command.extend(compile_files)
         return command
+
 
     def save(self):
         compiler_path = self.e_cpp_compiler_path.get().strip()
@@ -839,7 +1024,9 @@ class GCCEditor:
                 messagebox.showerror("Error", f"Source file does not exist:\n{file}")
                 return
 
+
         p = self.project
+        p.use_msvc = Path(compiler_path).name.lower() == "cl.exe"
         p.cpp_compiler_path = compiler_path
         p.cpp_output_dir = output_dir
         p.cpp_output_file = output_file

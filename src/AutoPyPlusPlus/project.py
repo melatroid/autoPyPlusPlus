@@ -21,6 +21,7 @@ class Project:
         use_nuitka:  bool = False,
         use_cython:  bool = False,
         use_cpp:     bool  = False,
+        use_msvc:	 bool = False,
         
     ) -> None:
         # -------- Basisdaten --------
@@ -119,7 +120,7 @@ class Project:
         self.cython_initializedcheck: bool = False
         self.cython_output_dir: str = ""
         self.cython_keep_pyx: bool = True
-        self.cython_language: str = "c"
+        self.cython_language: str = "c++"
         self.cython_profile: bool = False
         self.cython_linemap: bool = False
         self.cython_gdb: bool = False
@@ -133,7 +134,10 @@ class Project:
         self.additional_files: list[str] = []
         
         # ── C++-Compiler Optionen ───────────────────────
-        self.use_cpp: bool = use_cpp
+        self.use_cpp: bool  = use_cpp
+        self.use_msvc = use_msvc
+        self.cpp_language: str = "cpp"
+        self.cpp_output_file: str = ""
         self.cpp_windowed: bool = False
         self.cpp_compiler_path: str = "g++"
         self.cpp_compiler_flags: str = "" 
@@ -260,6 +264,7 @@ class Project:
             "additional_files": self.additional_files,
             # ── CPP-Optionen ──────────────
             "use_cpp": self.use_cpp,
+            "use_msvc": self.use_msvc,
             "cpp_windowed": self.cpp_windowed,
             "cpp_compiler_path": self.cpp_compiler_path,
             "cpp_compiler_flags": self.cpp_compiler_flags,
@@ -296,6 +301,7 @@ class Project:
             use_nuitka=d.get("use_nuitka", False),
             use_cython=d.get("use_cython", False),
             use_cpp=d.get("use_cpp", False),
+            use_msvc=d.get("use_msvc", True),
         )
         p.additional_files = d.get("additional_files", [])  # außerhalb des Konstruktors
 
@@ -366,6 +372,7 @@ class Project:
         
         # ── Cython-Optionen laden ──────────────
         p.use_cython = d.get("use_cython", False)
+        
         p.cython_build_with_setup = d.get("cython_build_with_setup", True)
         p.cython_boundscheck = d.get("cython_boundscheck", False)
         p.cython_wraparound = d.get("cython_wraparound", False)
@@ -375,7 +382,7 @@ class Project:
         p.cython_initializedcheck = d.get("cython_initializedcheck", False)
         p.cython_output_dir = d.get("cython_output_dir", "")
         p.cython_keep_pyx = d.get("cython_keep_pyx", True)
-        p.cython_language = d.get("cython_language", "c")
+        p.cython_language = d.get("cython_language", "c++")
         p.cython_profile = d.get("cython_profile", False)
         p.cython_linemap = d.get("cython_linemap", False)
         p.cython_gdb = d.get("cython_gdb", False)
@@ -388,6 +395,9 @@ class Project:
         p.cython_compile_time_env = d.get("cython_compile_time_env", {}) if d.get("cython_compile_time_env") is not None else {}
 
             # ── CPP-Optionen ──────────────
+        p.cpp_language = d.get("cpp_language", "cpp")    
+        p.use_msvc = d.get("use_msvc", True)
+        p.cpp_output_file = d.get("cpp_output_file", "")
         p.cpp_windowed = d.get("cpp_windowed", False)
         p.cpp_compiler_path = d.get("cpp_compiler_path", "g++")
         p.cpp_compiler_flags = d.get("cpp_compiler_flags", "")

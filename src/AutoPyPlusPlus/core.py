@@ -24,25 +24,13 @@ def save_projects(projects: List[Project], file_path: str | Path) -> None:
             json.dump([p.to_dict() if hasattr(p, "to_dict") else vars(p) for p in projects], f, ensure_ascii=False, indent=2)
 
 def load_projects(file_path: str | Path) -> List[Project]:
-    """Lädt Projekte aus einer JSON-Datei als Liste von Project-Objekten."""
     file_path = Path(file_path)
     with open(file_path, "r", encoding="utf-8") as f:
         data = json.load(f)
     projects = []
     for item in data:
-        # Kompatibilität mit alten oder neuen Feldnamen
         project_data = dict(item)
-        # Fix für Compiler-Status: Immer nur einer aktiv!
-        use_pyarmor = project_data.get('use_pyarmor', False)
-        use_nuitka = project_data.get('use_nuitka', False)
-        use_cython = project_data.get('use_cython', False)
-        if sum([bool(use_pyarmor), bool(use_nuitka), bool(use_cython)]) > 1:
-            # Priorität: PyArmor > Nuitka > Cython
-            if use_pyarmor:
-                use_nuitka = use_cython = False
-            elif use_nuitka:
-                use_cython = False
-        # Alle init-Parameter sauber extrahieren
+
         init_params = {
             'script': project_data.get('script', ''),
             'name': project_data.get('name', ''),
@@ -51,17 +39,25 @@ def load_projects(file_path: str | Path) -> List[Project]:
             'compile_a_selected': project_data.get('compile_a_selected', False),
             'compile_b_selected': project_data.get('compile_b_selected', False),
             'compile_c_selected': project_data.get('compile_c_selected', False),
-            'use_pyarmor': use_pyarmor,
-            'use_nuitka': use_nuitka,
-            'use_cython': use_cython,
+            'use_pyarmor': project_data.get('use_pyarmor', False),
+            'use_nuitka': project_data.get('use_nuitka', False),
+            'use_cython': project_data.get('use_cython', False),
+            'use_cpp': project_data.get('use_cpp', False),
         }
         project = Project(**init_params)
+
         # Setze übrige Attribute (sofern im Model vorhanden)
         for k, v in project_data.items():
             if k not in init_params and hasattr(project, k):
                 setattr(project, k, v)
+
+        # hier explizit absichern:
+        if not hasattr(project, "use_msvc"):
+            project.use_msvc = True
+
         projects.append(project)
     return projects
+
 
 # === INI-Dateien laden/speichern ===
 
