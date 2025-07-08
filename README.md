@@ -7,6 +7,8 @@
 ## Important!
 
 **Overwrite `myProject.apyscript` to set the home project for AutoPy++.**
+
+
 ## Installation for Windows 10/11
 
 1. **Install Git (if not already installed):**
@@ -98,6 +100,9 @@ C:\Program Files (x86)\Thonny\tcl                                              #
 ---
 
 # For GCC/G++ Users Only
+
+**Install newest Python Version **
+https://www.python.org/downloads/windows/
 
 Install full MSYS2 (includes MinGW-w64):  
 https://www.msys2.org/
