@@ -99,19 +99,21 @@ C:\Program Files (x86)\Thonny\tcl                                              #
 
 ---
 
-# For GCC/G++ Users Only
+# For GCC/G++ Pilpeline Users Only
 
-**Install newest Python Version **
+** Install newest Python Version **
 https://www.python.org/downloads/windows/
 
-Install full MSYS2 (includes MinGW-w64):  
-https://www.msys2.org/
+** Install full development libarys C++ ** 
+https://visualstudio.microsoft.com/de/visual-cpp-build-tools/
+Needet compiler for Windows Applications is MSVC 
 
-- GCC is for C files  
-- G++ is for C++ files
+Open under Windows.: x64 Native Tools Command Prompt for VS 2022
+```bash
+where cl
+```
 
-### MSYS2 commands:
-
+### ONLY FOR MINGW -> MSYS2 commands:
 ```bash
 pacman -Syu
 pacman -Su
