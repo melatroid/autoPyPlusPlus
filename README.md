@@ -99,7 +99,7 @@ C:\Program Files (x86)\Thonny\tcl                                              #
 
 ---
 
-# For GCC/G++ Pilpeline Users Only
+# For GCC/G++ Pipeline Users Only
 
 ** Install newest Python Version **
 https://www.python.org/downloads/windows/
@@ -210,12 +210,14 @@ gcc --version
 ### (Preview) Version 2.28
 
 - Inspector reads specific logs on top
-
-### (Preview) Version 2.27
-
 - GCC/GPP improved GUI for pipeline with Cython
 
-### (latest) Version 2.26
+### (latest) Version 2.27
+- add msvc as main c++ compiler
+- New Extensions Editor
+- Big Bug fix Update for Gui
+
+### Version 2.26
 - better windows_start.bat
 - add core functions
 - Save current Project Button
