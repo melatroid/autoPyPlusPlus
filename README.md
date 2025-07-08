@@ -185,7 +185,7 @@ gcc --version
 | PyArmor     | works well (not fully tested) |
 | Nuitka      | works      (not fully tested) |
 | Cython      | works well (not fully tested) |
-| GPP/GCC     | not working (buggy)           |
+| MSVC        | not working (buggy)           |
 | Inspector   | works well                    |
 | Secure_compilers | coming soon              |
 
@@ -207,13 +207,14 @@ gcc --version
 ---
 
 # Versions
-### (Preview) Version 2.28
-
+### (Preview) Version 2.29
 - Inspector reads specific logs on top
-- GCC/GPP improved GUI for pipeline with Cython
+  
+### (Preview) Version 2.28
+- MSVC improved GUI for pipeline with Cython
 
 ### (latest) Version 2.27
-- add msvc as main c++ compiler
+- add msvc as new primary c++ compiler
 - New Extensions Editor
 - Big Bug fix Update for Gui
 
