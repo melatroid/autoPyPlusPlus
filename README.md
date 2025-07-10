@@ -211,7 +211,7 @@ gcc --version
 - Inspector reads specific logs on top
   
 ### (Preview) Version 2.28
-- MSVC improved GUI for pipeline with Cython
+- Working MSVC pipeline with Cython for exe or pyx builds 
 
 ### (latest) Version 2.27
 - add msvc as new primary c++ compiler
