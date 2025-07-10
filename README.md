@@ -147,7 +147,7 @@ echo $MSYSTEM
 # Practice
 
 - For clean usage, **do not change existing names or paths of files** — create new projects instead.
-- Press the "Save As" button often when making changes to settings.
+- Press the "Save" button often when making changes in your project settings.
 
 ---
 
