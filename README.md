@@ -59,10 +59,10 @@ Before you use this software:
 ## 1.) Install over Requirements.txt or go to IDE console and install the following packages:
 
 ```bash
-pip install pyinstaller    # Python -> exe (direct result)
-pip install nuitka         # Python -> C -> exe (direct result)
-pip install cython         # Python -> C/C++ (requires runtime DLLs and GCC compiler)
-pip install pyarmor        # Code obfuscation (trial mode, license available: https://pyarmor.readthedocs.io/en/latest/licenses.html#terms-of-use)
+pip install pyinstaller   
+pip install nuitka        
+pip install cython        
+pip install pyarmor        
 
 ```
 
@@ -77,25 +77,11 @@ where cython
 
 ---
 
-## 2.) Open `extensions_path.ini` with a text editor
+## 2.) Open Extensions in main gui and add your favorites
 
 ---
 
-## 3.) Insert correct paths to the `.exe` files, for example:
-
-```
-C:\Users\[USERNAME]\AppData\Roaming\Python\Python310\Scripts\pyinstaller.exe   # PY -> .exe
-C:\Users\[USERNAME]\AppData\Roaming\Python\Python310\Scripts\pyarmor.exe       # PY -> PYC (encryption)
-C:\Users\[USERNAME]\AppData\Roaming\Python\Python310\Scripts\nuitka.cmd        # PY -> batch script (Nuitka compiler)
-C:\Users\[USERNAME]\AppData\Roaming\Python\Python310\Scripts\cython.exe        # PY/PYX -> C/C++
-C:\msys64\mingw64\bin\g++.exe                                                  # C++ compiler (MinGW)
-C:\msys64\mingw64\bin\gcc.exe                                                  # C compiler (MinGW)
-C:\Program Files (x86)\Thonny\tcl                                              # Tcl runtime for Python GUI
-```
-
----
-
-## 4.) Replace the links to the `.exe` files accordingly.
+## 3.) Replace the links to the `.exe` files accordingly.
 
 ---
 
