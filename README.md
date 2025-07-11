@@ -192,18 +192,19 @@ gcc --version
 | Inspector   | works well                    |
 | Secure_compilers | coming soon              |
 |
-.py
-├── [PyInstaller] ──────► .exe           (standalone bundled app)
-├── [PyArmor] ──────────► .pyc           (encrypted bytecode, needs PyArmor runtime)
-├── [Nuitka]
-│    ├─► .exe                            (standalone or dependent executable)
-│    ├─► .pyd / .so                      (Python extension module)
-│    └─► .dll                            (rare, Windows DLL)
-└── [Cython] ───► .c / .cpp ──► [C/C++ Compiler]
-     ├─► .pyd (Windows) / .so (Linux/Mac) (extension module)
-     ├─► .exe                            (native executable, rare)
-     ├─► .dll                            (Windows DLL, rare)
-     └─► .lib                            (static library, for C/C++)
+```plaintext
+📜 .py
+├── 🔨 [PyInstaller] → 💾 .exe (Eigenständige, gebündelte Anwendung)
+├── 🔒 [PyArmor] → 🔐 .pyc (Verschlüsselter Bytecode, benötigt PyArmor-Runtime)
+├── ⚙️ [Nuitka]
+│   ├── 💾 .exe (Eigenständig oder abhängiges ausführbares Programm)
+│   ├── 🔌 .pyd / .so (Python-Erweiterungsmodul)
+│   └── 🔗 .dll (Selten, Windows-DLL)
+└── 🛠️ [Cython] → 📄 .c / .cpp → [C/C++ Compiler]
+    ├── 🔌 .pyd (Windows) / .so (Linux/Mac) (Erweiterungsmodul)
+    ├── 💾 .exe (Natives ausführbares Programm, selten)
+    ├── 🔗 .dll (Windows-DLL, selten)
+    └── 📚 .lib (Statische Bibliothek für C/C++)
 
 
 # Known Bugs
