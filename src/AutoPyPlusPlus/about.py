@@ -8,7 +8,7 @@ def show_about_dialog(master, style, theme_func):
 
     about_win = tk.Toplevel(master)
     about_win.title("About AutoPy++")
-    about_win.geometry("250x420")
+    about_win.geometry("220x420")
     about_win.resizable(False, False)
     about_win.transient(master)
     about_win.grab_set()
@@ -28,7 +28,7 @@ def show_about_dialog(master, style, theme_func):
 
     text = (
         "AutoPy++\n"
-        "Version 2.27 (Stand: 08.07.2025)\n"
+        "Version 2.28 (Stand: 11.07.2025)\n"
         "Developer.: melatroid\n"
         "© 2025 by melatroid\n"
         "Bugs & Reports: dseccg@gmail.com\n"

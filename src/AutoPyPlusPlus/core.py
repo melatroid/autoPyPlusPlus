@@ -6,6 +6,21 @@ import shutil
 from .project import Project
 from .spec_parser import generate_spec_file
 
+# === Helper: Ergänzt fehlende Attribute ===
+
+def ensure_all_project_attributes(project, verbose=False):
+    """
+    Ergänzt fehlende Attribute im Project-Objekt mit Default-Werten aus der aktuellen Klasse.
+    Optional: verbose=True gibt die Namen der gesetzten Felder in der Konsole aus.
+    """
+    # Nimm ALLE Attribute des Standard-Projekts
+    defaults = Project()
+    for attr, default_val in vars(defaults).items():
+        if not hasattr(project, attr):
+            setattr(project, attr, default_val)
+            if verbose:
+                print(f"[Projekt-Upgrade] Ergänzt: {attr} = {default_val!r}")
+
 # === Projekte speichern/laden ===
 
 def save_projects(projects: List[Project], file_path: str | Path) -> None:
@@ -23,7 +38,10 @@ def save_projects(projects: List[Project], file_path: str | Path) -> None:
         with open(file_path, "w", encoding="utf-8") as f:
             json.dump([p.to_dict() if hasattr(p, "to_dict") else vars(p) for p in projects], f, ensure_ascii=False, indent=2)
 
-def load_projects(file_path: str | Path) -> List[Project]:
+def load_projects(file_path: str | Path, verbose=False) -> List[Project]:
+    """
+    Lädt Projekte aus einer .apyscript-Datei und ergänzt fehlende Felder automatisch.
+    """
     file_path = Path(file_path)
     with open(file_path, "r", encoding="utf-8") as f:
         data = json.load(f)
@@ -31,6 +49,7 @@ def load_projects(file_path: str | Path) -> List[Project]:
     for item in data:
         project_data = dict(item)
 
+        # Hauptfelder in Konstruktor übergeben
         init_params = {
             'script': project_data.get('script', ''),
             'name': project_data.get('name', ''),
@@ -43,21 +62,19 @@ def load_projects(file_path: str | Path) -> List[Project]:
             'use_nuitka': project_data.get('use_nuitka', False),
             'use_cython': project_data.get('use_cython', False),
             'use_cpp': project_data.get('use_cpp', False),
+            'use_msvc': project_data.get('use_msvc', False),
         }
         project = Project(**init_params)
 
-        # Setze übrige Attribute (sofern im Model vorhanden)
+        # Setze ALLE übrigen Attribute aus der Datei – ganz stumpf
         for k, v in project_data.items():
-            if k not in init_params and hasattr(project, k):
-                setattr(project, k, v)
+            setattr(project, k, v)
 
-        # hier explizit absichern:
-        if not hasattr(project, "use_msvc"):
-            project.use_msvc = True
+        # Ergänze ALLE fehlenden Felder mit Defaults!
+        ensure_all_project_attributes(project, verbose=verbose)
 
         projects.append(project)
     return projects
-
 
 # === INI-Dateien laden/speichern ===
 

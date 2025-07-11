@@ -564,8 +564,8 @@ class AutoPyPlusPlusGUI:
 
     def _add(self):
         path = filedialog.askopenfilename(filetypes=[
-            ("Python Files", "*.py"),
-            ("Cython Files", "*.pyx"),
+            ("Python Files (*.py)", "*.py"),
+            ("Cython Files (*.pyx)", "*.pyx"),
             ("Spec Files", "*.spec")
         ])
         if not path:

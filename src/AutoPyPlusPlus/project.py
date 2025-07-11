@@ -137,6 +137,7 @@ class Project:
         self.use_cpp: bool  = use_cpp
         self.use_msvc = use_msvc
         self.cpp_language: str = "cpp"
+        self.cpp_filename: str = "" 
         self.cpp_output_file: str = ""
         self.cpp_windowed: bool = False
         self.cpp_compiler_path: str = "g++"
@@ -265,6 +266,7 @@ class Project:
             # ── CPP-Optionen ──────────────
             "use_cpp": self.use_cpp,
             "use_msvc": self.use_msvc,
+            "cpp_filename": self.cpp_filename,
             "cpp_windowed": self.cpp_windowed,
             "cpp_compiler_path": self.cpp_compiler_path,
             "cpp_compiler_flags": self.cpp_compiler_flags,
@@ -411,6 +413,8 @@ class Project:
         p.cpp_compile_files = d.get("cpp_compile_files", [])
         p.cpp_target_type = d.get("cpp_target_type", "Executable")
         p.cpp_target_platform = d.get("cpp_target_platform", "Windows")
+        p.cpp_filename = d.get("cpp_filename", "")  
+
 
         p._set_compiler(
             use_pyarmor=p.use_pyarmor,

@@ -42,7 +42,7 @@ class GCCEditor:
         self.extensions_paths = {}
 
     def _get_default_output_file(self) -> str:
-        base = "name"
+        base = "filename"
         target_type = self.var_target_type.get() if hasattr(self, "var_target_type") else self.default_values["cpp_target_type"]
         if sys.platform == "win32":
             if target_type == "Executable":
@@ -65,7 +65,7 @@ class GCCEditor:
                 return "lib" + base + ".so"
             elif target_type == "Python Extension":
                 return base + ".so"
-        return base + ".out"
+        return base + ".empty"
     
     def get_ext_for_target(self, target_type, target_platform):
         if target_platform == "Windows":
@@ -118,22 +118,48 @@ class GCCEditor:
         modified = False
 
         if target_type == "Python Extension":
-            if "-shared" not in flags:
-                flags.append("-shared")
-                modified = True
-            if target_platform == "Windows" and is_msvc and "-DMS_WIN64" not in flags:
-                flags.append("-DMS_WIN64")
-                modified = True
-            if (target_platform != "Windows" or not is_msvc) and "-DMS_WIN64" in flags:
-                flags.remove("-DMS_WIN64")
-                modified = True
+            # Für MSVC
+            if is_msvc:
+                # -shared entfernen, falls noch von GCC-Session
+                if "-shared" in flags:
+                    flags.remove("-shared")
+                    modified = True
+                # /LD rein, wenn fehlt
+                if "/LD" not in flags:
+                    flags.append("/LD")
+                    modified = True
+                # /DMS_WIN64 rein, wenn fehlt und Platform ist Windows
+                if target_platform == "Windows" and "/DMS_WIN64" not in flags:
+                    flags.append("/DMS_WIN64")
+                    modified = True
+                # -DMS_WIN64 entfernen, falls mal versehentlich von GCC noch drin
+                if "-DMS_WIN64" in flags:
+                    flags.remove("-DMS_WIN64")
+                    modified = True
+            # Für GCC
+            else:
+                # /LD entfernen, falls mal aus MSVC noch drin
+                if "/LD" in flags:
+                    flags.remove("/LD")
+                    modified = True
+                # -shared rein, wenn fehlt
+                if "-shared" not in flags:
+                    flags.append("-shared")
+                    modified = True
+                # -DMS_WIN64 rein, wenn Platform Windows und fehlt
+                if target_platform == "Windows" and "-DMS_WIN64" not in flags:
+                    flags.append("-DMS_WIN64")
+                    modified = True
+                # /DMS_WIN64 entfernen
+                if "/DMS_WIN64" in flags:
+                    flags.remove("/DMS_WIN64")
+                    modified = True
         else:
-            if "-shared" in flags:
-                flags.remove("-shared")
-                modified = True
-            if "-DMS_WIN64" in flags:
-                flags.remove("-DMS_WIN64")
-                modified = True
+            # Für alle anderen Typen: alle Python-Ext-flags raus
+            for flag in ["-shared", "-DMS_WIN64", "/LD", "/DMS_WIN64"]:
+                if flag in flags:
+                    flags.remove(flag)
+                    modified = True
 
         if modified:
             self.e_cpp_compiler_flags.delete(0, tk.END)
@@ -153,14 +179,15 @@ class GCCEditor:
              self._create_tooltip(label, tooltip)
         return entry
 
+
     def show(self):
         self.win = tk.Toplevel(self.master)
-        self.win.title("GCC/GPP Settings")
-        self.win.geometry("1300x700")
+        self.win.title("C++ Settings")
+        self.win.geometry("1300x770")
         self.win.transient(self.master)
         self.win.grab_set()
         self.win.minsize(800, 500)
-        
+
         main_frame = ttk.Frame(self.win, padding=15)
         main_frame.pack(fill="both", expand=True)
         main_frame.columnconfigure((0, 1), weight=1)
@@ -168,12 +195,15 @@ class GCCEditor:
         general_frame = ttk.LabelFrame(main_frame, text="General Settings", padding=10)
         general_frame.grid(row=0, column=0, sticky="nsew", padx=(0, 10), pady=10)
         general_frame.columnconfigure(1, weight=1)
+        general_frame.columnconfigure(2, weight=0)
+        general_frame.columnconfigure(3, weight=0)
 
         self.extensions_paths = load_extensions_paths(None)
 
         lang_default = cast(str, getattr(self.project, "cpp_language", self.default_values["cpp_language"]))
         self.var_language = tk.StringVar(value=lang_default)
 
+        # Language
         ttk.Label(general_frame, text="Language:").grid(row=0, column=0, sticky="e", pady=5, padx=(0, 5))
         self.combo_language = ttk.Combobox(
             general_frame,
@@ -185,16 +215,14 @@ class GCCEditor:
         self.combo_language.grid(row=0, column=1, sticky="w", pady=5)
         self.combo_language.bind("<<ComboboxSelected>>", lambda e: self.on_language_changed())
 
-                # Compiler path + buttons
+        # Compiler Combo
         compiler_paths_dict = {
             "MSVC (cl.exe)": self.extensions_paths.get("msvc"),
             "G++": self.extensions_paths.get("cpp"),
             "GCC": self.extensions_paths.get("gcc")
         }
-        # Nur gültige Pfade
-        compiler_paths = [v for v in compiler_paths_dict.values() if v]
-
         self.var_compiler_choice = tk.StringVar()
+        ttk.Label(general_frame, text="Compiler:").grid(row=1, column=0, sticky="e", pady=5, padx=(0, 5))
         self.combo_compiler = ttk.Combobox(
             general_frame,
             textvariable=self.var_compiler_choice,
@@ -205,82 +233,76 @@ class GCCEditor:
         self.combo_compiler.grid(row=1, column=1, sticky="w", pady=5)
         self.combo_compiler.bind("<<ComboboxSelected>>", self.on_compiler_choice_changed)
 
-        # Entry für Pfad daneben
+        # *** Compiler Buttons: NEUE ZEILE ***
+        compiler_btn_frame = ttk.Frame(general_frame)
+        compiler_btn_frame.grid(row=2, column=0, columnspan=3, sticky="w", padx=0, pady=(0, 10))
+        ttk.Button(compiler_btn_frame, text="Set Compiler", command=lambda: self._choose_file(self.e_cpp_compiler_path)).pack(side="left", padx=2)
+        ttk.Button(compiler_btn_frame, text="Find any Compiler", command=self.auto_detect_compiler).pack(side="left", padx=2)
+        ttk.Button(compiler_btn_frame, text="Check Compiler", command=self.check_current_compiler).pack(side="left", padx=2)
+
+        # Compiler Path Entry
+        ttk.Label(general_frame, text="Compiler Path:").grid(row=3, column=0, sticky="e", pady=5, padx=(0, 5))
         self.e_cpp_compiler_path = ttk.Entry(general_frame, width=40)
-        self.e_cpp_compiler_path.grid(row=1, column=2, sticky="ew", pady=5, padx=(5, 5))
+        self.e_cpp_compiler_path.grid(row=3, column=1, sticky="ew", pady=5, padx=(0, 5))
 
-        ttk.Button(general_frame, text="Set Compiler", command=lambda: self._choose_file(self.e_cpp_compiler_path)).grid(row=0, column=2, padx=5)
-        ttk.Button(general_frame, text="Find any Compiler",  command=self.auto_detect_compiler).grid(row=0, column=3, padx=5)
-        ttk.Button(general_frame, text="Check Compiler", command=self.check_current_compiler).grid(row=0, column=4, padx=5)
-
-        # Bevorzuge MSVC, aber nur wenn vorhanden
+        # --- Compiler Path Defaults setzen wie gehabt ---
         msvc_path = self.extensions_paths.get("msvc")
         cpp_path = self.extensions_paths.get("cpp")
         gcc_path = self.extensions_paths.get("gcc")
-
         if lang_default == "c":
             default_compiler_path = msvc_path or gcc_path or "gcc"
         else:
             default_compiler_path = msvc_path or cpp_path or "g++"
-
-        # Übernehme gespeicherten Pfad, falls vorhanden, sonst Default
         compiler_path_default = cast(str, getattr(self.project, "cpp_compiler_path", default_compiler_path))
         self.e_cpp_compiler_path.insert(0, compiler_path_default)
         for name, path in compiler_paths_dict.items():
             if path == compiler_path_default:
                 self.var_compiler_choice.set(name)
                 break
-
-        # use_msvc nur setzen, wenn noch nicht vorhanden
         if not hasattr(self.project, "use_msvc"):
             self.project.use_msvc = Path(compiler_path_default).name.lower() == "cl.exe"
 
-        ttk.Label(general_frame, text="Output Folder:").grid(row=1, column=0, sticky="e", pady=5, padx=(0, 5))
+        # Output Folder + Browse
+        ttk.Label(general_frame, text="Output Folder:").grid(row=4, column=0, sticky="e", pady=5, padx=(0, 5))
         output_dir_default = cast(str, getattr(self.project, "cpp_output_dir", self.default_values["cpp_output_dir"]))
         self.e_cpp_output_dir = ttk.Entry(general_frame, width=40)
-        self.e_cpp_output_dir.grid(row=1, column=1, sticky="ew", pady=5)
-        ttk.Button(general_frame, text="Browse", command=lambda: self._choose_dir(self.e_cpp_output_dir)).grid(row=1, column=2, padx=5)
+        self.e_cpp_output_dir.grid(row=4, column=1, sticky="ew", pady=5)
+        ttk.Button(general_frame, text="Browse", command=lambda: self._choose_dir(self.e_cpp_output_dir)).grid(row=4, column=2, padx=5)
         self.e_cpp_output_dir.insert(0, output_dir_default)
 
-        # ----------------------------------------
-        # ZUERST: ALLE TK-Variablen initialisieren!
-        # ----------------------------------------
-        build_type_default = cast(str, getattr(self.project, "cpp_build_type", self.default_values["cpp_build_type"]))
-        self.var_build_type = tk.StringVar(value=build_type_default)
-
-        cpp_standard_default = cast(str, getattr(self.project, "cpp_standard", self.default_values["cpp_standard"]))
-        self.var_cpp_standard = tk.StringVar(value=cpp_standard_default)
-
-        target_type_default = cast(str, getattr(self.project, "cpp_target_type", self.default_values["cpp_target_type"]))
-        self.var_target_type = tk.StringVar(value=target_type_default)
-
-        target_platform_default = getattr(self.project, "cpp_target_platform", "Windows")
-        self.var_target_platform = tk.StringVar(value=target_platform_default)
-
-        # ----------------------------------------
-        ttk.Label(general_frame, text="Output File Name:").grid(row=2, column=0, sticky="e", pady=5, padx=(0, 5))
+        # Output File Name
+        ttk.Label(general_frame, text="Output File Name:").grid(row=5, column=0, sticky="e", pady=5, padx=(0, 5))
         output_file_default = cast(str, getattr(self.project, "cpp_output_file", ""))
         if not output_file_default:
             output_file_default = self._get_default_output_file()
         self.e_cpp_output_file = ttk.Entry(general_frame, width=40)
-        self.e_cpp_output_file.grid(row=2, column=1, sticky="ew", pady=5)
+        self.e_cpp_output_file.grid(row=5, column=1, sticky="ew", pady=5)
         self.e_cpp_output_file.insert(0, output_file_default)
 
-        ttk.Label(general_frame, text="Build Type:").grid(row=3, column=0, sticky="e", pady=5, padx=(0, 5))
+        # Build Type
+        build_type_default = cast(str, getattr(self.project, "cpp_build_type", self.default_values["cpp_build_type"]))
+        self.var_build_type = tk.StringVar(value=build_type_default)
+        ttk.Label(general_frame, text="Build Type:").grid(row=6, column=0, sticky="e", pady=5, padx=(0, 5))
         self.combo_build_type = ttk.Combobox(
             general_frame, textvariable=self.var_build_type,
             values=["Release", "Debug"], state="readonly", width=15
         )
-        self.combo_build_type.grid(row=3, column=1, sticky="w", pady=5)
+        self.combo_build_type.grid(row=6, column=1, sticky="w", pady=5)
 
-        ttk.Label(general_frame, text="C++ Standard:").grid(row=4, column=0, sticky="e", pady=5, padx=(0, 5))
+        # C++ Standard
+        cpp_standard_default = cast(str, getattr(self.project, "cpp_standard", self.default_values["cpp_standard"]))
+        self.var_cpp_standard = tk.StringVar(value=cpp_standard_default)
+        ttk.Label(general_frame, text="C++ Standard:").grid(row=7, column=0, sticky="e", pady=5, padx=(0, 5))
         self.combo_cpp_standard = ttk.Combobox(
             general_frame, textvariable=self.var_cpp_standard,
             values=["c++11", "c++14", "c++17", "c++20", "c++23"], state="readonly", width=15
         )
-        self.combo_cpp_standard.grid(row=4, column=1, sticky="w", pady=5)
+        self.combo_cpp_standard.grid(row=7, column=1, sticky="w", pady=5)
 
-        ttk.Label(general_frame, text="Target Type:").grid(row=5, column=0, sticky="e", pady=5, padx=(0, 5))
+        # Target Type
+        target_type_default = cast(str, getattr(self.project, "cpp_target_type", self.default_values["cpp_target_type"]))
+        self.var_target_type = tk.StringVar(value=target_type_default)
+        ttk.Label(general_frame, text="Target Type:").grid(row=8, column=0, sticky="e", pady=5, padx=(0, 5))
         self.combo_target_type = ttk.Combobox(
             general_frame,
             textvariable=self.var_target_type,
@@ -288,10 +310,13 @@ class GCCEditor:
             state="readonly",
             width=15,
         )
-        self.combo_target_type.grid(row=5, column=1, sticky="w", pady=5)
+        self.combo_target_type.grid(row=8, column=1, sticky="w", pady=5)
         self.combo_target_type.bind("<<ComboboxSelected>>", self.on_target_type_or_platform_changed)
 
-        ttk.Label(general_frame, text="Target Platform:").grid(row=5, column=2, sticky="e", pady=5, padx=(0, 5))
+        # Target Platform
+        target_platform_default = getattr(self.project, "cpp_target_platform", "Windows")
+        self.var_target_platform = tk.StringVar(value=target_platform_default)
+        ttk.Label(general_frame, text="Target Platform:").grid(row=8, column=2, sticky="e", pady=5, padx=(0, 5))
         self.combo_target_platform = ttk.Combobox(
             general_frame,
             textvariable=self.var_target_platform,
@@ -299,16 +324,16 @@ class GCCEditor:
             state="readonly",
             width=15,
         )
-        self.combo_target_platform.grid(row=5, column=3, sticky="w", pady=5)
+        self.combo_target_platform.grid(row=8, column=3, sticky="w", pady=5)
         self.combo_target_platform.bind("<<ComboboxSelected>>", self.on_target_type_or_platform_changed)
 
+        # Debug Mode
+        self.var_debug_mode = tk.BooleanVar(value=getattr(self.project, "debug", False))
+        ttk.Checkbutton(general_frame, text="Debug Mode (Keep Log)", variable=self.var_debug_mode).grid(row=9, column=1, sticky="w", pady=5)
+
+        # Windowed checkbox (nur Windows)
         windowed_default = cast(bool, getattr(self.project, "cpp_windowed", self.default_values.get("cpp_windowed", False)))
         self.var_cpp_windowed = tk.BooleanVar(value=windowed_default)
-
-        self.var_debug_mode = tk.BooleanVar(value=getattr(self.project, "debug", False))
-        ttk.Checkbutton(general_frame, text="Debug Mode (Keep Log)", variable=self.var_debug_mode).grid(row=6, column=1, sticky="w", pady=5)
-
-        # Windows only: windowed checkbox, but controlled
         self.windowed_checkbox = None
         if sys.platform == "win32":
             self.windowed_checkbox = ttk.Checkbutton(
@@ -316,33 +341,35 @@ class GCCEditor:
                 text="Windowed Application (-mwindows)",
                 variable=self.var_cpp_windowed,
             )
-            self.windowed_checkbox.grid(row=7, column=1, sticky="w", pady=5)
+            self.windowed_checkbox.grid(row=10, column=1, sticky="w", pady=5)
 
+        # Compiler Flags
         compiler_flags_default = cast(str, getattr(self.project, "cpp_compiler_flags", self.default_values["cpp_compiler_flags"]))
-        ttk.Label(general_frame, text="Compiler Flags:").grid(row=7, column=0, sticky="e", pady=5, padx=(0, 5))
+        ttk.Label(general_frame, text="Compiler Flags:").grid(row=11, column=0, sticky="e", pady=5, padx=(0, 5))
         self.e_cpp_compiler_flags = ttk.Entry(general_frame, width=40)
-        self.e_cpp_compiler_flags.grid(row=7, column=1, sticky="ew", pady=5)
+        self.e_cpp_compiler_flags.grid(row=11, column=1, sticky="ew", pady=5)
         self.e_cpp_compiler_flags.insert(0, compiler_flags_default)
-        ttk.Button(general_frame, text="Add Flags", command=self.add_example_flags).grid(row=7, column=2, padx=5)
+        ttk.Button(general_frame, text="Add Flags", command=self.add_example_flags).grid(row=11, column=2, padx=5)
 
-        ttk.Label(general_frame, text="Compile Files:").grid(row=8, column=0, sticky="ne", pady=5, padx=(0, 5))
+        # Compile Files + Buttons
+        ttk.Label(general_frame, text="Compile Files:").grid(row=12, column=0, sticky="ne", pady=5, padx=(0, 5))
         self.compile_files_listbox = tk.Listbox(general_frame, height=8, width=40, selectmode=tk.EXTENDED)
         scrollbar = ttk.Scrollbar(general_frame, orient="vertical", command=self.compile_files_listbox.yview)
         self.compile_files_listbox.configure(yscrollcommand=scrollbar.set)
-        self.compile_files_listbox.grid(row=8, column=1, sticky="nsew", pady=5)
-        scrollbar.grid(row=8, column=2, sticky="ns", pady=5)
+        self.compile_files_listbox.grid(row=12, column=1, sticky="nsew", pady=5)
+        scrollbar.grid(row=12, column=2, sticky="ns", pady=5)
         compile_files_default = cast(Iterable[str], getattr(self.project, "cpp_compile_files", self.default_values["cpp_compile_files"]))
         for f in compile_files_default:
             self.compile_files_listbox.insert(tk.END, f)
 
         file_btn_frame = ttk.Frame(general_frame)
-        file_btn_frame.grid(row=9, column=1, sticky="ew", pady=5)
+        file_btn_frame.grid(row=13, column=1, sticky="ew", pady=5)
         ttk.Button(file_btn_frame, text="Add Files", command=self.add_compile_files).pack(side="left", padx=5)
         ttk.Button(file_btn_frame, text="Remove Selected", command=self.remove_selected_files).pack(side="left", padx=5)
-        ttk.Button(file_btn_frame, text="Autosearch C++", command=self.auto_detect_files).pack(side="left", padx=5)
-        general_frame.rowconfigure(8, weight=1)
+        ttk.Button(file_btn_frame, text="Collect all C++ files", command=self.auto_detect_files).pack(side="left", padx=5)
+        general_frame.rowconfigure(12, weight=1)
 
-        # Nach file_btn_frame/rowconfigure(8, weight=1):
+        # Advanced-Frame bleibt wie gehabt
         self.adv_frame = ttk.LabelFrame(main_frame, text="Advanced Options", padding=10)
         self.adv_frame.grid(row=0, column=1, sticky="nsew", padx=(10, 0), pady=10)
         self.adv_frame.columnconfigure(1, weight=1)
@@ -391,18 +418,19 @@ class GCCEditor:
         self.command_preview = tk.Text(main_frame, height=3, wrap="word")
         self.command_preview.grid(row=2, column=0, columnspan=2, sticky="ew", padx=10, pady=5)
         self.command_preview.config(state="disabled")
-        ttk.Button(main_frame, text="Update Preview", command=self.update_command_preview).grid(row=3, column=0, columnspan=2, pady=5)
+        button_row = ttk.Frame(main_frame)
+        button_row.grid(row=3, column=0, columnspan=2, sticky="e", pady=(0, 8), padx=10)
 
-        button_frame = ttk.Frame(self.win, padding=(10, 5))
-        button_frame.pack(fill="x", side="bottom")
-        ttk.Button(button_frame, text="Reset to Default", command=self.reset_to_default).pack(side="left", padx=5)
-        ttk.Button(button_frame, text="Cancel", command=self.on_cancel).pack(side="right", padx=5)
-        ttk.Button(button_frame, text="Save", command=self.save).pack(side="right", padx=5)
+        ttk.Button(button_row, text="Reset to Default", command=self.reset_to_default).pack(side="left", padx=4)
+        ttk.Button(button_row, text="Update Preview", command=self.update_command_preview).pack(side="left", padx=4)
+        ttk.Button(button_row, text="Save", command=self.save).pack(side="left", padx=4)
+        ttk.Button(button_row, text="Cancel", command=self.on_cancel).pack(side="left", padx=4)
 
         self.win.protocol("WM_DELETE_WINDOW", self.on_cancel)
         self.update_command_preview()
         self.win.wait_window(self.win)
         return self.saved
+
 
 
 

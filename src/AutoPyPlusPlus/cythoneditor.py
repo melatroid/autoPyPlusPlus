@@ -51,7 +51,7 @@ class CythonEditor:
         ttk.Checkbutton(stdopt_frame, text="Use Cython", variable=self.var_use_cython).pack(anchor="w", pady=2)
 
         self.var_use_cpp = tk.BooleanVar(value=getattr(self.project, "use_cpp", False))
-        cb_use_cpp = ttk.Checkbutton(stdopt_frame, text="Use GCC Pipeline", variable=self.var_use_cpp)
+        cb_use_cpp = ttk.Checkbutton(stdopt_frame, text="Use C++ Pipeline", variable=self.var_use_cpp)
         cb_use_cpp.pack(anchor="w", pady=2)
 
         self.var_boundscheck = tk.BooleanVar(value=getattr(self.project, "cython_boundscheck", False))
@@ -167,7 +167,7 @@ class CythonEditor:
 
         # --------------- Untere Zeile: Dateien, Security, Buttons ----------------
         # Zusatzdateien
-        additional_files_frame = ttk.LabelFrame(main_frame, text="Add files for your C++ build, like python310.dll or tkinter.dll\nneeded for build with gcc-compiler")
+        additional_files_frame = ttk.LabelFrame(main_frame, text="Add files for your C++ build, like python310.dll or tkinter.dll\nneeded for build with c++-compiler")
         additional_files_frame.grid(row=1, column=0, columnspan=3, sticky="nsew", pady=(18,6), padx=3)
         additional_files_frame.grid_columnconfigure(0, weight=1)
         additional_files_frame.grid_rowconfigure(0, weight=1)
@@ -200,7 +200,7 @@ class CythonEditor:
         ttk.Button(button_frame, text="Save all", command=self.save).pack(side="left", padx=5)
 
         # Button für GCCEditor nur anzeigen, wenn use_cpp True ist
-        gcc_button = ttk.Button(button_frame, text="GCC Pipeline", command=self.open_gcc_editor)
+        gcc_button = ttk.Button(button_frame, text="C++ Pipeline", command=self.open_gcc_editor)
         if self.var_use_cpp.get():
             gcc_button.pack(side="left", padx=5)
 
@@ -219,8 +219,6 @@ class CythonEditor:
     def open_gcc_editor(self):
         gcc_editor = GCCEditor(self.master, self.project)
         saved = gcc_editor.show()
-        if saved:
-            messagebox.showinfo("Info", "C++ settings updated.")
 
     def _refresh_files_listbox(self):
         self.files_listbox.delete(0, tk.END)

@@ -198,7 +198,9 @@ class CPE0000000:
                 cmd,
                 capture_output=True,
                 text=True,
-                check=True
+                check=True,
+                encoding="mbcs",     
+                errors="replace"
             )
             log_info(log_file, result.stdout)
             if result.stderr:
