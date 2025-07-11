@@ -205,7 +205,6 @@ gcc --version
     ├── 💾 .exe (Native executable, rare)
     ├── 🔗 .dll (Windows DLL, rare)
     └── 📚 .lib (Static library for C/C++)
-
 ```
 
 # Known Bugs
