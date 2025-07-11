@@ -1,6 +1,6 @@
 <img src="https://autopyplusplus.wordpress.com/wp-content/uploads/2025/05/autopy-2.png" alt="Alt-Text" width="100" />
 
-# Version 2.27
+# Version 2.28
 # Setup & Usage Guide
 
 ---
@@ -101,17 +101,20 @@ C:\Program Files (x86)\Thonny\tcl                                              #
 
 # For MSVC Pipeline Users Only
 
-**Install newest Python Version**
-- https://www.python.org/downloads/windows/
-
 **Install full development libarys C++** 
 - Needet compiler for Windows Applications is MSVC
 - https://visualstudio.microsoft.com/de/visual-cpp-build-tools/
+  
+**How to start MSVC with autoPy++ ?** 
+- edit msvc_start.bat with your paths.
+- start msvc_start.exe
 
+**Add your MSVC Compiler to Extensions** 
 Open under Windows.: x64 Native Tools Command Prompt for VS 2022
 ```bash
 where cl
 ```
+
 
 ### ONLY FOR MINGW -> MSYS2 commands:
 ```bash
@@ -185,35 +188,55 @@ gcc --version
 | PyArmor     | works well (not fully tested) |
 | Nuitka      | works      (not fully tested) |
 | Cython      | works well (not fully tested) |
-| MSVC        | not working (buggy)           |
+| MSVC        | works      (not fully tested) |
 | Inspector   | works well                    |
 | Secure_compilers | coming soon              |
+|
+.py
+     |
+     +--[PyInstaller]--------------------> .exe (Standalone app, bundles everything)
+     |
+     +--[PyArmor]------------------------> .pyc (Encrypted bytecode, runs via PyArmor)
+     |
+     +--[Nuitka]-------------------------> .exe (Standalone or dependent executable)
+     |                                     .pyd / .so (Python extension module)
+     |                                     .dll (Windows DLL, rarely used)
+.py / .pyx
+     |
+     +--[Cython]---> .c / .cpp
+                        |
+                        +--[C/C++ Compiler]-----> .pyd (Windows, Python extension module) (Tested) 
+                        |                         .so  (Linux/Mac, Python extension module) (not Tested)
+                        |                         .exe (Executable, rare with Cython) (not Tested)
+                        |                         .dll (Windows DLL, rare for Python) (not Tested)
+                        |                         .lib (Static library, C/C++ use only) (not Tested)
 
 # Known Bugs
 
 **Hard Bugs:**
-
 - Permission denied when compiling spec files:  
   WARNING: Execution of '_append_data_to_exe'  
 - Error with `test_01_no_gui`:  
   Command `'C:/msys64/mingw64/bin/g++.exe' ... returned non-zero exit status 1`
 
 **Low Bugs:**
-
-- GCC/GPP DLL files not found (see GCC/GPP section)  
 - Issues with missing binary libraries (not critical)  
 - Nuitka created exe files detected by antivirus (temporarily disable antivirus)
 
 ---
-
 # Versions
-### (Preview) Version 2.29
+### (Preview) Version 2.30
 - Inspector reads specific logs on top
   
-### (Preview) Version 2.28
-- Working MSVC pipeline with Cython for exe or pyx builds 
+### (Preview) Version 2.29
+- Working MSVC pipeline with Cython for exe builds
+  
+### (latest) Version 2.28
+- MSVC pipeline with Cython for pyd builds =)
+- Gui Update for Cython and Pipeline
+- Autocollect attributs in older Apyscript Projects
 
-### (latest) Version 2.27
+### Version 2.27
 - add msvc as new primary c++ compiler
 - New Extensions Editor
 - Big Bug fix Update for Gui
