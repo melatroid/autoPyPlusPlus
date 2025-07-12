@@ -212,6 +212,7 @@ gcc --version
 - MSVC pipeline with Cython for pyd builds 
 - Big Bugfixes in msvc editor
 - better pipeline with msvc
+- add testfiles in cpp and pyd
 
 ### Version 2.28
 - Gui Update for Cython and Pipeline
