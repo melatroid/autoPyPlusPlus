@@ -26,7 +26,7 @@ class GCCEditor:
             "cpp_output_file": "",  # leer, wird dynamisch bestimmt
             "cpp_build_type": "Release",
             "cpp_standard": "c++23",
-            "cpp_target_type": "CHANGE!",
+            "cpp_target_type": "Python Extension",
             "cpp_compiler_flags": "",
             "cpp_linker_flags": "",
             "cpp_generate_deps": False,
@@ -42,7 +42,7 @@ class GCCEditor:
         self.extensions_paths = {}
 
     def _get_default_output_file(self) -> str:
-        base = "filename"
+        base = "module"
         target_type = self.var_target_type.get() if hasattr(self, "var_target_type") else self.default_values["cpp_target_type"]
         if sys.platform == "win32":
             if target_type == "Executable":
@@ -65,7 +65,7 @@ class GCCEditor:
                 return "lib" + base + ".so"
             elif target_type == "Python Extension":
                 return base + ".so"
-        return base + ".empty"
+        return base + ".pyd"
     
     def get_ext_for_target(self, target_type, target_platform):
         if target_platform == "Windows":
@@ -199,6 +199,7 @@ class GCCEditor:
         general_frame.columnconfigure(3, weight=0)
 
         self.extensions_paths = load_extensions_paths(None)
+        self.project.cpp_target_type = self.default_values["cpp_target_type"]
 
         lang_default = cast(str, getattr(self.project, "cpp_language", self.default_values["cpp_language"]))
         self.var_language = tk.StringVar(value=lang_default)

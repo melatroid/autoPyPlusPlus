@@ -28,7 +28,7 @@ def show_about_dialog(master, style, theme_func):
 
     text = (
         "AutoPy++\n"
-        "Version 2.28 (Stand: 11.07.2025)\n"
+        "Version 2.29 (Stand: 12.07.2025)\n"
         "Developer.: melatroid\n"
         "© 2025 by melatroid\n"
         "Bugs & Reports: dseccg@gmail.com\n"

@@ -265,6 +265,7 @@ class Project:
             "additional_files": self.additional_files,
             # ── CPP-Optionen ──────────────
             "use_cpp": self.use_cpp,
+            "cpp_output_file": self.cpp_output_file,
             "use_msvc": self.use_msvc,
             "cpp_filename": self.cpp_filename,
             "cpp_windowed": self.cpp_windowed,

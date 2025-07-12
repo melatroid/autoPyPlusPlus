@@ -26,6 +26,40 @@ def log_info(log_file, msg):
     log_file.write(f"{border}\n")
     log_file.flush()
 
+def get_extension_for_target(target_type, platform="win32"):
+    """
+    Ermittelt die Dateiendung für das Ziel (Target Type) und Plattform.
+    """
+    if platform.startswith("win"):
+        if target_type == "Executable":
+            return ".exe"
+        elif target_type == "Python Extension":
+            return ".pyd"
+        elif target_type == "Shared Library":
+            return ".dll"
+        elif target_type == "Static Library":
+            return ".lib"
+        else:
+            return ".out"
+    elif platform == "darwin":
+        if target_type == "Python Extension" or target_type == "Shared Library":
+            return ".so" if target_type == "Python Extension" else ".dylib"
+        elif target_type == "Static Library":
+            return ".a"
+        elif target_type == "Executable":
+            return ".out"
+        else:
+            return ".out"
+    else:  # Linux / Unix
+        if target_type == "Python Extension" or target_type == "Shared Library":
+            return ".so"
+        elif target_type == "Static Library":
+            return ".a"
+        elif target_type == "Executable":
+            return ".out"
+        else:
+            return ".out"
+
 class CPE0000000:
     """Kompilierklasse für C++."""
 
@@ -73,16 +107,12 @@ class CPE0000000:
         Path(output_dir).mkdir(parents=True, exist_ok=True)
         exe_name = getattr(project, "name", None) or Path(abs_source_files[0]).stem
 
-        # Erweiterung nach Plattform und Target
+        # Erweiterung nach Plattform und Target Type
+        # <--- Das ist der entscheidende neue Teil!
+        target_type = getattr(project, "cpp_target_type", "Executable")
         exe_ext = getattr(project, "cpp_output_extension", None)
         if not exe_ext:
-            # Ermittlung je nach Target Type & Platform (wie im Editor)
-            if is_msvc or sys.platform == "win32":
-                exe_ext = ".exe"
-            elif sys.platform == "darwin":
-                exe_ext = ".out"
-            else:
-                exe_ext = ".out"
+            exe_ext = get_extension_for_target(target_type, sys.platform)
         output_file = str(Path(output_dir) / f"{exe_name}{exe_ext}")
 
         if is_msvc:
@@ -122,6 +152,11 @@ class CPE0000000:
                 if std_flag:
                     cmd.append(f"/std:{std_flag}")
 
+            # Target-spezifische Flags für Python Extension / Shared Lib
+            if target_type == "Python Extension" or target_type == "Shared Library":
+                if "/LD" not in cmd and not any(flag.lower() == "/ld" for flag in cmd):
+                    cmd.append("/LD")
+
             # Windowed (nur für Windows-GUI)
             if getattr(project, "cpp_windowed", False):
                 cmd.append("/SUBSYSTEM:WINDOWS")
@@ -155,6 +190,11 @@ class CPE0000000:
                 cmd.append("-g")
             elif build_type == "release":
                 cmd.append("-O2")
+
+            # Target-spezifische Flags für Shared Library / Python Extension
+            if target_type == "Python Extension" or target_type == "Shared Library":
+                if "-shared" not in cmd:
+                    cmd.append("-shared")
 
             # Custom Compiler-Flags
             if getattr(project, "cpp_compiler_flags", None):
