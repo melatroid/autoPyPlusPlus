@@ -198,8 +198,6 @@ gcc --version
 **Hard Bugs:**
 - Permission denied when compiling spec files:  
   WARNING: Execution of '_append_data_to_exe'  
-- Error with `test_01_no_gui`:  
-  Command `'C:/msys64/mingw64/bin/g++.exe' ... returned non-zero exit status 1`
 
 **Low Bugs:**
 - Issues with missing binary libraries (not critical)  
@@ -210,11 +208,12 @@ gcc --version
 ### (Preview) Version 2.30
 - Inspector reads specific logs on top
   
-### (Preview) Version 2.29
-- Working MSVC pipeline with Cython for exe builds
-  
-### (latest) Version 2.28
-- MSVC pipeline with Cython for pyd builds =)
+### (latest) Version 2.29
+- MSVC pipeline with Cython for pyd builds 
+- Big Bugfixes in msvc editor
+- better pipeline with msvc
+
+### Version 2.28
 - Gui Update for Cython and Pipeline
 - Autocollect attributs in older Apyscript Projects
 
