@@ -1,6 +1,6 @@
 <img src="https://autopyplusplus.wordpress.com/wp-content/uploads/2025/05/autopy-2.png" alt="Alt-Text" width="100" />
 
-# Version 2.30
+# Version 2.30 🎂🍨 Thx for 160 clones 
 # Setup & Usage Guide
 
 ---
