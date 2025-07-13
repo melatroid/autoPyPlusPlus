@@ -212,6 +212,7 @@ gcc --version
 # Versions
 ### (Preview) Version 2.32
 - Inspector reads specific logs on top
+- sphinx as new extension
 
 ### (Preview) Version 2.31
 - add autpPy++ test.py -for pytest
