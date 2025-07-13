@@ -179,7 +179,7 @@ gcc --version
 | PyArmor     | works well (not fully tested) |
 | Nuitka      | works      (not fully tested) |
 | Cython      | works well (not fully tested) |
-| MSVC        | works      (not fully tested) |
+| MSVC        | works well (not fully tested) |
 | Inspector   | works well                    |
 | Secure_compilers | coming soon              |
 |
