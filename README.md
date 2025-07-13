@@ -212,13 +212,13 @@ gcc --version
 # Versions
 ### (Preview) Version 2.32
 - Inspector reads specific logs on top
-- sphinx as new extension
 
-### (Preview) Version 2.31
+### (latest) Version 2.31
 - add autpPy++ test.py -for pytest
-- pytest as new extension
+- sphinx as new extension (preview)
+- pytest as new extension (preview)
 
-### (latest) Version 2.30
+### Version 2.30
 - cython ready for building standalone executables
 - msvc ready for building standalone executables
   
