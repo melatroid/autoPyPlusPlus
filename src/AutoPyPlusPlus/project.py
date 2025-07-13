@@ -112,6 +112,7 @@ class Project:
         # ── Cython-Optionen ───────────────────────────
         self.use_cython: bool = use_cython 
         self.cython_build_with_setup: bool = True
+        self.cython_target_type: str = "Python Extension"
         self.cython_boundscheck: bool = False
         self.cython_wraparound: bool = False
         self.cython_nonecheck: bool = False
@@ -243,6 +244,7 @@ class Project:
             # ── Cython-Optionen ──────────────
             "use_cython": self.use_cython,
             "cython_build_with_setup": self.cython_build_with_setup,
+            "cython_target_type": self.cython_target_type,
             "cython_boundscheck": self.cython_boundscheck,
             "cython_wraparound": self.cython_wraparound,
             "cython_nonecheck": self.cython_nonecheck,
@@ -377,6 +379,7 @@ class Project:
         p.use_cython = d.get("use_cython", False)
         
         p.cython_build_with_setup = d.get("cython_build_with_setup", True)
+        p.cython_target_type = d.get("cython_target_type", "Python Extension") 
         p.cython_boundscheck = d.get("cython_boundscheck", False)
         p.cython_wraparound = d.get("cython_wraparound", False)
         p.cython_nonecheck = d.get("cython_nonecheck", False)

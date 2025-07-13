@@ -43,8 +43,6 @@ class CPD0000000:
         # Zielverzeichnis für Ausgabe bestimmen
         output_dir = project.cython_output_dir or str(script_path.parent)
 
-        # --------- Kompletter Fallback-Mechanismus für cython ----------
-
         # 1. Expliziter Pfad im Project
         cython_path = getattr(project, "cython_path", None)
 
@@ -80,27 +78,27 @@ class CPD0000000:
             directives.append("nonecheck=True")
         if not project.cython_cdivision:
             directives.append("cdivision=False")
-        if project.cython_initializedcheck:
+        if getattr(project, "cython_initializedcheck", False):
             directives.append("initializedcheck=True")
-        if project.cython_profile:
+        if getattr(project, "cython_profile", False):
             directives.append("profile=True")
-        if project.cython_linemap:
+        if getattr(project, "cython_linemap", False):
             directives.append("linetrace=True")
-        if project.cython_gdb:
+        if getattr(project, "cython_gdb", False):
             directives.append("gdb_debug=True")
-        if project.cython_embedsignature:
+        if getattr(project, "cython_embedsignature", False):
             directives.append("embedsignature=True")
-        if project.cython_cplus_exceptions:
+        if getattr(project, "cython_cplus_exceptions", False):
             directives.append("cplus_exceptions=True")
-        if project.cython_cpp_locals:
+        if getattr(project, "cython_cpp_locals", False):
             directives.append("cpp_locals=True")
-        if project.cython_annotate:
+        if getattr(project, "cython_annotate", False):
             cython_cmd.append("--annotate")
-        if project.cython_language_level:
+        if getattr(project, "cython_language_level", None):
             directives.append(f"language_level={project.cython_language_level}")
 
         # Custom directives
-        if project.cython_directives:
+        if getattr(project, "cython_directives", None):
             for k, v in project.cython_directives.items():
                 directives.append(f"{k}={v}")
 
@@ -109,21 +107,25 @@ class CPD0000000:
             cython_cmd.append("--directive=" + ",".join(directives))
 
         # Include-Dirs
-        if project.cython_include_dirs:
+        if getattr(project, "cython_include_dirs", None):
             for inc in project.cython_include_dirs:
                 cython_cmd.extend(["-I", inc])
 
         # Compile-Time Env
-        if project.cython_compile_time_env:
+        if getattr(project, "cython_compile_time_env", None):
             for k, v in project.cython_compile_time_env.items():
                 cython_cmd.append(f"--compile-time-env={k}={v}")
 
         # Sprache (C oder C++)
-        if project.cython_language in ("cpp", "c++"):
+        if getattr(project, "cython_language", "c") in ("cpp", "c++"):
             cython_cmd.append("--cplus")
             output_file = Path(output_dir) / (script_path.stem + ".cpp")
         else:
             output_file = Path(output_dir) / (script_path.stem + ".c")
+
+        if str(getattr(project, "cython_target_type", "")).lower() in ["standalone exe", "standalone", "exe"]:
+            cython_cmd.append("--embed")
+            log_info(log_file, "Setze --embed, da Standalone EXE als Ziel ausgewählt ist.")
 
         # Ausgabeverzeichnis setzen
         cython_cmd.extend(["-o", str(output_file)])
@@ -157,7 +159,7 @@ class CPD0000000:
         # Build (gcc oder setup.py)
         try:
             setup_path = Path(script_path.parent) / "setup.py"
-            if setup_path.is_file() and project.cython_build_with_setup:
+            if setup_path.is_file() and getattr(project, "cython_build_with_setup", True):
                 build_cmd = [sys.executable, str(setup_path), "build_ext", "--inplace"]
                 log_info(log_file, f"Starte Build mit setup.py: {' '.join(build_cmd)}")
                 build_result = subprocess.run(
@@ -175,7 +177,6 @@ class CPD0000000:
         except Exception as e:
             log_error(log_file, f"Build-Fehler: {e}")
 
-        # Option: .pyx-Datei behalten oder löschen
         if not getattr(project, "cython_keep_pyx", True):
             try:
                 script_path.unlink()

@@ -2,7 +2,7 @@ import tkinter as tk
 from tkinter import ttk, filedialog, messagebox
 from pathlib import Path
 
-from .gcceditor import GCCEditor  # Import hier ganz oben
+from .gcceditor import GCCEditor 
 
 class CythonEditor:
     def __init__(self, master, project):
@@ -14,11 +14,10 @@ class CythonEditor:
     def show(self):
         self.win = tk.Toplevel(self.master)
         self.win.title("Cython Compilation Editor")
-        self.win.geometry("1200x650")
+        self.win.geometry("1200x690")
         self.win.transient(self.master)
         self.win.grab_set()
 
-        # Menüleiste mit Einträgen für Zusatzdateien
         menubar = tk.Menu(self.win)
         self.win.config(menu=menubar)
         file_menu = tk.Menu(menubar, tearoff=False)
@@ -81,7 +80,19 @@ class CythonEditor:
         cb_lang.pack(anchor="w", pady=2)
         self.var_language.set("c++")
 
-        # ------- Mitte: Erweiterte Checkboxen -------
+        self.var_cython_target_type = tk.StringVar(
+            value=getattr(self.project, "cython_target_type", "Python Extension")
+        )
+        ttk.Label(stdopt_frame, text="Target Type:").pack(anchor="w", pady=(8, 0))
+        ttk.Combobox(
+            stdopt_frame,
+            textvariable=self.var_cython_target_type,
+            values=["Python Extension", "Standalone EXE"],
+            width=18,
+            state="readonly"
+        ).pack(anchor="w", pady=2)
+
+
         self.var_build_with_setup = tk.BooleanVar(value=getattr(self.project, "cython_build_with_setup", True))
         ttk.Checkbutton(adv_frame, text="After run, build with setup.py?", variable=self.var_build_with_setup).pack(anchor="w", pady=2)
 
@@ -352,6 +363,8 @@ class CythonEditor:
         p.cython_extra_compile_args = [s.strip() for s in self.e_extra_compile_args.get().split(",") if s.strip()]
         p.cython_extra_link_args = [s.strip() for s in self.e_extra_link_args.get().split(",") if s.strip()]
         p.cython_include_dirs = [s.strip() for s in self.e_include_dirs.get().split(",") if s.strip()]
+        # --- Speichere Target Type ---
+        p.cython_target_type = self.var_cython_target_type.get()
 
         directives_str = self.e_directives.get().strip()
         directives_dict = {}
@@ -382,13 +395,32 @@ class CythonEditor:
                 messagebox.showerror("Error", "Output folder is empty!")
                 return
 
+        # --- Wenn Output Name leer, setze automatisch ---
         if not p.cython_output_name:
             # z.B. dateiname ohne Endung oder einfach 'output'
             p.cython_output_name = (Path(p.script).stem if p.script else "output")
 
+        # --- Falls Standalone EXE, .exe als Endung anhängen ---
+        if self.var_cython_target_type.get() == "Standalone EXE":
+            if not p.cython_output_name.lower().endswith(".exe"):
+                p.cython_output_name += ".exe"
+
         self.saved = True
         if self.win:
             self.win.destroy()
+
+    def build_cython_command(self):
+        script_path = self.e_script.get().strip()
+        lang_level = self.var_language_level.get()
+        target_type = self.var_cython_target_type.get()
+        cython_cmd = ["cython"]
+
+        if target_type == "Standalone EXE":
+            cython_cmd.append("--embed")
+
+        cython_cmd += ["-3" if lang_level == "3" else "-2", script_path]
+        return cython_cmd
+
 
     def on_cancel(self):
         self.saved = False

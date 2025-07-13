@@ -199,7 +199,7 @@ class GCCEditor:
         general_frame.columnconfigure(3, weight=0)
 
         self.extensions_paths = load_extensions_paths(None)
-        self.project.cpp_target_type = self.default_values["cpp_target_type"]
+        #self.project.cpp_target_type = self.default_values["cpp_target_type"]
 
         lang_default = cast(str, getattr(self.project, "cpp_language", self.default_values["cpp_language"]))
         self.var_language = tk.StringVar(value=lang_default)
@@ -354,7 +354,7 @@ class GCCEditor:
 
         # Compile Files + Buttons
         ttk.Label(general_frame, text="Compile Files:").grid(row=12, column=0, sticky="ne", pady=5, padx=(0, 5))
-        self.compile_files_listbox = tk.Listbox(general_frame, height=8, width=40, selectmode=tk.EXTENDED)
+        self.compile_files_listbox = tk.Listbox(general_frame, height=4, width=40, selectmode=tk.EXTENDED)
         scrollbar = ttk.Scrollbar(general_frame, orient="vertical", command=self.compile_files_listbox.yview)
         self.compile_files_listbox.configure(yscrollcommand=scrollbar.set)
         self.compile_files_listbox.grid(row=12, column=1, sticky="nsew", pady=5)
@@ -874,6 +874,27 @@ class GCCEditor:
             if compiler_flags:
                 command.extend(compiler_flags.split())
 
+            # === NEU: MSVC-Komfort-Flags für Executable automatisch ergänzen ===
+            if self.var_target_type.get() == "Executable":
+                # /MD und /EHsc immer ergänzen, wenn noch nicht gesetzt:
+                if "/MD" not in command:
+                    command.append("/MD")
+                if "/EHsc" not in command:
+                    command.append("/EHsc")
+                # python3XX.lib automatisch ergänzen, falls nicht schon vorhanden:
+                libraries = []
+                if self.e_cpp_libraries is not None:
+                    libraries = [s.strip() for s in self.e_cpp_libraries.get().split(",") if s.strip()]
+                lib_found = any("python" in l and l.endswith(".lib") for l in libraries)
+                if not lib_found:
+                    pyver = f"python{sys.version_info.major}{sys.version_info.minor}.lib"
+                    # Optional: Hole Lib-Verzeichnis dynamisch aus Projekt, oder hier fix!
+                    py_lib_dir = r"C:\Users\melatroid\AppData\Local\Programs\Python\Python313\libs"
+                    if "/link" not in command:
+                        command.append("/link")
+                    command.append(f"/LIBPATH:{py_lib_dir}")
+                    command.append(pyver)
+
             # Linker flags & Libdirs
             # Libdirs als /link /LIBPATH:dir
             linker_flags = self.e_cpp_linker_flags.get().strip()
@@ -886,7 +907,8 @@ class GCCEditor:
 
             # /link nur einmal anhängen!
             if linker_flags or lib_dirs or libraries:
-                command.append("/link")
+                if "/link" not in command:
+                    command.append("/link")
                 for lib_dir in lib_dirs:
                     command.append(f"/LIBPATH:{lib_dir}")
                 # Libraries .lib anhängen
@@ -971,6 +993,7 @@ class GCCEditor:
 
         command.extend(compile_files)
         return command
+
 
 
     def save(self):

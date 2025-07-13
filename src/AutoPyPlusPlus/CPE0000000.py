@@ -1,6 +1,7 @@
 import subprocess
 import sys
 import shutil
+import re
 from pathlib import Path
 
 from .extension_paths_loader import load_extensions_paths
@@ -60,6 +61,35 @@ def get_extension_for_target(target_type, platform="win32"):
         else:
             return ".out"
 
+
+def file_contains_main(file_path, log_file=None):
+    """
+    Prüft, ob die Datei eine main()- oder wmain()-Funktion enthält (auch von Cython generiert).
+    Gibt Info in Konsole und ggf. ins Logfile.
+    """
+    try:
+        with open(file_path, encoding="utf-8", errors="replace") as f:
+            content = f.read()
+            main_pattern = re.compile(
+                r"(?:^|\s)(?:int|static\s+int|extern\s+\"C\"\s+int|extern\s+\"C\"\s+static\s+int)\s+(w?main)\s*\(",
+                re.MULTILINE
+            )
+            found = bool(main_pattern.search(content))
+            msg = f"[file_contains_main] {'main() gefunden' if found else 'KEIN main()'} in: {file_path}"
+            if log_file:
+                log_info(log_file, msg)
+            else:
+                print(msg)
+            return found
+    except Exception as ex:
+        msg = f"[file_contains_main] Fehler beim Lesen von {file_path}: {ex}"
+        if log_file:
+            log_warning(log_file, msg)
+        else:
+            print(msg)
+    return False
+
+
 class CPE0000000:
     """Kompilierklasse für C++."""
 
@@ -81,6 +111,14 @@ class CPE0000000:
                 log_error(log_file, f"Quelldatei {src_path} nicht gefunden.")
                 raise FileNotFoundError(f"Quelldatei {src_path} nicht gefunden.")
             abs_source_files.append(str(src_path))
+
+        # --- Target-Type prüfen: Executable braucht main()! ---
+        target_type = getattr(project, "cpp_target_type", "Executable")
+        if target_type == "Executable":
+            main_found = any(file_contains_main(f) for f in abs_source_files)
+            if not main_found:
+                log_error(log_file, "No() in Source-Files! ")
+                raise RuntimeError("No main() in Source-Files!")
 
         # --- Fallback-Mechanismus für Compiler-Pfad ---
         cpp_path = getattr(project, "cpp_path", None) or getattr(project, "cpp_compiler_path", None)
@@ -108,8 +146,6 @@ class CPE0000000:
         exe_name = getattr(project, "name", None) or Path(abs_source_files[0]).stem
 
         # Erweiterung nach Plattform und Target Type
-        # <--- Das ist der entscheidende neue Teil!
-        target_type = getattr(project, "cpp_target_type", "Executable")
         exe_ext = getattr(project, "cpp_output_extension", None)
         if not exe_ext:
             exe_ext = get_extension_for_target(target_type, sys.platform)
@@ -255,3 +291,4 @@ class CPE0000000:
             raise
 
         log_info(log_file, f"Fertig. Ausgabedatei: {output_file}")
+
