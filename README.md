@@ -63,7 +63,7 @@ pip install pyinstaller
 pip install nuitka        
 pip install cython        
 pip install pyarmor        
-
+pip install pytest   
 ```
 
 Check the installed paths with:
@@ -73,6 +73,7 @@ where pyinstaller
 where pyarmor
 where nuitka
 where cython
+where pytest
 ```
 
 ---
@@ -170,6 +171,7 @@ gcc --version
 
 | Component   | Status                        |
 |-------------|-------------------------------|
+| Pytest      | dont works                    |
 | PyInstaller | works well (not fully tested) |
 | PyArmor     | works well (not fully tested) |
 | Nuitka      | works      (not fully tested) |
