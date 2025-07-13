@@ -28,9 +28,6 @@ def log_info(log_file, msg):
     log_file.flush()
 
 def get_extension_for_target(target_type, platform="win32"):
-    """
-    Ermittelt die Dateiendung für das Ziel (Target Type) und Plattform.
-    """
     if platform.startswith("win"):
         if target_type == "Executable":
             return ".exe"
@@ -61,12 +58,7 @@ def get_extension_for_target(target_type, platform="win32"):
         else:
             return ".out"
 
-
 def file_contains_main(file_path, log_file=None):
-    """
-    Prüft, ob die Datei eine main()- oder wmain()-Funktion enthält (auch von Cython generiert).
-    Gibt Info in Konsole und ggf. ins Logfile.
-    """
     try:
         with open(file_path, encoding="utf-8", errors="replace") as f:
             content = f.read()
@@ -88,7 +80,6 @@ def file_contains_main(file_path, log_file=None):
         else:
             print(msg)
     return False
-
 
 class CPE0000000:
     """Kompilierklasse für C++."""
@@ -227,6 +218,10 @@ class CPE0000000:
             elif build_type == "release":
                 cmd.append("-O2")
 
+            cpp_std = getattr(project, "cpp_standard", None)
+            if cpp_std and cpp_std.startswith("c++"):
+                cmd.append(f"-std={cpp_std}")
+
             # Target-spezifische Flags für Shared Library / Python Extension
             if target_type == "Python Extension" or target_type == "Shared Library":
                 if "-shared" not in cmd:
@@ -275,7 +270,7 @@ class CPE0000000:
                 capture_output=True,
                 text=True,
                 check=True,
-                encoding="mbcs",     
+                encoding="mbcs",
                 errors="replace"
             )
             log_info(log_file, result.stdout)
@@ -291,4 +286,3 @@ class CPE0000000:
             raise
 
         log_info(log_file, f"Fertig. Ausgabedatei: {output_file}")
-

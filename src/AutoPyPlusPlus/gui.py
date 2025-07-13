@@ -711,7 +711,6 @@ class AutoPyPlusPlusGUI:
         if not confirm:
             return
 
-        # Jetzt in Thread auslagern, wie gehabt:
         threading.Thread(target=self._delete_files, args=(targets,)).start()
 
     def _delete_files(self, targets):
@@ -732,7 +731,6 @@ class AutoPyPlusPlusGUI:
         if not f:
             return
 
-        # NEU: save_projects aus core.py
         if f.lower().endswith(".apyscript"):
             save_projects(self.projects, f)
             self.status_var.set(f"Alle Projekte gespeichert: {f}")
@@ -766,8 +764,6 @@ class AutoPyPlusPlusGUI:
             messagebox.showerror("Fehler beim Exportieren", str(e))
 
 
-
-
     def _load_ini(self):
         file_path = filedialog.askopenfilename(
             title="INI-Datei auswählen",
@@ -799,7 +795,7 @@ class AutoPyPlusPlusGUI:
             # Korrigiere potenzielle inkonsistente Zustände
             for p in self.projects:
                 if p.use_pyarmor and p.use_nuitka:
-                    p.use_nuitka = False  # Oder umgekehrt, je nach Priorität
+                    p.use_nuitka = False
             self._refresh_tree()
             self.status_var.set(f"{file} geladen.")
         except Exception as err:
@@ -993,7 +989,7 @@ class AutoPyPlusPlusGUI:
 
         KNOWN_TOOLS = [
             "pyinstaller", "pyarmor", "nuitka", "cython",
-            "cpp", "gcc", "msvc", "tcl_base"
+            "cpp", "gcc", "msvc", "tcl_base", "pytest", "sphinx"
         ]
 
         ini_file = Path(__file__).parent / "extensions_path.ini"
