@@ -3,3 +3,4 @@ pyarmor
 nuitka
 cython
 pytest
+sphinx
