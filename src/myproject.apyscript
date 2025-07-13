@@ -63,6 +63,7 @@
     "nuitka_windows_splash": "",
     "use_cython": true,
     "cython_build_with_setup": true,
+    "cython_target_type": "Python Extension",
     "cython_boundscheck": false,
     "cython_wraparound": false,
     "cython_nonecheck": false,
@@ -172,13 +173,14 @@
     "nuitka_windows_splash": "",
     "use_cython": true,
     "cython_build_with_setup": true,
+    "cython_target_type": "Standalone EXE",
     "cython_boundscheck": false,
     "cython_wraparound": false,
     "cython_nonecheck": false,
     "cython_cdivision": true,
     "cython_language_level": 3,
     "cython_initializedcheck": false,
-    "cython_output_dir": "C:/Users/melatroid/Desktop/autoPy++/AutoPyPlusPlus/src/AutoPyPlusPlus/TESTFILES/CPP",
+    "cython_output_dir": "C:/Users/melatroid/Desktop/autoPy++/AutoPyPlusPlus/src/AutoPyPlusPlus/TESTFILES/CPP/more",
     "cython_keep_pyx": true,
     "cython_language": "c++",
     "cython_profile": false,
@@ -195,12 +197,12 @@
       "C:/Users/melatroid/AppData/Local/Programs/Python/Python313/python313.dll"
     ],
     "use_cpp": true,
-    "cpp_output_file": "testfile.pyd",
+    "cpp_output_file": "testfile.exe",
     "use_msvc": true,
     "cpp_filename": "",
     "cpp_windowed": false,
     "cpp_compiler_path": "C:\\Program Files (x86)\\Microsoft Visual Studio\\2022\\BuildTools\\VC\\Tools\\MSVC\\14.44.35207\\bin\\Hostx64\\x64\\cl.exe",
-    "cpp_compiler_flags": "/LD /DMS_WIN64",
+    "cpp_compiler_flags": "",
     "cpp_linker_flags": "",
     "cpp_include_dirs": [
       "C:\\Users\\melatroid\\AppData\\Local\\Programs\\Python\\Python313\\include"
@@ -212,12 +214,12 @@
       "python313"
     ],
     "cpp_defines": [],
-    "cpp_output_dir": "C:/Users/melatroid/Desktop/autoPy++/AutoPyPlusPlus/src/AutoPyPlusPlus/TESTFILES/EXE",
+    "cpp_output_dir": "C:/Users/melatroid/Desktop/autoPy++/AutoPyPlusPlus/src/AutoPyPlusPlus/TESTFILES/CPP/more",
     "cpp_build_type": "Release",
     "cpp_compile_files": [
-      "C:/Users/melatroid/Desktop/autoPy++/AutoPyPlusPlus/src/AutoPyPlusPlus/TESTFILES/CPP/test_01_no_gui.cpp"
+      "C:/Users/melatroid/Desktop/autoPy++/AutoPyPlusPlus/src/AutoPyPlusPlus/TESTFILES/CPP/more/test_01_no_gui.cpp"
     ],
-    "cpp_target_type": "Python Extension",
+    "cpp_target_type": "Executable",
     "cpp_target_platform": "Windows",
     "pyarmor_dist_dir": ""
   },
@@ -285,6 +287,7 @@
     "nuitka_windows_splash": "",
     "use_cython": false,
     "cython_build_with_setup": true,
+    "cython_target_type": "Python Extension",
     "cython_boundscheck": false,
     "cython_wraparound": false,
     "cython_nonecheck": false,
@@ -388,6 +391,7 @@
     "nuitka_windows_splash": "",
     "use_cython": false,
     "cython_build_with_setup": true,
+    "cython_target_type": "Python Extension",
     "cython_boundscheck": false,
     "cython_wraparound": false,
     "cython_nonecheck": false,
