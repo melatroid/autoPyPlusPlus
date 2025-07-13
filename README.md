@@ -205,8 +205,12 @@ gcc --version
 
 ---
 # Versions
-### (Preview) Version 2.31
+### (Preview) Version 2.32
 - Inspector reads specific logs on top
+
+### (Preview) Version 2.31
+- add autpPy++ test.py -for pytest
+- pytest as new extension
 
 ### (latest) Version 2.30
 - cython ready for building standalone executables
