@@ -152,7 +152,50 @@ class Project:
         self.cpp_build_type: str = "Release" 
         self.cpp_compile_files: list[str] = []
         self.cpp_target_type: str = "Executable"
-        self.cpp_target_platform: str = "Windows" 
+        self.cpp_target_platform: str = "Windows"
+        
+        # ---- Pytest-Optionen ----
+        self.use_pytest: bool = False           # Für Build/Run-Auswahl
+        self.pytest_path: str | None = None     # Falls ein expliziter Pfad gewünscht ist
+        self.test_file: str = ""                # Einzelne Testdatei (z.B. "tests/test_modul.py")
+        self.test_dir: str = ""                 # Test-Ordner (z.B. "tests")
+        self.pytest_verbose: bool = False       # -v
+        self.pytest_quiet: bool = False         # -q
+        self.pytest_maxfail: int | None = None  # --maxfail=N
+        self.pytest_marker: str = ""            # -m MARKER
+        self.pytest_keyword: str = ""           # -k KEYWORD
+        self.pytest_disable_warnings: bool = False # --disable-warnings
+        self.pytest_tb: str = ""                # --tb=short|long|no
+        self.pytest_durations: int | None = None   # --durations=N
+        self.pytest_capture: str = ""           # --capture=NO|FD|SYS
+        self.pytest_html: str = ""              # --html=pfad/report.html
+        self.pytest_lf: bool = False            # --lf (last-failed)
+        self.pytest_ff: bool = False            # --ff (failed-first)
+        self.pytest_args: list[str] | str = []
+        
+        # ---- Sphinx-Optionen ----
+        self.use_sphinx: bool = False           		# Für Build/Run-Auswahl
+        self.sphinx_source: str = "docs"                # Quellordner
+        self.sphinx_build: str = "_build/html"          # Zielordner
+        self.sphinx_build_path: str | None = None       # Pfad zu sphinx-build (optional)
+        self.sphinx_builder: str = "html"               # Builder, z.B. "html", "latex"
+        self.sphinx_conf_path: str = ""                 # conf.py-Pfad
+        self.sphinx_doctrees: str = ""                  # Doctree-Verz.
+        self.sphinx_parallel: int = 1                   # Jobs für -j
+        self.sphinx_warning_is_error: bool = False      # -W
+        self.sphinx_quiet: bool = False                 # -q
+        self.sphinx_verbose: bool = False               # -v
+        self.sphinx_very_verbose: bool = False          # -vv
+        self.sphinx_keep_going: bool = False            # --keep-going
+        self.sphinx_tags: list[str] = []                # -t
+        self.sphinx_define: list[str] = []              # -D
+        self.sphinx_new_build: bool = False             # -E
+        self.sphinx_all_files: bool = False             # -a
+        self.sphinx_logfile: str = ""                   # -w
+        self.sphinx_nitpicky: bool = False              # -n
+        self.sphinx_color: bool = False                 # --color
+        self.sphinx_no_color: bool = False              # --no-color
+        self.sphinx_args: list[str] = []                # weitere Argumente
 
 
     def _set_compiler(self, use_pyarmor=False, use_nuitka=False, use_cython=False, use_cpp=False):
@@ -283,6 +326,48 @@ class Project:
             "cpp_compile_files": self.cpp_compile_files,
             "cpp_target_type": self.cpp_target_type,
             "cpp_target_platform": self.cpp_target_platform,
+            # ---- Pytest-Optionen ----
+            "pytest_path": self.pytest_path,
+            "use_pytest": self.use_pytest,
+            "test_file": self.test_file,
+            "test_dir": self.test_dir,
+            "pytest_verbose": self.pytest_verbose,
+            "pytest_quiet": self.pytest_quiet,
+            "pytest_maxfail": self.pytest_maxfail,
+            "pytest_marker": self.pytest_marker,
+            "pytest_keyword": self.pytest_keyword,
+            "pytest_disable_warnings": self.pytest_disable_warnings,
+            "pytest_tb": self.pytest_tb,
+            "pytest_durations": self.pytest_durations,
+            "pytest_capture": self.pytest_capture,
+            "pytest_html": self.pytest_html,
+            "pytest_lf": self.pytest_lf,
+            "pytest_ff": self.pytest_ff,
+            "pytest_args": self.pytest_args,
+            # ---- Sphinx-Optionen ----
+            "use_sphinx": self.use_sphinx,
+            "sphinx_source": self.sphinx_source,
+            "sphinx_build": self.sphinx_build,
+            "sphinx_build_path": self.sphinx_build_path,
+            "sphinx_builder": self.sphinx_builder,
+            "sphinx_conf_path": self.sphinx_conf_path,
+            "sphinx_doctrees": self.sphinx_doctrees,
+            "sphinx_parallel": self.sphinx_parallel,
+            "sphinx_warning_is_error": self.sphinx_warning_is_error,
+            "sphinx_quiet": self.sphinx_quiet,
+            "sphinx_verbose": self.sphinx_verbose,
+            "sphinx_very_verbose": self.sphinx_very_verbose,
+            "sphinx_keep_going": self.sphinx_keep_going,
+            "sphinx_tags": self.sphinx_tags,
+            "sphinx_define": self.sphinx_define,
+            "sphinx_new_build": self.sphinx_new_build,
+            "sphinx_all_files": self.sphinx_all_files,
+            "sphinx_logfile": self.sphinx_logfile,
+            "sphinx_nitpicky": self.sphinx_nitpicky,
+            "sphinx_color": self.sphinx_color,
+            "sphinx_no_color": self.sphinx_no_color,
+            "sphinx_args": self.sphinx_args,
+
         }
 
         # Nur wenn PyArmor aktiv, pyarmor_dist_dir auch speichern
@@ -417,7 +502,50 @@ class Project:
         p.cpp_compile_files = d.get("cpp_compile_files", [])
         p.cpp_target_type = d.get("cpp_target_type", "Executable")
         p.cpp_target_platform = d.get("cpp_target_platform", "Windows")
-        p.cpp_filename = d.get("cpp_filename", "")  
+        p.cpp_filename = d.get("cpp_filename", "")
+        
+        # ---- Pytest-Optionen ----
+        p.use_pytest = d.get("use_pytest", False)
+        p.pytest_path = d.get("pytest_path")
+        p.test_file = d.get("test_file", "")
+        p.test_dir = d.get("test_dir", "")
+        p.pytest_verbose = d.get("pytest_verbose", False)
+        p.pytest_quiet = d.get("pytest_quiet", False)
+        p.pytest_maxfail = d.get("pytest_maxfail")
+        p.pytest_marker = d.get("pytest_marker", "")
+        p.pytest_keyword = d.get("pytest_keyword", "")
+        p.pytest_disable_warnings = d.get("pytest_disable_warnings", False)
+        p.pytest_tb = d.get("pytest_tb", "")
+        p.pytest_durations = d.get("pytest_durations")
+        p.pytest_capture = d.get("pytest_capture", "")
+        p.pytest_html = d.get("pytest_html", "")
+        p.pytest_lf = d.get("pytest_lf", False)
+        p.pytest_ff = d.get("pytest_ff", False)
+        p.pytest_args = d.get("pytest_args", [])
+        
+        # ---- Sphinx-Optionen ----
+        p.use_sphinx = d.get("use_sphinx", False)
+        p.sphinx_source = d.get("sphinx_source", "docs")
+        p.sphinx_build = d.get("sphinx_build", "_build/html")
+        p.sphinx_build_path = d.get("sphinx_build_path", None)
+        p.sphinx_builder = d.get("sphinx_builder", "html")
+        p.sphinx_conf_path = d.get("sphinx_conf_path", "")
+        p.sphinx_doctrees = d.get("sphinx_doctrees", "")
+        p.sphinx_parallel = d.get("sphinx_parallel", 1)
+        p.sphinx_warning_is_error = d.get("sphinx_warning_is_error", False)
+        p.sphinx_quiet = d.get("sphinx_quiet", False)
+        p.sphinx_verbose = d.get("sphinx_verbose", False)
+        p.sphinx_very_verbose = d.get("sphinx_very_verbose", False)
+        p.sphinx_keep_going = d.get("sphinx_keep_going", False)
+        p.sphinx_tags = d.get("sphinx_tags", [])
+        p.sphinx_define = d.get("sphinx_define", [])
+        p.sphinx_new_build = d.get("sphinx_new_build", False)
+        p.sphinx_all_files = d.get("sphinx_all_files", False)
+        p.sphinx_logfile = d.get("sphinx_logfile", "")
+        p.sphinx_nitpicky = d.get("sphinx_nitpicky", False)
+        p.sphinx_color = d.get("sphinx_color", False)
+        p.sphinx_no_color = d.get("sphinx_no_color", False)
+        p.sphinx_args = d.get("sphinx_args", [])
 
 
         p._set_compiler(

@@ -6,6 +6,8 @@ from .tooltip import CreateToolTip
 from .help import show_edit_helper
 from .nuitkaeditor import NuitkaEditor  
 from .cythoneditor import CythonEditor
+from .pytesteditor import PytestEditor
+from .sphinxeditor import SphinxEditor 
 
 class ProjectEditor:
     def __init__(self, master, project, texts, app=None):
@@ -15,21 +17,44 @@ class ProjectEditor:
         self.app = app
         self.saved = False
         self.txt_options = None
+        self.var_use_pytest = tk.BooleanVar(value=getattr(self.project, "use_pytest", False))
+        self.var_use_sphinx = tk.BooleanVar(value=getattr(self.project, "use_sphinx", False))
+
+
+    def on_use_pytest_toggle(self):
+        if self.var_use_pytest.get():
+            self.project.use_pytest = True
+            self.win.destroy()
+            pytest_editor = PytestEditor(self.master, self.project)
+            if pytest_editor.show() and self.app:
+                self.app._refresh_tree()
+        else:
+            self.project.use_pytest = False
+
+    def on_use_sphinx_toggle(self):
+        if self.var_use_sphinx.get():
+            self.project.use_sphinx = True
+            self.win.destroy()
+            sphinx_editor = SphinxEditor(self.master, self.project, self.texts)
+            if sphinx_editor.show() and self.app:
+                self.app._refresh_tree()
+        else:
+            self.project.use_sphinx = False
 
     def on_use_nuitka_toggle(self):
         if self.var_use_nuitka.get():
             self.var_use_nuitka.set(True)
             self.var_use_pyarmor.set(False)
-            self.var_use_cython.set(False)  # <-- Cython DEAKTIVIEREN
+            self.var_use_cython.set(False)  
             self.project.use_pyarmor = False
-            self.project.use_cython = False # <-- Cython DEAKTIVIEREN
+            self.project.use_cython = False 
             self.toggle_pyarmor_fields()
             self.win.destroy()
             nuitka_editor = NuitkaEditor(self.master, self.project, self.texts)
             if nuitka_editor.show() and self.app:
                 self.app._refresh_tree()
 
-    # NEU: Cython-Editor Aufruf
+
     def on_use_cython_toggle(self):
         if self.var_use_cython.get():
             self.var_use_cython.set(True)
@@ -47,9 +72,9 @@ class ProjectEditor:
     def on_use_pyarmor_toggle(self):
         if self.var_use_pyarmor.get():
             self.var_use_nuitka.set(False)
-            self.var_use_cython.set(False)  # <-- Cython DEAKTIVIEREN
+            self.var_use_cython.set(False) 
             self.project.use_nuitka = False
-            self.project.use_cython = False  # <-- Cython DEAKTIVIEREN
+            self.project.use_cython = False  
         self.toggle_pyarmor_fields()
         
     def _enforce_exclusivity(self):
@@ -108,6 +133,21 @@ class ProjectEditor:
         r_console.grid(row=0, column=1, padx=5, pady=2, sticky="w")
         r_windowed = ttk.Radiobutton(check_frame_top, text=self.texts["windowed_label"], variable=self.var_console_mode, value=False)
         r_windowed.grid(row=0, column=2, padx=5, pady=2, sticky="w")
+        
+        
+        pytest_cb = ttk.Checkbutton(
+            check_frame_top, text="Use Pytest",
+            variable=self.var_use_pytest,
+            command=self.on_use_pytest_toggle 
+        )
+        pytest_cb.grid(row=0, column=6, padx=5, pady=2, sticky="w")
+
+        sphinx_cb = ttk.Checkbutton(
+            check_frame_top, text="Use Sphinx",
+            variable=self.var_use_sphinx,
+            command=self.on_use_sphinx_toggle
+        )
+        sphinx_cb.grid(row=0, column=7, padx=5, pady=2, sticky="w")
 
         self.var_use_pyarmor = tk.BooleanVar(value=self.project.use_pyarmor)
         pyarmor_cb = ttk.Checkbutton(check_frame_top, text="Use PyArmor", variable=self.var_use_pyarmor, command=self.on_use_pyarmor_toggle)
@@ -291,8 +331,13 @@ class ProjectEditor:
         CreateToolTip(analyze_btn, "Analysiert sicherheitskritische Eingaben wie Ordnerstrukturen.")
 
         self._enforce_exclusivity()
+        
+        
+        #if getattr(self.project, "use_pytest", False):
+         #   self.on_use_pytest_toggle()
+        #elif getattr(self.project, "use_sphinx", False):
+        #    self.on_use_sphinx_toggle()
 
-        # Wenn Cython gewählt ist, direkt Cython-Editor öffnen:
         if getattr(self.project, "use_cython", False):
             self.on_use_cython_toggle()
         elif self.project.use_nuitka:
@@ -519,6 +564,9 @@ class ProjectEditor:
         p.pyarmor_pack = self.var_pack.get()
         p.pyarmor_expired = self.e_expired.get()
         p.pyarmor_bind_device = self.e_bind_device.get()
+        
+        p.use_pytest = self.var_use_pytest.get()
+        p.use_sphinx = self.var_use_sphinx.get()
 
         if p.script and not Path(p.script).suffix.lower() == ".py":
             messagebox.showerror("Fehler", f"Ungültiges Skript: {p.script} (muss .py sein)")
