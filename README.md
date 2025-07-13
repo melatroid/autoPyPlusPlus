@@ -63,7 +63,8 @@ pip install pyinstaller
 pip install nuitka        
 pip install cython        
 pip install pyarmor        
-pip install pytest   
+pip install pytest
+pip install sphinx   
 ```
 
 Check the installed paths with:
@@ -74,6 +75,7 @@ where pyarmor
 where nuitka
 where cython
 where pytest
+where sphinx
 ```
 
 ---
@@ -171,6 +173,7 @@ gcc --version
 
 | Component   | Status                        |
 |-------------|-------------------------------|
+| Sphinx      | dont works                    |
 | Pytest      | dont works                    |
 | PyInstaller | works well (not fully tested) |
 | PyArmor     | works well (not fully tested) |
