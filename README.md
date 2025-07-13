@@ -208,11 +208,11 @@ gcc --version
 ### (Preview) Version 2.31
 - Inspector reads specific logs on top
 
-### (Preview) Version 2.30
+### (latest) Version 2.30
 - cython ready for building standalone executables
 - msvc ready for building standalone executables
   
-### (latest) Version 2.29
+### Version 2.29
 - MSVC pipeline with Cython for pyd builds 
 - Big Bugfixes in msvc editor
 - better pipeline with msvc
