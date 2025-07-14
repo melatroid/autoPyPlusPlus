@@ -1,6 +1,6 @@
 <img src="https://autopyplusplus.wordpress.com/wp-content/uploads/2025/05/autopy-2.png" alt="Alt-Text" width="100" />
 
-# Version 2.31 
+# Version 2.32 
 ## 🎂 Thx for 160 clones 
 # Setup & Usage Guide
 
@@ -175,7 +175,7 @@ gcc --version
 | Component   | Status                        |
 |-------------|-------------------------------|
 | Sphinx      | dont works                    |
-| Pytest      | dont works                    |
+| Pytest      | works (not fully tested)      |
 | PyInstaller | works well (not fully tested) |
 | PyArmor     | works well (not fully tested) |
 | Nuitka      | works      (not fully tested) |
@@ -211,10 +211,13 @@ gcc --version
 
 ---
 # Versions
-### (Preview) Version 2.32
+### (Preview) Version 2.33
 - Inspector reads specific logs on top
 
-### (latest) Version 2.31
+### (latest) Version 2.32
+- pytest works in tests
+
+### Version 2.31
 - add autpPy++ test.py -for pytest
 - sphinx as new extension (preview)
 - pytest as new extension (preview)
