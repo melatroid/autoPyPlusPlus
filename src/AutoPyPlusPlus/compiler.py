@@ -11,19 +11,45 @@ from .CPB0000000 import CPB0000000  # PyArmor
 from .CPC0000000 import CPC0000000  # Nuitka
 from .CPD0000000 import CPD0000000  # Cython
 from .CPE0000000 import CPE0000000  # C++ Compiler (GCC)
+from .CPF0000000 import CPF0000000  # Pytest
+from .CPG0000000 import CPG0000000  # Sphinxy
 
 def compile_single(project: Project, log_file, compiler: str = "both") -> str:
     try:
         # Debugging-Ausgabe für Konsole
-        print(f"[DEBUG] compile_single START for {project.name or project.script}")
-        print(f"[DEBUG] Compiler: {compiler}")
-        print(f"[DEBUG] use_nuitka: {project.use_nuitka}, use_pyarmor: {project.use_pyarmor}")
-        print(f"[DEBUG] use_cython: {project.use_cython}, use_cpp: {project.use_cpp}")
-        print(f"[DEBUG] Project config: {project.to_dict()}")
+        #print(f"[DEBUG] compile_single START for {project.name or project.script}")
+        #print(f"[DEBUG] Compiler: {compiler}")
+        #print(f"[DEBUG] use_nuitka: {project.use_nuitka}, use_pyarmor: {project.use_pyarmor}")
+        #print(f"[DEBUG] use_cython: {project.use_cython}, use_cpp: {project.use_cpp}")
+        #print(f"[DEBUG] Project config: {project.to_dict()}")
 
         log_file.write(f"--- compile_single() START for {project.name or project.script} (compiler={compiler}) ---\n")
-        log_file.write(f"Project config: {project.to_dict()}\n")
+        #log_file.write(f"Project config: {project.to_dict()}\n")
         log_file.flush()
+
+        # --- 1. Pytest vor Kompilierung ---
+        if getattr(project, "use_pytest", False):
+            log_file.write("Running pytest before compilation...\n")
+            log_file.flush()
+            try:
+                CPF0000000.run_pytest(project, log_file)
+            except Exception as e:
+                err = f"Pytest failed for {project.name or project.script}: {e}"
+                log_file.write(err + "\n")
+                log_file.flush()
+                return err  # Build abbrechen!
+
+        # --- 2. Sphinxy/Sphinx vor Kompilierung ---
+        if getattr(project, "use_sphinx", False):
+            log_file.write("Running sphinx before compilation...\n")
+            log_file.flush()
+            try:
+                CPG0000000.run_sphinx(project, log_file)
+            except Exception as e:
+                err = f"Sphinx build failed for {project.name or project.script}: {e}"
+                log_file.write(err + "\n")
+                log_file.flush()
+                # Build läuft weiter, Fehler werden geloggt
 
         compiled = False
 
@@ -42,15 +68,12 @@ def compile_single(project: Project, log_file, compiler: str = "both") -> str:
             print(f"[DEBUG] Nuitka NOT executed (compiler={compiler}, use_nuitka={project.use_nuitka})")
 
         # *** CYTHON if enabled ***
-        # -> Danach ggf. C++ als Backend!
         if compiler in ("cython", "both") and project.use_cython:
             print("[DEBUG] Running Cython")
             CPD0000000.run_cython(project, log_file)
             compiled = True
 
-            # Falls C++ nach Cython ausführen (nur im Cython-Kontext)
             if project.use_cpp:
-                # Automatische Erkennung von MSVC cl.exe, falls noch nicht gesetzt
                 if not project.cpp_compiler_path or project.cpp_compiler_path.lower() == "g++":
                     msvc_path = shutil.which("cl.exe")
                     if msvc_path:
@@ -88,7 +111,6 @@ def compile_single(project: Project, log_file, compiler: str = "both") -> str:
 
         # --- Zusätzliche Dateien kopieren in den Output-Ordner ---
         try:
-            # Priorität: cython_output_dir, cpp_output_dir, sonst Script-Ordner
             out_dir = Path(
                 project.cython_output_dir
                 or project.cpp_output_dir

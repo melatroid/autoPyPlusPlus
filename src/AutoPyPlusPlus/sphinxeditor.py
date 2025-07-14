@@ -17,7 +17,7 @@ class SphinxEditor:
     def show(self) -> bool:
         self.win = tk.Toplevel(self.master)
         self.win.title("Sphinx Configuration")
-        self.win.geometry("760x480")
+        self.win.geometry("760x350")
         self.win.transient(self.master)
         self.win.grab_set()
         form = ttk.Frame(self.win, padding=14)

@@ -24,6 +24,15 @@ def log_info(log_file, msg):
     log_file.write(f"{border}\n--- INFO: {msg}\n{border}\n")
     log_file.flush()
 
+def is_valid_pytest_arg(value):
+    if value is True:
+        return True
+    if isinstance(value, (int, float)):
+        return True
+    if isinstance(value, str) and value.strip() != "" and value.strip().lower() != "none":
+        return True
+    return False
+
 class CPF0000000:
     """
     Führt pytest aus. Erkennt sinnvolle Parameter automatisch aus dem Project-Objekt.
@@ -57,7 +66,6 @@ class CPF0000000:
             pytest_cmd = [sys.executable, "-m", "pytest"]
 
         # 3. Standard-Pytest-Argumente automatisch verarbeiten
-        # Folgende Felder werden automatisch übersetzt:
         argmap = [
             # (Attribut im Projektobjekt, pytest-Parameter, Wert/Format)
             ("pytest_verbose", "-v", None),         # True/False
@@ -75,7 +83,7 @@ class CPF0000000:
         ]
         for attr, flag, valfmt in argmap:
             value = getattr(project, attr, None)
-            if value:
+            if is_valid_pytest_arg(value):
                 if valfmt:
                     pytest_cmd.append(flag)
                     pytest_cmd.append(valfmt.format(value))
@@ -114,4 +122,3 @@ class CPF0000000:
             raise
 
         log_info(log_file, "Fertig. Pytest-Ausführung abgeschlossen.")
-

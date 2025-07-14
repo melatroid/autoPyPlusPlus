@@ -10,7 +10,7 @@ class PytestEditor:
     def show(self):
         self.win = tk.Toplevel(self.master)
         self.win.title("Pytest Configuration")
-        self.win.geometry("720x570")
+        self.win.geometry("720x520")
         self.win.transient(self.master)
         self.win.grab_set()
         form = ttk.Frame(self.win, padding=14)
@@ -56,7 +56,8 @@ class PytestEditor:
             ttk.Label(form, text=label).grid(row=row, column=0, sticky="e", padx=5, pady=3)
             entry = ttk.Entry(form, width=width)
             entry.grid(row=row, column=1, padx=5, pady=3, sticky="w")
-            entry.insert(0, str(getattr(self.project, var_name, "")))
+            val = getattr(self.project, var_name, "")
+            entry.insert(0, "" if val is None else str(val))
             return entry
 
         self.e_maxfail = create_labeled_entry("Max failures (--maxfail):", 4, "pytest_maxfail")
@@ -117,6 +118,19 @@ class PytestEditor:
             self.e_pytest_path.insert(0, path)
 
     def _save(self):
+        # Helper for robust int/None conversion
+        def get_int_or_none(entry):
+            val = entry.get().strip()
+            try:
+                return int(val) if val else None
+            except ValueError:
+                return None
+
+        # Helper for robust string/None conversion
+        def get_str_or_none(entry):
+            val = entry.get().strip()
+            return val if val else None
+
         # Save values to the Project object
         test_file = self.e_test_file.get().strip()
         test_dir  = self.e_test_dir.get().strip()
@@ -136,14 +150,24 @@ class PytestEditor:
         self.project.pytest_disable_warnings = self.var_disable_warnings.get()
         self.project.pytest_lf = self.var_lf.get()
         self.project.pytest_ff = self.var_ff.get()
-        self.project.pytest_maxfail = self.e_maxfail.get().strip()
-        self.project.pytest_marker = self.e_marker.get().strip()
-        self.project.pytest_keyword = self.e_keyword.get().strip()
-        self.project.pytest_tb = self.e_tb.get().strip()
-        self.project.pytest_durations = self.e_durations.get().strip()
-        self.project.pytest_capture = self.e_capture.get().strip()
-        self.project.pytest_html = self.e_html.get().strip()
-        self.project.pytest_args = self.txt_args.get("1.0", tk.END).strip()
-        self.project.pytest_path = self.e_pytest_path.get().strip()
+
+        # Robust int or None
+        self.project.pytest_maxfail = get_int_or_none(self.e_maxfail)
+        self.project.pytest_durations = get_int_or_none(self.e_durations)
+
+        # Strings (None wenn leer)
+        self.project.pytest_marker = get_str_or_none(self.e_marker)
+        self.project.pytest_keyword = get_str_or_none(self.e_keyword)
+        self.project.pytest_tb = get_str_or_none(self.e_tb)
+        self.project.pytest_capture = get_str_or_none(self.e_capture)
+        self.project.pytest_html = get_str_or_none(self.e_html)
+
+        # Args: immer als String
+        args = self.txt_args.get("1.0", tk.END).strip()
+        self.project.pytest_args = args if args else ""
+
+        pytest_path = self.e_pytest_path.get().strip()
+        self.project.pytest_path = pytest_path if pytest_path else ""
+
         self.saved = True
         self.win.destroy()

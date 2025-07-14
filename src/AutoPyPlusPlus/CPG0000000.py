@@ -17,7 +17,7 @@ def log_info(log_file, msg):
     log_file.write(f"{border}\n--- INFO: {msg}\n{border}\n")
     log_file.flush()
 
-class SphinxBuilder:
+class CPG0000000:
     """
     Baut Sphinx-Dokumentation mit allen wichtigen Parametern aus einem Project-Objekt.
     """
