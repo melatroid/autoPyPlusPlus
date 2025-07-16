@@ -1,6 +1,6 @@
 <img src="https://autopyplusplus.wordpress.com/wp-content/uploads/2025/05/autopy-2.png" alt="Alt-Text" width="100" />
 
-# Version 2.32 
+# Version 2.33
 ## 🎂 Thx for 160 clones 
 # Setup & Usage Guide
 
@@ -143,6 +143,18 @@ echo $MSYSTEM
 - Press the "Save" button often when making changes in your project settings.
 
 ---
+# Nuitka Usage
+
+To startup nuitka compiled .exe files you need to,
+set your compiled .exe file and folder in your Antivirus to secure.
+Avira Antivir is usefull here.
+Normaly you need a code sign certification, to start
+witout changing any properties in your scanner.
+```python
+set the nutika path like this, direct to primary python installation
+nuitka = "C:\Program Files (x86)\Thonny\python.exe"
+the system found nuitka in your python version
+```
 
 # PyArmor Usage
 
@@ -207,12 +219,21 @@ gcc --version
 
 **Low Bugs:**
 - Issues with missing binary libraries (not critical)  
-- Nuitka created exe files detected by antivirus (temporarily disable antivirus)
+- Nuitka created exe files detected by antivirus (read practice lesson)
 
 ---
 # Versions
-### (Preview) Version 2.33
+### (Preview) Version 2.35
 - Inspector reads specific logs on top
+
+### (Preview) Version 2.34
+- pytest get better experience in inspector
+
+### (Preview) Version 2.33
+- Nuitka Path Update !!!
+- Nuitka Compiler/Editor Update
+- Inspector opens to often- bug
+- No more Info popup after compilation
 
 ### (latest) Version 2.32
 - pytest works in tests
