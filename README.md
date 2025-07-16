@@ -223,8 +223,9 @@ gcc --version
 
 ---
 # Versions
-### (Preview) Version 2.35
+### (Preview) Version 2.5x
 - Inspector reads specific logs on top
+- autopy++ runs primary in venv envirnoment
 
 ### (Preview) Version 2.34
 - pytest get better experience in inspector
