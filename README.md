@@ -231,8 +231,8 @@ gcc --version
 - pytest get better experience in inspector
 
 ### (latest) Version 2.33
-- Nuitka Path Update !!!
-- Nuitka Compiler/Editor Update
+- Nuitka Path replace update !!!
+- Nuitka Compiler/Gui Update for better building
 - Inspector opens to often- bug
 - No more Info popup after compilation
 
