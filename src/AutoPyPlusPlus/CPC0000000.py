@@ -2,6 +2,7 @@ import subprocess
 import sys
 from pathlib import Path
 import shutil
+import os
 
 from .extension_paths_loader import load_extensions_paths
 
@@ -59,11 +60,24 @@ class CPC0000000:
                 log_info(log_file, f"Found nuitka in PATH: {nuitka_path}")
 
         # 4. Fallback: python -m nuitka
+        nuitka_cmd = None
+        python_like = False
         if nuitka_path:
-            nuitka_cmd = [nuitka_path]
+            nuitka_path_lower = nuitka_path.lower()
+            if nuitka_path_lower.endswith("python.exe"):
+                nuitka_cmd = [nuitka_path, "-m", "nuitka"]
+                python_like = True
+            elif nuitka_path_lower.endswith("python.bat") or nuitka_path_lower.endswith("python.cmd"):
+                nuitka_cmd = [nuitka_path, "-m", "nuitka"]
+                python_like = True
+            elif nuitka_path_lower.endswith("nuitka.cmd") or nuitka_path_lower.endswith("nuitka.bat"):
+                nuitka_cmd = [nuitka_path]
+            else:
+                nuitka_cmd = [nuitka_path]
         else:
             log_warning(log_file, "Falling back to python -m nuitka")
             nuitka_cmd = [sys.executable, "-m", "nuitka"]
+            python_like = True
 
         # Optionen wie gehabt:
         if project.nuitka_standalone:
@@ -123,10 +137,26 @@ class CPC0000000:
         log_info(log_file, "Nuitka-Befehl wird ausgeführt:")
         log_info(log_file, " ".join(nuitka_cmd))
 
+
+        if python_like:
+            try:
+                check_cmd = list(nuitka_cmd[:2]) + ["-m", "nuitka", "--version"]
+                check = subprocess.run(
+                    check_cmd,
+                    capture_output=True,
+                    text=True
+                )
+                if "No module named nuitka" in check.stderr:
+                    log_error(log_file, f"Nuitka ist NICHT installiert in: {nuitka_cmd[0]}. Bitte dort zuerst `pip install nuitka` ausführen!")
+                    raise RuntimeError(f"Nuitka fehlt in Interpreter: {nuitka_cmd[0]}")
+            except Exception as e:
+                log_error(log_file, f"Fehler beim Nuitka-Prüfaufruf: {e}")
+                raise
+
         try:
             result = subprocess.run(
                 nuitka_cmd,
-                cwd=str(script_path.parent),  # Arbeitsverzeichnis setzen
+                cwd=str(script_path.parent),
                 capture_output=True,
                 text=True,
                 check=True
@@ -143,7 +173,7 @@ class CPC0000000:
             log_error(log_file, f"Unerwarteter Fehler bei der Nuitka-Ausführung: {e}")
             raise
 
-        # Optional: nuitka-run.bat starten (z. B. bei Standalone-Builds ohne Onefile)
+
         nuitka_run_path = Path(output_dir) / "nuitka-run.bat"
         if nuitka_run_path.is_file():
             try:
@@ -163,11 +193,18 @@ class CPC0000000:
         else:
             log_info(log_file, f"nuitka-run.bat nicht gefunden. Eventuell durch Onefile-Modus erwartet.")
 
-        # Abschließend: Hinweis auf EXE
+
         if project.nuitka_onefile:
             exe_name = script_path.stem + ".exe"
             exe_path = Path(output_dir) / exe_name
+            if not exe_path.exists():
+                log_error(log_file, f"Die EXE wurde NICHT erstellt: {exe_path}")
+                raise FileNotFoundError(f"Die EXE wurde NICHT erstellt: {exe_path}")
             log_info(log_file, f"Fertig. EXE-Datei (Onefile): {exe_path}")
         else:
-            dist_dir = Path(output_dir) / script_path.stem
+
+            dist_dir = Path(output_dir) / (script_path.stem + ".dist")
+            if not dist_dir.exists():
+                log_error(log_file, f"Das Ausgabeverzeichnis wurde NICHT erstellt: {dist_dir}")
+                raise FileNotFoundError(f"Das Ausgabeverzeichnis wurde NICHT erstellt: {dist_dir}")
             log_info(log_file, f"Fertig. Ordner mit EXE: {dist_dir}")

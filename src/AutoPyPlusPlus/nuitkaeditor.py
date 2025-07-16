@@ -30,7 +30,7 @@ class NuitkaEditor:
         ttk.Checkbutton(checkbox_frame, text="Use Nuitka", variable=self.var_use_nuitka, command=self._enforce_exclusivity).pack(anchor="w", pady=2)
 
         self.var_standalone = tk.BooleanVar(value=self.project.nuitka_standalone)
-        ttk.Checkbutton(checkbox_frame, text="Standalone", variable=self.var_standalone).pack(anchor="w", pady=2)
+        ttk.Checkbutton(checkbox_frame, text="No exe build (.dll)", variable=self.var_standalone).pack(anchor="w", pady=2)
 
         self.var_onefile = tk.BooleanVar(value=self.project.nuitka_onefile)
         ttk.Checkbutton(checkbox_frame, text="Onefile", variable=self.var_onefile).pack(anchor="w", pady=2)

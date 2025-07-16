@@ -949,13 +949,11 @@ class AutoPyPlusPlusGUI:
                 )
 
                 if errors:
-                    def show_error_and_debug():
+                    def show_debuginspector_only():
                         self.status_var.set("Kompilierung abgeschlossen (mit Fehlern).")
-                        messagebox.showerror("Error", f"Kompilierung mit Fehlern: {', '.join(errors)}")
                         debuginspector(self.master, log_hdl.name, selected, self.style, self.config)
-                        self._refresh_tree()  # Refresh tree after debug changes
-
-                    self.master.after(0, show_error_and_debug)
+                        self._refresh_tree()
+                    self.master.after(0, show_debuginspector_only)
                 else:
                     self.master.after(0, lambda: (
                         self.status_var.set("Successfully Finished !!! 😊 "),
@@ -973,11 +971,7 @@ class AutoPyPlusPlusGUI:
                 stop_event.set()
                 self.master.after(0, pb.destroy)
                 print(f"End compilation...")
-
-            if Path(log_hdl.name).is_file() and Path(log_hdl.name).stat().st_size > 0:
-                self.master.after(0, lambda: debuginspector(self.master, log_hdl.name, selected, self.style, self.config))
-                self._refresh_tree()  # Refresh tree after debug changes
-
+                
         threading.Thread(target=do_compile, daemon=True).start()
 
     def _show_extensions_popup(self):
@@ -989,12 +983,12 @@ class AutoPyPlusPlusGUI:
 
         KNOWN_TOOLS = [
             "pyinstaller", "pyarmor", "nuitka", "cython",
-            "cpp", "gcc", "msvc", "tcl_base", "pytest", "sphinx"
+            "cpp", "gcc", "msvc", "tcl_base", "pytest", "sphinx-quickstart", "sphinx-build", "pylint", "pyreverse"
         ]
 
         ini_file = Path(__file__).parent / "extensions_path.ini"
         cfg = configparser.ConfigParser()
-        cfg.optionxform = str  # Groß-/Kleinschreibung bewahren
+        cfg.optionxform = str
         cfg.read(ini_file, encoding="utf-8")
 
         if "paths" not in cfg:
