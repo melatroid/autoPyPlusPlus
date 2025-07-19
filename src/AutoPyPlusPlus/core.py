@@ -90,6 +90,7 @@ def load_extensions_ini(src_ini: Path, dest_ini: Path) -> None:
 # === Workdir-Cleanup ===
 
 def find_cleanup_targets(work_dir: Path) -> Tuple[list, list]:
+    print("Working dir:", Path.cwd())
     """
     Liefert zwei Listen zurück:
     - zu löschende Dateien (Logfiles, .spec)
@@ -98,7 +99,12 @@ def find_cleanup_targets(work_dir: Path) -> Tuple[list, list]:
     files = []
     folders = []
     for f in work_dir.iterdir():
-        if f.is_file() and (f.name.startswith("compile_") or f.suffix == ".spec"):
+        if f.is_file() and (
+            f.name.startswith("compile_")
+            or f.name.endswith(".spec")
+            or f.name.endswith(".log")
+            or f.name.endswith(".txt")
+        ):
             files.append(f)
     for d in ["build", "dist", "AutoPyplusplus/__pycache__"]:
         dir_path = work_dir / d

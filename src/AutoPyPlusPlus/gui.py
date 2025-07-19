@@ -108,6 +108,7 @@ class AutoPyPlusPlusGUI:
         self._build_ui()
         self._auto_load()
         self._register_hotkeys()
+        show_about_dialog(self.master, self.style, self.themes[self.current_theme_index])
     # ------------------------- Hilfsmethoden --------------------------
 
     def _fallback_texts(self) -> None:
@@ -138,19 +139,73 @@ class AutoPyPlusPlusGUI:
 
     def _build_ui(self) -> None:
         if not hasattr(self, "main_frame"):
-            # Nur beim ersten Aufruf die GUI erstellen
             for w in self.master.winfo_children():
                 if isinstance(w, tk.Toplevel):
-                    continue  # Inspector-Fenster nicht schließen!
+                    continue
                 w.destroy()
+
             root = ttk.Frame(self.master, padding=10)
             root.pack(fill="both", expand=True)
             self.main_frame = root
-            # Kopfzeile
+
             self.top_frame = ttk.Frame(root)
             self.top_frame.pack(fill="x", pady=5)
 
-            # Sprache-Label, Combobox und INI-Button in einem linken Unter-Frame
+            menubar = tk.Menu(self.master)
+            self.master.config(menu=menubar)
+
+            file_menu = tk.Menu(menubar, tearoff=False)
+            menubar.add_cascade(label="Projects", menu=file_menu)
+            file_menu.add_command(label="Open", command=self._load)
+            file_menu.add_command(label="New", command=self._clear)
+            file_menu.add_separator()
+            file_menu.add_command(label="Save", command=self._save_current_file)
+            file_menu.add_command(label="Save As...", command=self._save_as)
+            file_menu.add_separator()
+            file_menu.add_command(label="Exit", command=self.master.quit)
+
+            project_menu = tk.Menu(menubar, tearoff=False)
+            menubar.add_cascade(label="Scripts", menu=project_menu)
+            project_menu.add_command(label="Add", command=self._add)
+            project_menu.add_command(label="Edit", command=self._edit)
+            project_menu.add_command(label="Delete", command=self._delete)
+
+            tools_menu = tk.Menu(menubar, tearoff=False)
+            menubar.add_cascade(label="Tools", menu=tools_menu)
+            tools_menu.add_command(label="Inspector", command=self._open_debuginspector)
+            tools_menu.add_command(label="ApyEditor", command=self._open_apy_editor)
+            tools_menu.add_command(label="Extensions", command=self._show_extensions_popup)
+
+
+            build_menu = tk.Menu(menubar, tearoff=False)
+            menubar.add_cascade(label="Build", menu=build_menu)
+            build_menu.add_command(label="Compile All", command=self.compile_all)
+            build_menu.add_separator()
+            build_menu.add_command(label="Clean Working Directory", command=self.clear_work_dir)
+
+
+            settings_menu = tk.Menu(menubar, tearoff=False)
+            menubar.add_cascade(label="General Settings", menu=settings_menu)
+
+            language_submenu = tk.Menu(settings_menu, tearoff=False)
+            for lang in LANGUAGES.keys():
+                language_submenu.add_command(
+                    label=lang,
+                    command=lambda l=lang: self.language_var.set(l) or self._change_language()
+                )
+            settings_menu.add_cascade(label="Language", menu=language_submenu)
+
+            settings_menu.add_separator()
+            settings_menu.add_command(label="AutoPy++ General", command=self._open_general_settings)
+            settings_menu.add_command(label="Design", command=self._toggle_design)
+            settings_menu.add_command(label="Colors", command=self._choose_colors)
+            settings_menu.add_command(label="Toggle Fullscreen", command=self._toggle_fullscreen)
+            settings_menu.add_separator()
+            settings_menu.add_command(label="Show Helper", command=lambda: show_main_helper(self.master))
+            settings_menu.add_command(label="About", command=lambda: show_about_dialog(self.master, self.style, self.themes[self.current_theme_index]))
+
+
+            ## Sprache-Label, Combobox und INI-Button in einem linken Unter-Frame
             left_frame = ttk.Frame(self.top_frame)
             left_frame.pack(side="left", padx=5)
 
@@ -183,8 +238,6 @@ class AutoPyPlusPlusGUI:
             self.btn_about.pack(side="left", padx=5)
             CreateToolTip(self.btn_about, self.texts["tooltip_about_btn"])
 
-
-
             # Help button
             self.btn_help = ttk.Button(
                 left_frame,
@@ -195,8 +248,8 @@ class AutoPyPlusPlusGUI:
             CreateToolTip(self.btn_help, "Zeigt eine Hilfeseite für das Hauptfenster.")
 
             # Design- und Colors-Buttons rechtsbündig
-            ttk.Button(self.top_frame, text="🎨 Colors", command=self._choose_colors).pack(side="right", padx=5)
-            ttk.Button(self.top_frame, text="🖌️ Design", command=self._toggle_design).pack(side="right", padx=5)
+            #ttk.Button(self.top_frame, text="🎨 Colors", command=self._choose_colors).pack(side="right", padx=5)
+            #ttk.Button(self.top_frame, text="🖌 Design", command=self._toggle_design).pack(side="right", padx=5)
 
             # Button-Leiste
             self.bar = ttk.Frame(root)
@@ -353,10 +406,13 @@ class AutoPyPlusPlusGUI:
         self._toggle_mode()
         
     def _open_apy_editor(self):
-        from .apyeditor import ApyEditor
         apy_path = str(self.current_apyscript) if self.current_apyscript else ""
         apyeditor_window = ApyEditor(self.master, apyscript_file=apy_path, style=self.style)
         apyeditor_window.show()
+        
+    def _open_general_settings(self):
+        from .general_settings import show_general_settings
+        show_general_settings(self.master, self.config, self.style, self.themes[self.current_theme_index])
 
 
     def _open_debuginspector(self):
@@ -547,10 +603,13 @@ class AutoPyPlusPlusGUI:
             new_iids.add(iid)
 
             values = (
-                chk_a, chk_b, chk_c, p.name, 
-                pyarmor_status, nuitka_status, cython_status, 
-                pytest_status, sphinx_status,
-                script_name
+                chk_a, chk_b, chk_c, p.name,
+                pytest_status,   
+                pyarmor_status,  
+                nuitka_status,   
+                cython_status, 
+                sphinx_status,
+                script_name    
             )
 
             if iid in existing_iids:
@@ -726,7 +785,7 @@ class AutoPyPlusPlusGUI:
         self._refresh_tree()
 
     def clear_work_dir(self):
-        work_dir = Path.cwd()
+        work_dir = Path(__file__).parent.parent
         files, folders = find_cleanup_targets(work_dir)
         targets = files + folders
 
