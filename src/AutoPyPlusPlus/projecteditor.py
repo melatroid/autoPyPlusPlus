@@ -157,7 +157,6 @@ class ProjectEditor:
         nuitka_cb = ttk.Checkbutton(check_frame_top, text="Use Nuitka", variable=self.var_use_nuitka, command=self.on_use_nuitka_toggle)
         nuitka_cb.grid(row=0, column=4, padx=5, pady=2, sticky="w")
         
-        # NEU: Cython Checkbutton
         self.var_use_cython = tk.BooleanVar(value=getattr(self.project, "use_cython", False))
         cython_cb = ttk.Checkbutton(check_frame_top, text="Use Cython", variable=self.var_use_cython, command=self.on_use_cython_toggle)
         cython_cb.grid(row=0, column=5, padx=5, pady=2, sticky="w")
@@ -332,11 +331,13 @@ class ProjectEditor:
 
         self._enforce_exclusivity()
         
+
+
         
-        #if getattr(self.project, "use_pytest", False):
-         #   self.on_use_pytest_toggle()
-        #elif getattr(self.project, "use_sphinx", False):
-        #    self.on_use_sphinx_toggle()
+        if getattr(self.project, "use_pytest_standalone", False):
+            self.on_use_pytest_toggle()
+        elif getattr(self.project, "use_sphinx_standalone", False):
+            self.on_use_sphinx_toggle()
 
         if getattr(self.project, "use_cython", False):
             self.on_use_cython_toggle()

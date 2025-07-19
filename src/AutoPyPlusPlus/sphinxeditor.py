@@ -1,7 +1,6 @@
 import tkinter as tk
 from tkinter import ttk, scrolledtext, filedialog, messagebox
 
-# Beispiel-Themes, du kannst gern mehr oder weniger nehmen
 SPHINX_THEMES = [
     "alabaster", "sphinx_rtd_theme", "classic", "nature", "bizstyle", 
     "furo", "pydata_sphinx_theme", "press", "scrolls", "haiku", "agogo", "sphinx_book_theme"
@@ -17,7 +16,7 @@ class SphinxEditor:
     def show(self) -> bool:
         self.win = tk.Toplevel(self.master)
         self.win.title("Sphinx Configuration")
-        self.win.geometry("760x350")
+        self.win.geometry("760x400")
         self.win.transient(self.master)
         self.win.grab_set()
         form = ttk.Frame(self.win, padding=14)
@@ -61,40 +60,49 @@ class SphinxEditor:
         self.theme_var = tk.StringVar()
         self.theme_combo = ttk.Combobox(form, textvariable=self.theme_var, values=SPHINX_THEMES, width=22, state="readonly")
         self.theme_combo.grid(row=5, column=1, sticky="w", padx=5, pady=4)
-        # Fallback auf das aktuelle theme, wenn vorhanden
         current_theme = getattr(self.project, "sphinx_theme", "alabaster")
         self.theme_combo.set(current_theme if current_theme in SPHINX_THEMES else SPHINX_THEMES[0])
         ttk.Button(form, text="?", command=lambda: messagebox.showinfo("Themes", ", ".join(SPHINX_THEMES))).grid(row=5, column=2, padx=5)
 
-        # --- Parallel jobs, warnings, keep-going ---
+        # --- Parallel jobs ---
         ttk.Label(form, text="Parallel jobs (-j):").grid(row=6, column=0, sticky="e", padx=5, pady=4)
         self.e_parallel = ttk.Entry(form, width=7)
         self.e_parallel.grid(row=6, column=1, sticky="w", padx=5, pady=4)
         self.e_parallel.insert(0, str(getattr(self.project, "sphinx_parallel", 1)))
 
-        self.var_warning_is_error = tk.BooleanVar(value=getattr(self.project, "sphinx_warning_is_error", False))
-        c_warn = ttk.Checkbutton(form, text="Treat warnings as errors (-W)", variable=self.var_warning_is_error)
-        c_warn.grid(row=6, column=2, sticky="w", padx=5)
+        # --- SCHÖN ANGORDNETE Checkboxen ---
+        cb_frame = ttk.Frame(form)
+        cb_frame.grid(row=7, column=0, columnspan=3, sticky="w", pady=(6, 0))
 
+        self.var_warning_is_error = tk.BooleanVar(value=getattr(self.project, "sphinx_warning_is_error", False))
         self.var_keep_going = tk.BooleanVar(value=getattr(self.project, "sphinx_keep_going", False))
-        c_keep = ttk.Checkbutton(form, text="Keep going (--keep-going)", variable=self.var_keep_going)
-        c_keep.grid(row=7, column=2, sticky="w", padx=5)
+        self.var_standalone = tk.BooleanVar(value=getattr(self.project, "use_sphinx_standalone", False))  # NEU
+
+        ttk.Checkbutton(cb_frame, text="Treat warnings as errors (-W)", variable=self.var_warning_is_error).grid(row=0, column=0, padx=5, sticky="w")
+        ttk.Checkbutton(cb_frame, text="Keep going (--keep-going)", variable=self.var_keep_going).grid(row=0, column=1, padx=5, sticky="w")
+
+        # Standalone Checkbox: abgesetzt, eigene Zeile, mit Abstand nach oben
+        cb_standalone = ttk.Frame(form)
+        cb_standalone.grid(row=8, column=0, columnspan=3, sticky="w", pady=(12, 0))
+        ttk.Checkbutton(
+            cb_standalone,
+            text="Sphinx Standalone Mode",
+            variable=self.var_standalone
+        ).grid(row=0, column=0, sticky="w", padx=3)
 
         # --- Extra arguments ---
-        ttk.Label(form, text="Additional options/arguments:").grid(row=7, column=0, sticky="ne", padx=5, pady=4)
+        ttk.Label(form, text="Additional options/arguments:").grid(row=9, column=0, sticky="ne", padx=5, pady=4)
         self.txt_args = scrolledtext.ScrolledText(form, width=40, height=3, font=("Segoe UI", 10))
-        self.txt_args.grid(row=7, column=1, padx=5, pady=4, sticky="ew")
+        self.txt_args.grid(row=9, column=1, padx=5, pady=4, sticky="ew")
         self.txt_args.insert(tk.END, " ".join(getattr(self.project, "sphinx_args", [])))
 
         # --- Buttons ---
         button_frame = ttk.Frame(form)
-        button_frame.grid(row=8, column=0, columnspan=3, pady=16)
+        button_frame.grid(row=10, column=0, columnspan=3, pady=16)
         ttk.Button(button_frame, text="Cancel", command=self.win.destroy).grid(row=0, column=0, padx=5)
         ttk.Button(button_frame, text="Save", command=self._save).grid(row=0, column=1, padx=5)
-        # Falls du noch help_func hast
         ttk.Button(button_frame, text="❓Help", command=lambda: messagebox.showinfo("Help", "See Sphinx documentation for more details.")).grid(row=0, column=2, padx=5)
 
-        # Füge mehr Spaltengewicht hinzu für bessere Größenanpassung
         form.columnconfigure(1, weight=1)
         self.master.wait_window(self.win)
         return self.saved
@@ -124,6 +132,7 @@ class SphinxEditor:
             self.project.sphinx_parallel = 1
         self.project.sphinx_warning_is_error = self.var_warning_is_error.get()
         self.project.sphinx_keep_going = self.var_keep_going.get()
+        self.project.use_sphinx_standalone = self.var_standalone.get()  # NEU
         args = self.txt_args.get("1.0", tk.END).strip()
         self.project.sphinx_args = args.split() if args else []
         self.saved = True

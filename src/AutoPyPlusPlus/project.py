@@ -156,6 +156,7 @@ class Project:
         
         # ---- Pytest-Optionen ----
         self.use_pytest: bool = False           # Für Build/Run-Auswahl
+        self.use_pytest_standalone: bool = False
         self.pytest_path: str | None = None     # Falls ein expliziter Pfad gewünscht ist
         self.test_file: str = ""                # Einzelne Testdatei (z.B. "tests/test_modul.py")
         self.test_dir: str = ""                 # Test-Ordner (z.B. "tests")
@@ -175,6 +176,7 @@ class Project:
         
         # ---- Sphinx-Optionen ----
         self.use_sphinx: bool = False           		# Für Build/Run-Auswahl
+        self.use_sphinx_standalone: bool = False
         self.sphinx_source: str = "docs"                # Quellordner
         self.sphinx_build: str = "_build/html"          # Zielordner
         self.sphinx_build_path: str | None = None       # Pfad zu sphinx-build (optional)
@@ -329,6 +331,7 @@ class Project:
             # ---- Pytest-Optionen ----
             "pytest_path": self.pytest_path,
             "use_pytest": self.use_pytest,
+            "use_pytest_standalone": self.use_pytest_standalone,
             "test_file": self.test_file,
             "test_dir": self.test_dir,
             "pytest_verbose": self.pytest_verbose,
@@ -346,6 +349,7 @@ class Project:
             "pytest_args": self.pytest_args,
             # ---- Sphinx-Optionen ----
             "use_sphinx": self.use_sphinx,
+            "use_sphinx_standalone": self.use_sphinx_standalone,
             "sphinx_source": self.sphinx_source,
             "sphinx_build": self.sphinx_build,
             "sphinx_build_path": self.sphinx_build_path,
@@ -506,6 +510,7 @@ class Project:
         
         # ---- Pytest-Optionen ----
         p.use_pytest = d.get("use_pytest", False)
+        p.use_pytest_standalone = d.get("use_pytest_standalone", False)
         p.pytest_path = d.get("pytest_path")
         p.test_file = d.get("test_file", "")
         p.test_dir = d.get("test_dir", "")
@@ -525,6 +530,7 @@ class Project:
         
         # ---- Sphinx-Optionen ----
         p.use_sphinx = d.get("use_sphinx", False)
+        p.use_sphinx_standalone = d.get("use_sphinx_standalone", False)
         p.sphinx_source = d.get("sphinx_source", "docs")
         p.sphinx_build = d.get("sphinx_build", "_build/html")
         p.sphinx_build_path = d.get("sphinx_build_path", None)

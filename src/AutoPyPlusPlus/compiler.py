@@ -27,29 +27,59 @@ def compile_single(project: Project, log_file, compiler: str = "both") -> str:
         #log_file.write(f"Project config: {project.to_dict()}\n")
         log_file.flush()
 
+
+        if getattr(project, "use_pytest_standalone", False) and getattr(project, "use_sphinx_standalone", False):
+            msg = "Fehler: Sowohl Pytest- als auch Sphinx-Standalone aktiviert. Nur eins ist erlaubt!"
+            log_file.write(msg + "\n")
+            log_file.flush()
+            return msg
+
         # --- 1. Pytest vor Kompilierung ---
         if getattr(project, "use_pytest", False):
             log_file.write("Running pytest before compilation...\n")
             log_file.flush()
-            try:
-                CPF0000000.run_pytest(project, log_file)
-            except Exception as e:
-                err = f"Pytest failed for {project.name or project.script}: {e}"
-                log_file.write(err + "\n")
-                log_file.flush()
-                return err  # Build abbrechen!
+            # Prüfe Standalone-Modus!
+            if getattr(project, "use_pytest_standalone", False):
+                try:
+                    result = CPF0000000.run_pytest(project, log_file)
+                    return f"Pytest Standalone: {result}"  # Sofortiger Return
+                except Exception as e:
+                    err = f"Pytest Standalone failed: {e}"
+                    log_file.write(err + "\n")
+                    log_file.flush()
+                    return err  # Build abbrechen!
+            else:
+                try:
+                    CPF0000000.run_pytest(project, log_file)
+                except Exception as e:
+                    err = f"Pytest failed for {project.name or project.script}: {e}"
+                    log_file.write(err + "\n")
+                    log_file.flush()
+                    return err  # Build abbrechen!
 
         # --- 2. Sphinxy/Sphinx vor Kompilierung ---
         if getattr(project, "use_sphinx", False):
             log_file.write("Running sphinx before compilation...\n")
             log_file.flush()
-            try:
-                CPG0000000.run_sphinx(project, log_file)
-            except Exception as e:
-                err = f"Sphinx build failed for {project.name or project.script}: {e}"
-                log_file.write(err + "\n")
-                log_file.flush()
-                # Build läuft weiter, Fehler werden geloggt
+            # Prüfe Standalone-Modus!
+            if getattr(project, "use_sphinx_standalone", False):
+                try:
+                    result = CPG0000000.run_sphinx(project, log_file)
+                    return f"Sphinx Standalone: {result}"  # Sofortiger Return
+                except Exception as e:
+                    err = f"Sphinx Standalone failed: {e}"
+                    log_file.write(err + "\n")
+                    log_file.flush()
+                    return err  # Build abbrechen!
+            else:
+                try:
+                    CPG0000000.run_sphinx(project, log_file)
+                except Exception as e:
+                    err = f"Sphinx build failed for {project.name or project.script}: {e}"
+                    log_file.write(err + "\n")
+                    log_file.flush()
+                    # Build läuft weiter, Fehler werden geloggt
+            
 
         compiled = False
 

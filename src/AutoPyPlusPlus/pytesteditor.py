@@ -10,7 +10,7 @@ class PytestEditor:
     def show(self):
         self.win = tk.Toplevel(self.master)
         self.win.title("Pytest Configuration")
-        self.win.geometry("720x520")
+        self.win.geometry("720x560")
         self.win.transient(self.master)
         self.win.grab_set()
         form = ttk.Frame(self.win, padding=14)
@@ -36,20 +36,29 @@ class PytestEditor:
         )
         help_label.grid(row=2, column=0, columnspan=3, padx=5, pady=(2,8), sticky="w")
 
-        # Checkboxes
+        # Checkboxes für pytest-Optionen, SCHÖN ANGORDNET
         self.var_verbose = tk.BooleanVar(value=getattr(self.project, "pytest_verbose", False))
         self.var_quiet = tk.BooleanVar(value=getattr(self.project, "pytest_quiet", False))
         self.var_disable_warnings = tk.BooleanVar(value=getattr(self.project, "pytest_disable_warnings", False))
         self.var_lf = tk.BooleanVar(value=getattr(self.project, "pytest_lf", False))
         self.var_ff = tk.BooleanVar(value=getattr(self.project, "pytest_ff", False))
+        self.var_standalone = tk.BooleanVar(value=getattr(self.project, "use_pytest_standalone", False))
 
         cb_frame = ttk.Frame(form)
-        cb_frame.grid(row=3, column=0, columnspan=3, sticky="w", pady=4)
-        ttk.Checkbutton(cb_frame, text="Verbose (-v)", variable=self.var_verbose).grid(row=0, column=0, padx=5)
-        ttk.Checkbutton(cb_frame, text="Quiet (-q)", variable=self.var_quiet).grid(row=0, column=1, padx=5)
-        ttk.Checkbutton(cb_frame, text="Disable warnings", variable=self.var_disable_warnings).grid(row=0, column=2, padx=5)
-        ttk.Checkbutton(cb_frame, text="Only last failed (--lf)", variable=self.var_lf).grid(row=1, column=0, padx=5)
-        ttk.Checkbutton(cb_frame, text="Fail fast (--ff)", variable=self.var_ff).grid(row=1, column=1, padx=5)
+        cb_frame.grid(row=3, column=0, columnspan=3, sticky="ew", pady=(4,0))
+        # Erste Reihe: v, q, disable_warnings
+        ttk.Checkbutton(cb_frame, text="Verbose (-v)", variable=self.var_verbose).grid(row=0, column=0, padx=5, sticky="w")
+        ttk.Checkbutton(cb_frame, text="Quiet (-q)", variable=self.var_quiet).grid(row=0, column=1, padx=5, sticky="w")
+        ttk.Checkbutton(cb_frame, text="Disable warnings", variable=self.var_disable_warnings).grid(row=0, column=2, padx=5, sticky="w")
+        # Zweite Reihe: lf, ff
+        ttk.Checkbutton(cb_frame, text="Only last failed (--lf)", variable=self.var_lf).grid(row=1, column=0, padx=5, sticky="w")
+        ttk.Checkbutton(cb_frame, text="Fail fast (--ff)", variable=self.var_ff).grid(row=1, column=1, padx=5, sticky="w")
+
+        # Standalone: eigene Zeile mit Abstand
+        cb_standalone_frame = ttk.Frame(form)
+        cb_standalone_frame.grid(row=4, column=0, columnspan=3, sticky="w", pady=(10, 6))
+        ttk.Checkbutton(cb_standalone_frame, text="Pytest Standalone Mode", variable=self.var_standalone)\
+            .grid(row=0, column=0, sticky="w", padx=3)
 
         # Labeled entry creator
         def create_labeled_entry(label, row, var_name, width=23):
@@ -60,33 +69,33 @@ class PytestEditor:
             entry.insert(0, "" if val is None else str(val))
             return entry
 
-        self.e_maxfail = create_labeled_entry("Max failures (--maxfail):", 4, "pytest_maxfail")
-        self.e_marker = create_labeled_entry("Marker (-m):", 5, "pytest_marker")
-        self.e_keyword = create_labeled_entry("Keyword (-k):", 6, "pytest_keyword")
-        self.e_tb = create_labeled_entry("Traceback style (--tb):", 7, "pytest_tb")
-        self.e_durations = create_labeled_entry("Durations (--durations):", 8, "pytest_durations")
-        self.e_capture = create_labeled_entry("Capture (--capture):", 9, "pytest_capture")
-        self.e_html = create_labeled_entry("HTML report (--html):", 10, "pytest_html")
+        self.e_maxfail = create_labeled_entry("Max failures (--maxfail):", 5, "pytest_maxfail")
+        self.e_marker = create_labeled_entry("Marker (-m):", 6, "pytest_marker")
+        self.e_keyword = create_labeled_entry("Keyword (-k):", 7, "pytest_keyword")
+        self.e_tb = create_labeled_entry("Traceback style (--tb):", 8, "pytest_tb")
+        self.e_durations = create_labeled_entry("Durations (--durations):", 9, "pytest_durations")
+        self.e_capture = create_labeled_entry("Capture (--capture):", 10, "pytest_capture")
+        self.e_html = create_labeled_entry("HTML report (--html):", 11, "pytest_html")
 
         # Free-form additional args
-        ttk.Label(form, text="Additional Pytest arguments:").grid(row=11, column=0, sticky="ne", padx=5, pady=3)
+        ttk.Label(form, text="Additional Pytest arguments:").grid(row=12, column=0, sticky="ne", padx=5, pady=3)
         self.txt_args = scrolledtext.ScrolledText(form, width=40, height=3, font=("Segoe UI", 10))
-        self.txt_args.grid(row=11, column=1, pady=3, sticky="w")
+        self.txt_args.grid(row=12, column=1, pady=3, sticky="w")
         pytest_args = getattr(self.project, "pytest_args", "")
         if isinstance(pytest_args, list):
             pytest_args = " ".join(str(x) for x in pytest_args)
         self.txt_args.insert(tk.END, pytest_args)
 
         # Pytest executable path
-        ttk.Label(form, text="Pytest executable (optional):").grid(row=12, column=0, sticky="e", padx=5, pady=3)
+        ttk.Label(form, text="Pytest executable (optional):").grid(row=13, column=0, sticky="e", padx=5, pady=3)
         self.e_pytest_path = ttk.Entry(form, width=44)
-        self.e_pytest_path.grid(row=12, column=1, padx=5, pady=3, sticky="w")
+        self.e_pytest_path.grid(row=13, column=1, padx=5, pady=3, sticky="w")
         self.e_pytest_path.insert(0, getattr(self.project, "pytest_path", "") or "")
-        ttk.Button(form, text="...", command=self._choose_pytest_path).grid(row=12, column=2, padx=5)
+        ttk.Button(form, text="...", command=self._choose_pytest_path).grid(row=13, column=2, padx=5)
 
         # Buttons
         btn_frame = ttk.Frame(form)
-        btn_frame.grid(row=13, column=0, columnspan=3, pady=18)
+        btn_frame.grid(row=14, column=0, columnspan=3, pady=18)
         ttk.Button(btn_frame, text="Cancel", command=self.win.destroy).grid(row=0, column=0, padx=8)
         ttk.Button(btn_frame, text="Save", command=self._save).grid(row=0, column=1, padx=8)
 
@@ -150,6 +159,7 @@ class PytestEditor:
         self.project.pytest_disable_warnings = self.var_disable_warnings.get()
         self.project.pytest_lf = self.var_lf.get()
         self.project.pytest_ff = self.var_ff.get()
+        self.project.use_pytest_standalone = self.var_standalone.get()
 
         # Robust int or None
         self.project.pytest_maxfail = get_int_or_none(self.e_maxfail)

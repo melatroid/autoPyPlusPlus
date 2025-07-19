@@ -9,7 +9,6 @@ from datetime import datetime  # For working with date and time
 from typing import Optional  # For type hinting optional variables
 from pathlib import Path  # For object-oriented filesystem paths
 
-
 import threading  # For running code in separate threads (concurrent tasks)
 import time  # For time-related functions (e.g., delays, measuring time)
 
@@ -34,6 +33,8 @@ from .compiler import compile_projects
 from .language import LANGUAGES
 
 from .projecteditor import ProjectEditor
+
+from .apyeditor import ApyEditor
 
 from .core import (
     save_projects, load_projects,
@@ -164,6 +165,10 @@ class AutoPyPlusPlusGUI:
             self.language_cmb.pack(side="left", padx=5)
             self.language_cmb.bind("<<ComboboxSelected>>", self._change_language)
 
+            self.btn_open_editor = ttk.Button(left_frame, text="📝 ApyEditor", command=self._open_apy_editor)
+            self.btn_open_editor.pack(side="left", padx=5)
+            CreateToolTip(self.btn_open_editor, "Öffnet den neuen Editor für .apyscript-Dateien")
+
             self.btn_extensions = ttk.Button(left_frame, text=self.texts["extensions_btn"], command=self._show_extensions_popup)
             self.btn_extensions.pack(side="left", padx=5)
             CreateToolTip(self.btn_extensions, self.texts["tooltip_extensions_btn"])
@@ -246,8 +251,9 @@ class AutoPyPlusPlusGUI:
             # Treeview with swapped columns (PyArmor before Script)
             self.tree = ttk.Treeview(
                 self.main_frame,
-                columns=("A", "B", "C", "Name", "PyArmor", "Nuitka", "Cython", "Script"),
-                show="headings"
+                columns=("A", "B", "C", "Name", "Pytest", "PyArmor", "Nuitka", "Cython", "Sphinx", "Script"),
+                show="headings",
+                style="BigEmoji.Treeview"
             )
 
 
@@ -260,11 +266,16 @@ class AutoPyPlusPlusGUI:
             self.tree.heading("Cython", text="Cython", anchor="center")
             self.tree.column("Cython", width=80, anchor="center", stretch=False)
 
+            self.tree.heading("Pytest", text="Pytest", anchor="center")
+            self.tree.column("Pytest", width=70, anchor="center", stretch=False)
+            
+            self.tree.heading("Sphinx", text="Sphinx", anchor="center")
+            self.tree.column("Sphinx", width=70, anchor="center", stretch=False)
+
             self.tree.heading("A", text=self.texts["compile_a_col"])
             self.tree.heading("B", text=self.texts["compile_b_col"])
             self.tree.heading("C", text=self.texts["compile_c_col"])
 
-            
             self.tree.heading("Name", text=self.texts["name_col"], anchor="center")
             self.tree.heading("Script", text=self.texts["script_col"], anchor="center")
             
@@ -272,10 +283,8 @@ class AutoPyPlusPlusGUI:
             self.tree.column("B", width=90, anchor="center", stretch=False)
             self.tree.column("C", width=90, anchor="center", stretch=False)
             
-            
             self.tree.column("Name", width=120, anchor="center",stretch=False)
             self.tree.column("Script", width=600, anchor="center",stretch=False)
-            
             
             self._update_tag_colors()
             self.tree.pack(fill="both", expand=True, pady=(5, 10))
@@ -322,9 +331,10 @@ class AutoPyPlusPlusGUI:
             "<C>": self.compile_all,
             "<A>": self._add,
             "<D>": self._delete,
-            "<Y>": self._toggle_mode,
+            "<Y>": self._cycle_compile_mode,
             "<L>": self._load,
-            "<S>": self._save,
+            "<S>": self._save_current_file,    
+            "<Shift-S>": self._save_as,       
             "<E>": self.clear_work_dir,
             "<T>": self._toggle_design,
             "<Shift-Q>": self.master.quit,
@@ -332,6 +342,21 @@ class AutoPyPlusPlusGUI:
             "<Return>": self._edit,
         }
         register_hotkeys(self.master, hotkeys)
+
+        
+    def _cycle_compile_mode(self, *_):
+        modes = ["A", "B", "C"]
+        cur = self.compile_mode_var.get()
+        idx = modes.index(cur)
+        new_mode = modes[(idx + 1) % len(modes)]
+        self.compile_mode_var.set(new_mode)
+        self._toggle_mode()
+        
+    def _open_apy_editor(self):
+        from .apyeditor import ApyEditor
+        apy_path = str(self.current_apyscript) if self.current_apyscript else ""
+        apyeditor_window = ApyEditor(self.master, apyscript_file=apy_path, style=self.style)
+        apyeditor_window.show()
 
 
     def _open_debuginspector(self):
@@ -478,21 +503,29 @@ class AutoPyPlusPlusGUI:
                 divider_iid = f"divider_{typ}"
                 new_iids.add(divider_iid)
                 divider_text = "──── SPEC FILES ────" if typ == "spec" else "──── PYTHON FILES ────"
+                divider_values = ("", "", "", "", "", "", "", "", "", divider_text)
                 if divider_iid not in existing_iids:
                     self.tree.insert(
                         "", "end", iid=divider_iid,
-                        values=("", "", "", "", "", "", "", divider_text),
+                        values=divider_values,
                         tags=("divider",)
                     )
-
                 last_type = typ
 
-            # PyArmor-Status
-            pyarmor_status = "✔" if p.use_pyarmor else ""
-            # Nuitka-Status
-            nuitka_status = "✔" if p.use_nuitka else ""
-            # cython-Status
-            cython_status = "✔" if p.use_cython else ""
+            pyarmor_status = "🛡" if p.use_pyarmor else ""
+            nuitka_status  = "⚡" if p.use_nuitka else ""
+            cython_status  = "🧩" if p.use_cython else ""
+
+            pytest_status  = (
+                "🧪🔒" if getattr(p, "use_pytest_standalone", False)
+                else "🧪" if getattr(p, "use_pytest", False)
+                else ""
+            )
+            sphinx_status  = (
+                "📚🔒" if getattr(p, "use_sphinx_standalone", False)
+                else "📚" if getattr(p, "use_sphinx", False)
+                else ""
+            )
 
             # Checkboxen für Kompiliermodus A/B
             chk_a = "☑" if p.compile_a_selected else "☐"
@@ -513,8 +546,12 @@ class AutoPyPlusPlusGUI:
             iid = f"proj_{idx}"
             new_iids.add(iid)
 
-            values = (chk_a, chk_b, chk_c, p.name, pyarmor_status, nuitka_status, cython_status, script_name)
-
+            values = (
+                chk_a, chk_b, chk_c, p.name, 
+                pyarmor_status, nuitka_status, cython_status, 
+                pytest_status, sphinx_status,
+                script_name
+            )
 
             if iid in existing_iids:
                 self.tree.item(
