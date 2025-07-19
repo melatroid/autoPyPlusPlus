@@ -1,6 +1,6 @@
 <img src="https://autopyplusplus.wordpress.com/wp-content/uploads/2025/05/autopy-2.png" alt="Alt-Text" width="100" />
 
-# Version 2.34
+# Version 2.35
 
 # Setup & Usage Guide
 
@@ -230,7 +230,7 @@ gcc --version
 ### (Preview) Version 2.36
 - Working Sphinx
 -   
-### (Preview) Version 2.35
+### (latest) Version 2.35
 - Better Main Gui
 - General Programm Settings (Preview)
 - Nuitka window build bugfix
@@ -238,7 +238,7 @@ gcc --version
 - Log delete bugfix
 - delete txt files, clear workdir
   
-### (latest) Version 2.34
+### Version 2.34
 - Use Pytest in standalone mode
 - Use Sphinx in standalone mode
 - Bugfix, Change Mode with keys
