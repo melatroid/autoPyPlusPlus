@@ -229,7 +229,13 @@ gcc --version
   
 ### (Preview) Version 2.35
 - Working Sphinx
-
+- Better Main Gui
+- General Programm Settings (Preview)
+- Nuitka window build bugfix
+- Main Gui Symbol bugfix
+- Log delete bugfix
+- delete txt files, clear workdir
+  
 ### (latest) Version 2.34
 - Use Pytest in standalone mode
 - Use Sphinx in standalone mode
