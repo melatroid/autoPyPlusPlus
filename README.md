@@ -1,7 +1,7 @@
 <img src="https://autopyplusplus.wordpress.com/wp-content/uploads/2025/05/autopy-2.png" alt="Alt-Text" width="100" />
 
-# Version 2.33
-## 🎂 Thx for 160 clones 
+# Version 2.34
+
 # Setup & Usage Guide
 
 ---
@@ -226,11 +226,18 @@ gcc --version
 ### (Preview) Version 2.5x
 - Inspector reads specific logs on top
 - autopy++ runs primary in venv envirnoment
+  
+### (Preview) Version 2.35
+- Working Sphinx
 
-### (Preview) Version 2.34
-- pytest get better experience in inspector
-
-### (latest) Version 2.33
+### (latest) Version 2.34
+- Use Pytest in standalone mode
+- Use Sphinx in standalone mode
+- Bugfix, Change Mode with keys
+- Multilanguage Helper  GER/EN/FR/SP
+- Apyscript Quickeditor
+  
+### Version 2.33
 - Nuitka Path replace update !!!
 - Nuitka Compiler/Gui Update for better building
 - Inspector opens to often- bug
