@@ -63,6 +63,7 @@ class AutoPyPlusPlusGUI:
         self.master = master
         self.config = load_config()
         self.projects: list[Project] = []
+        self.working_dir = Path(self.config.get("working_dir")) if self.config.get("working_dir") else Path(__file__).parent.parent
 
         # -------- Sprache / Texte -------------------------------------
         self.current_language = self.config.get("language", "de")
@@ -90,14 +91,22 @@ class AutoPyPlusPlusGUI:
             set_phantom_mode, set_deep_space_mode, set_onyx_mode, set_lava_flow_mode,
         ]
 
-        default_theme = 0 if self.config.get("dark_mode", True) else 1
+        self.theme_names = [
+            "Dark", "Light", "Arctic Blue", "Galaxy", "Sunset", "Forest", "Retro",
+            "Pastel", "Autumn", "Candy", "Inferno", "Cyberpunk", "Obsidian",
+            "Nebula", "Midnight Forest", "Phantom", "Deep Space", "Onyx", "Lava Flow"
+        ]
+        
+        default_theme = 1  # Index 1 = set_light_mode
+        self.current_theme_index = self.config.get("theme", default_theme) % len(self.themes)
+        self.themes[self.current_theme_index](self.style, master)
         self.current_theme_index = self.config.get("theme", default_theme) % len(self.themes)
         self.themes[self.current_theme_index](self.style, master)
 
         # -------- Farben ----------------------------------------------
-        self.color_a: str = self.config.get("color_a", "#299438")
-        self.color_b: str = self.config.get("color_b", "#c85c00")
-        self.color_c: str = self.config.get("color_c", "#c85c00")
+        self.color_a: str = self.config.get("color_a", "#43d6b5")   
+        self.color_b: str = self.config.get("color_b", "#4a1aae")   
+        self.color_c: str = self.config.get("color_c", "#cd146c")   
         self.default_bg: str = "#ffffff"
 
         # -------- Thread-Anzahl (wird automatisch gespeichert) --------
@@ -134,7 +143,21 @@ class AutoPyPlusPlusGUI:
         else:
             return self.texts["mode_a"]
 
+    def _select_language(self, lang):
+        self.language_var.set(lang)
+        self._change_language()
+            
+    def _set_theme_from_menu(self, idx):
+        self.current_theme_index = idx
+        self.themes[idx](self.style, self.master)
+        self.config["theme"] = idx
+        save_config(self.config)
+        self.status_var.set(f"Theme gewechselt: {self.theme_names[idx]}")
+        self._update_tag_colors()
+        self._refresh_tree()
 
+            
+    
     # ----------------------------- UI --------------------------------
 
     def _build_ui(self) -> None:
@@ -191,13 +214,20 @@ class AutoPyPlusPlusGUI:
             for lang in LANGUAGES.keys():
                 language_submenu.add_command(
                     label=lang,
-                    command=lambda l=lang: self.language_var.set(l) or self._change_language()
+                    command=lambda l=lang: self._select_language(l)
                 )
             settings_menu.add_cascade(label="Language", menu=language_submenu)
+            
+            theme_submenu = tk.Menu(settings_menu, tearoff=False)
+            for idx, theme_name in enumerate(self.theme_names):
+                theme_submenu.add_command(
+                    label=theme_name,
+                    command=lambda i=idx: self._set_theme_from_menu(i)
+                )
+            settings_menu.add_cascade(label="Themes", menu=theme_submenu)
 
             settings_menu.add_separator()
             settings_menu.add_command(label="AutoPy++ General", command=self._open_general_settings)
-            settings_menu.add_command(label="Design", command=self._toggle_design)
             settings_menu.add_command(label="Colors", command=self._choose_colors)
             settings_menu.add_command(label="Toggle Fullscreen", command=self._toggle_fullscreen)
             settings_menu.add_separator()
@@ -218,6 +248,7 @@ class AutoPyPlusPlusGUI:
                 state="readonly", width=10
             )
             self.language_cmb.pack(side="left", padx=5)
+            self.language_cmb.set(self.current_language) 
             self.language_cmb.bind("<<ComboboxSelected>>", self._change_language)
 
             self.btn_open_editor = ttk.Button(left_frame, text="📝 ApyEditor", command=self._open_apy_editor)
@@ -786,6 +817,7 @@ class AutoPyPlusPlusGUI:
 
     def clear_work_dir(self):
         work_dir = Path(__file__).parent.parent
+        work_dir = self.working_dir 
         files, folders = find_cleanup_targets(work_dir)
         targets = files + folders
 
@@ -1185,7 +1217,10 @@ class AutoPyPlusPlusGUI:
         def save_and_close():
             cfg["paths"] = {}
             for k, var in entries.items():
-                cfg["paths"][k] = var.get()
+                val = var.get()
+                if os.name == "nt":
+                    val = val.replace("/", "\\")
+                cfg["paths"][k] = val
             with open(ini_file, "w", encoding="utf-8") as f:
                 cfg.write(f)
             self.status_var.set("INI gespeichert.")

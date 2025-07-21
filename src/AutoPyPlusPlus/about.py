@@ -32,8 +32,7 @@ def show_about_dialog(master, style, theme_func):
         img_label.pack(pady=(10, 10), anchor="center")
 
     text = (
-        "AutoPy++\n"
-        "Version 2.35 (Date: 20.07.2025)\n"
+        "Version 2.36 (Date: 22.07.2025)\n"
         "Developer: melatroid\n"
         "© 2025 by melatroid\n"
         "Bug reports: dseccg@gmail.com\n"

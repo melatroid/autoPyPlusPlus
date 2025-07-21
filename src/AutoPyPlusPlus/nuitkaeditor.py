@@ -143,8 +143,6 @@ class NuitkaEditor:
     def set_security_level(self, level):
         """Sets predefined settings for different security levels."""
         if level == "Easy":
-            self.var_standalone.set(False)
-            self.var_onefile.set(False)
             self.var_follow_imports.set(True)
             self.var_follow_stdlib.set(False)
             self.var_show_progress.set(False)
@@ -159,8 +157,6 @@ class NuitkaEditor:
             self.e_extra_opts.insert(0, "")
 
         elif level == "Medium":
-            self.var_standalone.set(True)
-            self.var_onefile.set(False)
             self.var_follow_imports.set(True)
             self.var_follow_stdlib.set(True)
             self.var_show_progress.set(False)
@@ -175,7 +171,6 @@ class NuitkaEditor:
             self.e_extra_opts.insert(0, "")
 
         elif level == "Hard":
-            self.var_standalone.set(True)
             self.var_onefile.set(True)
             self.var_follow_imports.set(True)
             self.var_follow_stdlib.set(True)
@@ -192,7 +187,6 @@ class NuitkaEditor:
             messagebox.showinfo("Warning", "Hard Level may cause runtime issues if plugins or options are incompatible.")
 
         elif level == "Ultra":
-            self.var_standalone.set(True)
             self.var_onefile.set(True)
             self.var_follow_imports.set(True)
             self.var_follow_stdlib.set(True)
