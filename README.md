@@ -1,6 +1,6 @@
 <img src="https://autopyplusplus.wordpress.com/wp-content/uploads/2025/05/autopy-2.png" alt="Alt-Text" width="100" />
 
-# Version 2.35
+# Version 2.36
 
 # Setup & Usage Guide
 
@@ -227,10 +227,16 @@ gcc --version
 - Inspector reads specific logs on top
 - autopy++ runs primary in venv envirnoment
   
-### (Preview) Version 2.36
+### (Preview) Version 2.37
 - Working Sphinx
   
-### (latest) Version 2.35
+### (latest) Version 2.36
+- Nuitka Sec lvl Bugfix
+- config.json (now in workdir) bugfix
+- simple theme switcher
+- extensions save change / to \ in paths
+  
+### Version 2.35
 - Better Main Gui
 - General Programm Settings (Preview)
 - Nuitka window build bugfix
