@@ -244,10 +244,11 @@ gcc --version
 ### (Preview) Version 2.5x
 - Inspector reads specific logs on top
 - autopy++ runs primary in venv envirnoment
-  
+
 ### (Preview) Version 2.37
 - Working Sphinx
 - Change Script order
+- Bugfix Projecteditor 
   
 ### (latest) Version 2.36
 - Nuitka Sec lvl Bugfix
