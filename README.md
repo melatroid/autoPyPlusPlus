@@ -166,7 +166,7 @@ __pyarmor__(__name__, __file__, b'\x28\x83\x20\x58....')
 ```
 
 ---
-# MSVC Python Extesnion Usage
+# MSVC Python Extension Usage
 1.) Start msvc_start.bat
 2.) Activate cython in script
 3.) Target Type: Python Extension
