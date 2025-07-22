@@ -155,7 +155,7 @@ set the nutika path like this, direct to primary python installation
 nuitka = "C:\Program Files (x86)\Thonny\python.exe"
 the system found nuitka in your python version
 ```
-
+---
 # PyArmor Usage
 
 To use PyArmor, include the following in your Python code:
@@ -167,19 +167,24 @@ __pyarmor__(__name__, __file__, b'\x28\x83\x20\x58....')
 
 ---
 # MSVC Python Extension Usage
-1.) Start msvc_start.bat
-2.) Activate cython in script
-3.) Target Type: Python Extension
-4.) Activate cython C++ Pipepline
-5.) Open C++ Pipline
-6.) Target Type: Python Extension
-7.) Insert python3XX.dll
-8.) add include & libary dirs from python
-9.) add Libaries: python3XX
+- Start msvc_start.bat
+- Activate cython in script
+- Target Type: Python Extension
+- Activate cython C++ Pipepline
+- Open C++ Pipline
+- Target Type: Python Extension
+- Insert python3XX.dll
+- add include & libary dirs from python
+- add Libaries: python3XX
 
-If you have problems with missing python extensions, load inside this.:
+If you have problems with missing python extensions, load yourextension.pyd
+in with this nice tool.:
+```link
 https://github.com/lucasg/Dependencies
+```
+That will show you missing files and more.
 
+---
 # GCC/G++ Notes
 
 If you have problems with missing `.dll` files, set the compiler path to the global system path under Windows 10/11.
