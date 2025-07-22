@@ -166,6 +166,19 @@ __pyarmor__(__name__, __file__, b'\x28\x83\x20\x58....')
 ```
 
 ---
+# MSVC Python Extesnion Usage
+1.) Start msvc_start.bat
+2.) Activate cython in script
+3.) Target Type: Python Extension
+4.) Activate cython C++ Pipepline
+5.) Open C++ Pipline
+6.) Target Type: Python Extension
+7.) Insert python3XX.dll
+8.) add include & libary dirs from python
+9.) add Libaries: python3XX
+
+If you have problems with missing python extensions, load inside this.:
+https://github.com/lucasg/Dependencies
 
 # GCC/G++ Notes
 
