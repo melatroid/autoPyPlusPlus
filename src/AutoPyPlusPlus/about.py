@@ -13,6 +13,10 @@ def show_about_dialog(master, style, theme_func):
     about_win.transient(master)
     about_win.grab_set()
     about_win.protocol("WM_DELETE_WINDOW", lambda: None)
+    try:
+        self.win.iconbitmap('autoPy++.ico')
+    except Exception:
+        pass
 
     theme_func(style, about_win)
 
@@ -32,7 +36,7 @@ def show_about_dialog(master, style, theme_func):
         img_label.pack(pady=(10, 10), anchor="center")
 
     text = (
-        "Version 2.36 (Date: 22.07.2025)\n"
+        "Version 2.37 (Date: 27.07.2025)\n"
         "Developer: melatroid\n"
         "© 2025 by melatroid\n"
         "Bug reports: dseccg@gmail.com\n"

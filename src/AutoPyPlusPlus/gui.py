@@ -3,7 +3,7 @@ from __future__ import annotations  # Enables postponed evaluation of type annot
 import os  # For interacting with the operating system (e.g., file/directory handling)
 
 import tkinter as tk  # Tkinter: main module for creating GUIs
-from tkinter import ttk, filedialog, messagebox, colorchooser  # Tkinter modules for advanced GUI widgets, file dialogs, message boxes, and color pickers
+from tkinter import ttk, filedialog, messagebox, colorchooser, simpledialog  # Tkinter modules for advanced GUI widgets, file dialogs, message boxes, and color pickers
 from datetime import datetime  # For working with date and time
 
 from typing import Optional  # For type hinting optional variables
@@ -64,9 +64,11 @@ class AutoPyPlusPlusGUI:
         self.config = load_config()
         self.projects: list[Project] = []
         self.working_dir = Path(self.config.get("working_dir")) if self.config.get("working_dir") else Path(__file__).parent.parent
+        self.legacy_gui_mode = bool(self.config.get("legacy_gui_mode", False))
 
         # -------- Sprache / Texte -------------------------------------
         self.current_language = self.config.get("language", "de")
+        self.language_var = tk.StringVar(value=self.current_language)
         self.texts = LANGUAGES[self.current_language]
         self._fallback_texts()
         self.compile_mode_var = tk.StringVar(
@@ -75,7 +77,7 @@ class AutoPyPlusPlusGUI:
 
         # -------- Fenstergrunddaten -----------------------------------
         master.title(self.texts["title"])
-        master.geometry("1400x500")
+        master.geometry("1450x500")
         master.minsize(1350, 250)
         icon = Path(__file__).parent / "autoPy++.ico"
         if icon.exists():
@@ -156,10 +158,29 @@ class AutoPyPlusPlusGUI:
         self._update_tag_colors()
         self._refresh_tree()
 
-            
-    
-    # ----------------------------- UI --------------------------------
+    def _move_project_up(self):
+        sel = self.tree.selection()
+        if not sel or not sel[0].startswith("proj_"):
+            return
+        idx = int(sel[0].split("_")[1])
+        if idx > 0:
+            # Projekte im Speicher tauschen
+            self.projects[idx - 1], self.projects[idx] = self.projects[idx], self.projects[idx - 1]
+            self._refresh_tree()
+            # Auswahl behalten
+            self.tree.selection_set(f"proj_{idx-1}")
 
+    def _move_project_down(self):
+        sel = self.tree.selection()
+        if not sel or not sel[0].startswith("proj_"):
+            return
+        idx = int(sel[0].split("_")[1])
+        if idx < len(self.projects) - 1:
+            self.projects[idx + 1], self.projects[idx] = self.projects[idx], self.projects[idx + 1]
+            self._refresh_tree()
+            self.tree.selection_set(f"proj_{idx+1}")
+
+    
     def _build_ui(self) -> None:
         if not hasattr(self, "main_frame"):
             for w in self.master.winfo_children():
@@ -171,9 +192,7 @@ class AutoPyPlusPlusGUI:
             root.pack(fill="both", expand=True)
             self.main_frame = root
 
-            self.top_frame = ttk.Frame(root)
-            self.top_frame.pack(fill="x", pady=5)
-
+            # --------- Menüleiste ---------
             menubar = tk.Menu(self.master)
             self.master.config(menu=menubar)
 
@@ -189,7 +208,8 @@ class AutoPyPlusPlusGUI:
 
             project_menu = tk.Menu(menubar, tearoff=False)
             menubar.add_cascade(label="Scripts", menu=project_menu)
-            project_menu.add_command(label="Add", command=self._add)
+            project_menu.add_command(label="Add Empty", command=self._add_empty_project)
+            project_menu.add_command(label="Add File", command=self._add)
             project_menu.add_command(label="Edit", command=self._edit)
             project_menu.add_command(label="Delete", command=self._delete)
 
@@ -199,13 +219,11 @@ class AutoPyPlusPlusGUI:
             tools_menu.add_command(label="ApyEditor", command=self._open_apy_editor)
             tools_menu.add_command(label="Extensions", command=self._show_extensions_popup)
 
-
             build_menu = tk.Menu(menubar, tearoff=False)
             menubar.add_cascade(label="Build", menu=build_menu)
             build_menu.add_command(label="Compile All", command=self.compile_all)
             build_menu.add_separator()
             build_menu.add_command(label="Clean Working Directory", command=self.clear_work_dir)
-
 
             settings_menu = tk.Menu(menubar, tearoff=False)
             menubar.add_cascade(label="General Settings", menu=settings_menu)
@@ -217,7 +235,7 @@ class AutoPyPlusPlusGUI:
                     command=lambda l=lang: self._select_language(l)
                 )
             settings_menu.add_cascade(label="Language", menu=language_submenu)
-            
+
             theme_submenu = tk.Menu(settings_menu, tearoff=False)
             for idx, theme_name in enumerate(self.theme_names):
                 theme_submenu.add_command(
@@ -234,105 +252,69 @@ class AutoPyPlusPlusGUI:
             settings_menu.add_command(label="Show Helper", command=lambda: show_main_helper(self.master))
             settings_menu.add_command(label="About", command=lambda: show_about_dialog(self.master, self.style, self.themes[self.current_theme_index]))
 
-
-            ## Sprache-Label, Combobox und INI-Button in einem linken Unter-Frame
-            left_frame = ttk.Frame(self.top_frame)
-            left_frame.pack(side="left", padx=5)
-
-            self.language_label = ttk.Label(left_frame, text=self.texts["language_label"])
-            self.language_label.pack(side="left", padx=5)
-            
-            self.language_var = tk.StringVar(value=self.current_language)
-            self.language_cmb = ttk.Combobox(
-                left_frame, textvariable=self.language_var, values=list(LANGUAGES.keys()),
-                state="readonly", width=10
-            )
-            self.language_cmb.pack(side="left", padx=5)
-            self.language_cmb.set(self.current_language) 
-            self.language_cmb.bind("<<ComboboxSelected>>", self._change_language)
-
-            self.btn_open_editor = ttk.Button(left_frame, text="📝 ApyEditor", command=self._open_apy_editor)
-            self.btn_open_editor.pack(side="left", padx=5)
-            CreateToolTip(self.btn_open_editor, "Öffnet den neuen Editor für .apyscript-Dateien")
-
-            self.btn_extensions = ttk.Button(left_frame, text=self.texts["extensions_btn"], command=self._show_extensions_popup)
-            self.btn_extensions.pack(side="left", padx=5)
-            CreateToolTip(self.btn_extensions, self.texts["tooltip_extensions_btn"])
-            
-
-            # About button
-            self.btn_about = ttk.Button(
-                left_frame,
-                text=self.texts["about_btn"],
-                command=lambda: show_about_dialog(self.master, self.style, self.themes[self.current_theme_index])
-            )
-            self.btn_about.pack(side="left", padx=5)
-            CreateToolTip(self.btn_about, self.texts["tooltip_about_btn"])
-
-            # Help button
-            self.btn_help = ttk.Button(
-                left_frame,
-                text="ℹ️ Help",
-                command=lambda: show_main_helper(self.master)
-            )
-            self.btn_help.pack(side="left", padx=5)
-            CreateToolTip(self.btn_help, "Zeigt eine Hilfeseite für das Hauptfenster.")
-
-            # Design- und Colors-Buttons rechtsbündig
-            #ttk.Button(self.top_frame, text="🎨 Colors", command=self._choose_colors).pack(side="right", padx=5)
-            #ttk.Button(self.top_frame, text="🖌 Design", command=self._toggle_design).pack(side="right", padx=5)
-
-            # Button-Leiste
-            self.bar = ttk.Frame(root)
+            # --------- Buttonleiste ---------
+            self.bar = ttk.Frame(self.main_frame)
             self.bar.pack(fill="x", pady=5)
-
-            # Threads Spinbox (keep on the right)
-            ttk.Label(self.bar, text="::Threads").pack(side="right", padx=5)
-            ttk.Spinbox(
-                self.bar, from_=1, to=os.cpu_count() or 4, width=5,
-                textvariable=self.thread_count_var
-            ).pack(side="right")
 
             def _btn(txt_key, cmd, tip_key):
                 b = ttk.Button(self.bar, text=self.texts[txt_key], command=cmd)
-                b.pack(side="left", padx=5)  # All buttons on the left
+                b.pack(side="left", padx=5)
                 CreateToolTip(b, self.texts[tip_key])
                 return b
 
-            # Pack all buttons on the left in the desired order
-            self.add_btn = _btn("add_btn", self._add, "tooltip_add_btn")
-            self.edit_btn = _btn("edit_btn", self._edit, "tooltip_edit_btn")  # Added Edit button
-            self.delete_btn = _btn("delete_btn", self._delete, "tooltip_delete_btn")  # Added Delete button
+            # Legacy-Modus? => Zusätzliche Steuer-Elemente/Design wie früher
+            if self.legacy_gui_mode:
+                self.move_up_btn = ttk.Button(self.bar, text="▲", command=self._move_project_up, width=2)
+                self.move_up_btn.pack(side="left", padx=2)
 
-            ttk.Label(self.bar, text="|").pack(side="left", padx=5)
-            self.save_btn       = _btn("save_btn",       self._save_current_file,"tooltip_save_btn")
-            self.save_as_btn    = _btn("save_as_btn",    self._save_as,          "tooltip_save_as_btn")
-            self.load_btn       = _btn("load_btn",       self._load,             "tooltip_load_btn")
-            self.clear_btn      = _btn("clear_btn",      self._clear,            "tooltip_clear_btn")
+                self.move_down_btn = ttk.Button(self.bar, text="▼", command=self._move_project_down, width=2)
+                self.move_down_btn.pack(side="left", padx=2)
 
-            ttk.Label(self.bar, text="|").pack(side="left", padx=5)
-            
-            self.debug_btn = _btn("debug_btn", self._open_debuginspector, "tooltip_debug_btn")
+                ttk.Label(self.bar, text="|").pack(side="left", padx=5)
+
+                # Immer (egal ob legacy oder nicht):
+                self.add_btn    = _btn("add_btn",    self._add,    "tooltip_add_btn")
+                self.edit_btn   = _btn("edit_btn",   self._edit,   "tooltip_edit_btn")
+                self.delete_btn = _btn("delete_btn", self._delete, "tooltip_delete_btn")
+                ttk.Label(self.bar, text="|").pack(side="left", padx=5)
+                self.save_btn   = _btn("save_btn",   self._save_current_file, "tooltip_save_btn")
+                self.save_as_btn= _btn("save_as_btn",self._save_as, "tooltip_save_as_btn")
+                self.load_btn   = _btn("load_btn",   self._load,   "tooltip_load_btn")
+                self.clear_btn  = _btn("clear_btn",  self._clear,  "tooltip_clear_btn")
+                ttk.Label(self.bar, text="|").pack(side="left", padx=5)
+
+            self.debug_btn  = _btn("debug_btn",  self._open_debuginspector, "tooltip_debug_btn")
             self.compile_all_btn = _btn("compile_all_btn", self.compile_all, "tooltip_compile_all_btn")
             self.clear_work_dir_btn = _btn("clear_work_dir_btn", self.clear_work_dir, "tooltip_clear_work_dir_btn")
 
-            # Mode Checkbutton (keep on the right)
-            self.mode_a_btn = ttk.Radiobutton(self.bar, text=self.texts["mode_a"], variable=self.compile_mode_var, value="A", command=self._toggle_mode)
-            self.mode_b_btn = ttk.Radiobutton(self.bar, text=self.texts["mode_b"], variable=self.compile_mode_var, value="B", command=self._toggle_mode)
-            self.mode_c_btn = ttk.Radiobutton(self.bar, text=self.texts["mode_c"], variable=self.compile_mode_var, value="C", command=self._toggle_mode)
+            # Threads-Spinbox, nur im Legacy-Modus anzeigen
+            if self.legacy_gui_mode:
+                ttk.Label(self.bar, text="::Threads").pack(side="right", padx=5)
+                ttk.Spinbox(
+                    self.bar, from_=1, to=os.cpu_count() or 4, width=2,
+                    textvariable=self.thread_count_var
+                ).pack(side="right")
 
-            self.mode_c_btn.pack(side="right", padx=2)
-            self.mode_b_btn.pack(side="right", padx=2)
-            self.mode_a_btn.pack(side="right", padx=2)
+            # ---- NEU: Kompiliermodus als Dropdown-Menu rechts ---
+            mode_names = {
+                "A": self.texts.get("mode_a", "Modus A"),
+                "B": self.texts.get("mode_b", "Modus B"),
+                "C": self.texts.get("mode_c", "Modus C"),
+            }
+            self.compile_mode_var = tk.StringVar(value=self.config.get("compile_mode", "A"))
 
+            self.mode_menu = ttk.OptionMenu(
+                self.bar,
+                self.compile_mode_var,     # Das ist die tk.StringVar!
+                self.compile_mode_var.get(), # Was zuerst angezeigt wird (A/B/C)
+                "A", "B", "C",                # Die Auswahlmöglichkeiten
+                command=lambda mode: self._toggle_mode()
+            )
+            self.mode_menu.pack(side="right", padx=6)
+            self.mode_menu.config(width=2) 
+            CreateToolTip(self.mode_menu, self.texts["tooltip_compile_mode"])
 
-            CreateToolTip(self.mode_a_btn, self.texts["tooltip_compile_mode"])
-            CreateToolTip(self.mode_b_btn, self.texts["tooltip_compile_mode"])
-            CreateToolTip(self.mode_c_btn, self.texts["tooltip_compile_mode"])
-            #self.mode_btn.pack(side="right", padx=5)
-            #CreateToolTip(self.mode_btn, self.texts["tooltip_compile_mode"])
-
-            # Treeview with swapped columns (PyArmor before Script)
+            # --------- Treeview ---------
             self.tree = ttk.Treeview(
                 self.main_frame,
                 columns=("A", "B", "C", "Name", "Pytest", "PyArmor", "Nuitka", "Cython", "Sphinx", "Script"),
@@ -340,48 +322,34 @@ class AutoPyPlusPlusGUI:
                 style="BigEmoji.Treeview"
             )
 
-
+            # Spalten konfigurieren
             self.tree.heading("Nuitka", text="Nuitka", anchor="center")
             self.tree.column("Nuitka", width=80, anchor="center", stretch=False)
-
             self.tree.heading("PyArmor", text="PyArmor", anchor="center")
             self.tree.column("PyArmor", width=80, anchor="center", stretch=False)
-
             self.tree.heading("Cython", text="Cython", anchor="center")
             self.tree.column("Cython", width=80, anchor="center", stretch=False)
-
             self.tree.heading("Pytest", text="Pytest", anchor="center")
             self.tree.column("Pytest", width=70, anchor="center", stretch=False)
-            
             self.tree.heading("Sphinx", text="Sphinx", anchor="center")
             self.tree.column("Sphinx", width=70, anchor="center", stretch=False)
-
             self.tree.heading("A", text=self.texts["compile_a_col"])
             self.tree.heading("B", text=self.texts["compile_b_col"])
             self.tree.heading("C", text=self.texts["compile_c_col"])
-
             self.tree.heading("Name", text=self.texts["name_col"], anchor="center")
             self.tree.heading("Script", text=self.texts["script_col"], anchor="center")
-            
             self.tree.column("A", width=90, anchor="center", stretch=False)
             self.tree.column("B", width=90, anchor="center", stretch=False)
             self.tree.column("C", width=90, anchor="center", stretch=False)
-            
-            self.tree.column("Name", width=120, anchor="center",stretch=False)
-            self.tree.column("Script", width=600, anchor="center",stretch=False)
-            
-            self._update_tag_colors()
-            self.tree.pack(fill="both", expand=True, pady=(5, 10))
-            self.tree.bind("<Button-1>", self._toggle_cell)
-            #self.tree.tag_configure("mode_a", background=self.color_a, foreground="white")
-            #self.tree.tag_configure("mode_b", background=self.color_b, foreground="white")
-            #self.tree.tag_configure("divider", background="#41578e", font=("", 10, "bold"))
+            self.tree.column("Name", width=120, anchor="center", stretch=False)
+            self.tree.column("Script", width=600, anchor="center", stretch=False)
+
             self._update_tag_colors()
             self.tree.pack(fill="both", expand=True, pady=(5, 10))
             self.tree.bind("<Button-1>", self._toggle_cell)
             self.tree.tag_configure("divider", background="#41578e", font=("", 10, "bold"))
-            
-            # Statuszeile
+
+            # --------- Statuszeile ---------
             self.status_var = tk.StringVar(value=self.texts["status_ready"])
             self.status_label = ttk.Label(
                 self.main_frame,
@@ -399,7 +367,15 @@ class AutoPyPlusPlusGUI:
         # Initiales Rendern
         self._update_headings()
         self._refresh_tree()
-        
+
+
+    def _toggle_mode_by_display_name(self, display_name, mode_names):
+        # Umkehren des Dicts: Anzeige -> Key
+        rev = {v: k for k, v in mode_names.items()}
+        self.compile_mode_var.set(rev[display_name])
+        self._toggle_mode()
+
+            
     def _update_tag_colors(self):
         self.tree.tag_configure("mode_a", background=self.color_a, foreground="white")
         self.tree.tag_configure("mode_b", background=self.color_b, foreground="white")
@@ -444,7 +420,17 @@ class AutoPyPlusPlusGUI:
     def _open_general_settings(self):
         from .general_settings import show_general_settings
         show_general_settings(self.master, self.config, self.style, self.themes[self.current_theme_index])
-
+        
+    def _add_empty_project(self):
+        from .project import Project
+        name = simpledialog.askstring("Empty Project", "Name:")
+        if not name:
+            return
+        p = Project(name=name)  # nur Name, keine Datei
+        p.compile_a_selected = True
+        self.projects.append(p)
+        self._refresh_tree()
+        self.status_var.set(f"Leeres Projekt '{name}' hinzugefügt.")
 
     def _open_debuginspector(self):
         # Wenn ein compile_*.log existiert, den neuesten nehmen
@@ -464,23 +450,23 @@ class AutoPyPlusPlusGUI:
         self.master.title(self.texts["title"])
 
         # Sprache-Label
-        self.language_label.config(text=self.texts["language_label"])
+        #self.language_label.config(text=self.texts["language_label"])
 
         # About-Button
-        self.btn_about.config(text=self.texts["about_btn"])
-        CreateToolTip(self.btn_about, self.texts["tooltip_about_btn"])
+        #self.btn_about.config(text=self.texts["about_btn"])
+        #CreateToolTip(self.btn_about, self.texts["tooltip_about_btn"])
 
         # Extensions-Button
-        self.btn_extensions.config(text=self.texts["extensions_btn"])
-        CreateToolTip(self.btn_extensions, self.texts["tooltip_extensions_btn"])
+        #self.btn_extensions.config(text=self.texts["extensions_btn"])
+        #CreateToolTip(self.btn_extensions, self.texts["tooltip_extensions_btn"])
 
         # Modus-Radiobuttons
-        self.mode_a_btn.config(text=self.texts["mode_a"])
-        self.mode_b_btn.config(text=self.texts["mode_b"])
-        self.mode_c_btn.config(text=self.texts["mode_c"])
-        CreateToolTip(self.mode_a_btn, self.texts["tooltip_compile_mode"])
-        CreateToolTip(self.mode_b_btn, self.texts["tooltip_compile_mode"])
-        CreateToolTip(self.mode_c_btn, self.texts["tooltip_compile_mode"])
+        #self.mode_a_btn.config(text=self.texts["mode_a"])
+        #self.mode_b_btn.config(text=self.texts["mode_b"])
+        #self.mode_c_btn.config(text=self.texts["mode_c"])
+        #CreateToolTip(self.mode_a_btn, self.texts["tooltip_compile_mode"])
+        #CreateToolTip(self.mode_b_btn, self.texts["tooltip_compile_mode"])
+        #CreateToolTip(self.mode_c_btn, self.texts["tooltip_compile_mode"])
 
         # Treeview-Spaltenüberschriften
         self.tree.heading("A", text=self.texts["compile_a_col"])
@@ -854,7 +840,8 @@ class AutoPyPlusPlusGUI:
 
         f = filedialog.asksaveasfilename(
             defaultextension=".apyscript",
-            filetypes=[("apyscript", "*.apyscript"), ("Spec File", "*.spec")]
+            filetypes=[("apyscript", "*.apyscript"), ("Spec File", "*.spec")],
+            initialdir=str(self.current_apyscript.parent) if self.current_apyscript else os.getcwd()
         )
         if not f:
             return
@@ -911,7 +898,10 @@ class AutoPyPlusPlusGUI:
         self._refresh_tree()
 
     def _load(self):
-        file = filedialog.askopenfilename(filetypes=[("apyscript", "*.apyscript")])
+        file = filedialog.askopenfilename(
+            filetypes=[("apyscript", "*.apyscript")],
+            initialdir=str(self.current_apyscript.parent) if self.current_apyscript else os.getcwd()
+        )
         if not file:
             return
         if not file.lower().endswith(".apyscript"):
@@ -968,7 +958,8 @@ class AutoPyPlusPlusGUI:
 
         f = filedialog.asksaveasfilename(
             defaultextension=".apyscript",
-            filetypes=[("apyscript", "*.apyscript"), ("Spec File", "*.spec")]
+            filetypes=[("apyscript", "*.apyscript"), ("Spec File", "*.spec")],
+            initialdir=str(self.current_apyscript.parent) if self.current_apyscript else os.getcwd()  # <- hier ergänzen!
         )
         if not f:
             return
@@ -992,6 +983,7 @@ class AutoPyPlusPlusGUI:
             self.status_var.set(f"{self.projects[idx].name} als .spec exportiert: {f}")
         else:
             messagebox.showerror("Fehler", "Unbekanntes Exportformat!")
+
                 
             
     def run_status_animation(self, stop_event: threading.Event, message: str = "Work...", interval: float = 0.2) -> None:

@@ -1,7 +1,6 @@
 import os
 import tkinter as tk
 from tkinter import ttk, messagebox, filedialog
-from tkinter import filedialog
 from .config import save_config
 
 def show_general_settings(master, config: dict, style, theme_func):
@@ -30,18 +29,27 @@ def show_general_settings(master, config: dict, style, theme_func):
     ttk.Entry(frame_dir, textvariable=working_dir_var, width=34).pack(side="left", padx=(0, 4))
     ttk.Button(frame_dir, text="...", command=browse_dir, width=3).pack(side="left")
 
+    # --- Legacy-GUI-Modus ---
+    legacy_var = tk.BooleanVar(value=config.get("legacy_gui_mode", False))
+    ttk.Checkbutton(
+        win,
+        text="Legacy-GUI",
+        variable=legacy_var
+    ).pack(anchor="w", padx=18, pady=(4, 0))
+
     # Save button
     def save():
         config["working_dir"] = working_dir_var.get()
+        config["legacy_gui_mode"] = legacy_var.get()
         save_config(config)
-        # ← Das Attribut working_dir im Parent aktualisieren:
+        # Attribute im Parent (dein Main-Window) aktualisieren:
         if hasattr(master, "working_dir"):
             master.working_dir = working_dir_var.get()
-            # Noch schöner: als Path-Objekt
-            # from pathlib import Path
-            # master.working_dir = Path(working_dir_var.get())
-        messagebox.showinfo("Saved", "Settings saved successfully.")
+        if hasattr(master, "legacy_gui_mode"):
+            master.legacy_gui_mode = legacy_var.get()
+            if hasattr(master, "_build_ui"):
+                master._build_ui()  # GUI neu aufbauen!
+        messagebox.showinfo("Saved", "Restart AutoPY++!")
         win.destroy()
-        
         
     ttk.Button(win, text="💾 Save", command=save).pack(pady=10)
