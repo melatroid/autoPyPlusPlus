@@ -482,28 +482,18 @@ class AutoPyPlusPlusGUI:
         self.status_var.set(self.texts["status_ready"])
 
         # Buttons links (Add, Edit, Delete, Save, Save As, Load, Clear)
-        button_mapping = [
-            ("add_btn", "tooltip_add_btn"),
-            ("edit_btn", "tooltip_edit_btn"),
-            ("delete_btn", "tooltip_delete_btn"),
-            ("save_btn", "tooltip_save_btn"),
-            ("save_as_btn", "tooltip_save_as_btn"),
-            ("load_btn", "tooltip_load_btn"),
-            ("clear_btn", "tooltip_clear_btn"),
+        button_attr_and_keys = [
+            (self.add_btn, "add_btn", "tooltip_add_btn"),
+            (self.edit_btn, "edit_btn", "tooltip_edit_btn"),
+            (self.delete_btn, "delete_btn", "tooltip_delete_btn"),
+            (self.save_btn, "save_btn", "tooltip_save_btn"),
+            (self.save_as_btn, "save_as_btn", "tooltip_save_as_btn"),
+            (self.load_btn, "load_btn", "tooltip_load_btn"),
+            (self.clear_btn, "clear_btn", "tooltip_clear_btn"),
         ]
-
-        # Hole alle Buttons in der linken Leiste (side="left")
-        left_buttons = [
-            w for w in self.bar.winfo_children()
-            if isinstance(w, ttk.Button) and w.pack_info()["side"] == "left"
-        ]
-
-        for i, (key, tooltip_key) in enumerate(button_mapping):
-            if i < len(left_buttons):
-                left_buttons[i].config(text=self.texts[key])
-                CreateToolTip(left_buttons[i], self.texts[tooltip_key])
-            else:
-                print(f"Warning: No button found for index {i} (key: {key})")
+        for btn, key, tip_key in button_attr_and_keys:
+            btn.config(text=self.texts[key])
+            CreateToolTip(btn, self.texts[tip_key])
 
         # Buttons rechts (Clear Logs, Inspector, Start Export)
         right_buttons = [
