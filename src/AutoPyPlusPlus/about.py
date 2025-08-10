@@ -36,7 +36,7 @@ def show_about_dialog(master, style, theme_func):
         img_label.pack(pady=(10, 10), anchor="center")
 
     text = (
-        "Version 2.37 (Date: 27.07.2025)\n"
+        "Version 2.38 (Date: 10.08.2025)\n"
         "Developer: melatroid\n"
         "© 2025 by melatroid\n"
         "Bug reports: dseccg@gmail.com\n"
