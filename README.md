@@ -253,7 +253,7 @@ gcc --version
   
 ### (latest) Version 2.38
 - Better Sphinx Gui
-- Automatic founding of Sphinx Themes in .zip format
+- Automatic finding of Sphinx Themes in _themes folder
 - Load existing conf.py settings in autopy++ (no conf.py overwrite)
 - Easy Sphinx Extension selector
 
@@ -486,4 +486,5 @@ gcc --version
 ---
 
 *End of README*
+
 
