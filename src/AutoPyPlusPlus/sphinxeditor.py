@@ -431,7 +431,6 @@ class SphinxEditor:
         ttk.Button(button_frame, text="Save", command=self._save).grid(row=0, column=1, padx=5)
         ttk.Button(button_frame, text="❓Help", command=lambda: show_sphinx_helper(self.win)).grid(row=0, column=2, padx=5)
         ttk.Button(button_frame, text="Sphinx Quickstart", command=self._handle_quickstart).grid(row=0, column=3, padx=5)
-        ttk.Button(button_frame, text="Build", command=self._handle_build).grid(row=0, column=4, padx=5)
 
         form.columnconfigure(1, weight=1)
         self.master.wait_window(self.win)
@@ -480,12 +479,6 @@ class SphinxEditor:
                 self.e_conf.delete(0, tk.END)
                 self.e_conf.insert(0, conf_path)
 
-    def _handle_build(self):
-        try:
-            build_sphinx(self.project)
-            messagebox.showinfo("Sphinx", "Build finished successfully.")
-        except Exception as e:
-            messagebox.showerror("Build Error", f"Error during sphinx-build:\n{e}")
 
     # --- Load values from conf.py (base file, without overrides) -------------
 
