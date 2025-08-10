@@ -1,6 +1,6 @@
 <img src="https://autopyplusplus.wordpress.com/wp-content/uploads/2025/05/autopy-2.png" alt="Alt-Text" width="100" />
 
-# Version 2.37
+# Version 2.38
 
 # Setup & Usage Guide
 
@@ -204,7 +204,7 @@ gcc --version
 
 | Component   | Status                        |
 |-------------|-------------------------------|
-| Sphinx      | dont works                    |
+| Sphinx      | not pretty shure, test it ;)  |
 | Pytest      | works (not fully tested)      |
 | PyInstaller | works well (not fully tested) |
 | PyArmor     | works well (not fully tested) |
@@ -245,10 +245,19 @@ gcc --version
 - Inspector reads specific logs on top
 - autopy++ runs primary in venv envirnoment
 
-### (Preview) Version 2.38
+### (Preview) Version 2.40
 - Working Sphinx
 
-### (latest) Version 2.37
+### (Preview) Version 2.39
+- Bugfixes
+  
+### (latest) Version 2.38
+- Better Sphinx Gui
+- Automatic founding of Sphinx Themes in .zip format
+- Load existing conf.py settings in autopy++ (no conf.py overwrite)
+- Easy Sphinx Extension selector
+
+### Version 2.37
 - New Gui
 - Legancy Gui options
 - Change Script Positions
@@ -477,3 +486,4 @@ gcc --version
 ---
 
 *End of README*
+
