@@ -55,7 +55,7 @@ def show_about_dialog(master, style, theme_func):
 
     # --- Text ---
     text = (
-        "Version 2.38 (Date: 10.08.2025)\n"
+        "Version 2.38b (Date: 14.08.2025)\n"
         "Developer: melatroid\n"
         "© 2025 by melatroid\n"
         "Bug reports: dseccg@gmail.com\n"
@@ -119,3 +119,4 @@ def show_about_dialog(master, style, theme_func):
             about_win.after(350, about_win.destroy)
 
     update_countdown(5)
+
