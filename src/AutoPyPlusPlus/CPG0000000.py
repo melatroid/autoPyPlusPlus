@@ -32,6 +32,13 @@ class CPG0000000:
             log_error(log_file, f"Quellordner {source} nicht gefunden.")
             raise FileNotFoundError(f"Quellordner {source} nicht gefunden.")
 
+        # Build-Ordner (Parent) sicherstellen
+        try:
+            build_path.parent.mkdir(parents=True, exist_ok=True)
+        except Exception as e:
+            log_error(log_file, f"Build-Ordner konnte nicht angelegt werden: {e}")
+            raise
+
         # 2. Pfad zu sphinx-build
         sphinx_build_path = getattr(project, "sphinx_build_path", None)
         if not sphinx_build_path:
@@ -44,11 +51,29 @@ class CPG0000000:
 
         sphinx_cmd = [sphinx_build_path]
 
-        # 3. Mögliche Build-Parameter
+        # 2a. Builder-Default sicher setzen
+        builder = getattr(project, "sphinx_builder", None) or "html"
+        sphinx_cmd += ["-b", str(builder)]
+
+        # 2b. conf.py-Verzeichnis korrekt an -c übergeben
+        conf_dir = getattr(project, "sphinx_conf_path", None)
+        if conf_dir:
+            p = Path(conf_dir)
+            if p.is_file() and p.name == "conf.py":
+                conf_dir = str(p.parent)
+            sphinx_cmd += ["-c", str(conf_dir)]
+
+        # 2c. Doctrees-Default sicher setzen
+        doctrees = getattr(project, "sphinx_doctrees", None)
+        if not doctrees:
+            doctrees = str(build_path.parent / "doctrees")
+        sphinx_cmd += ["-d", doctrees]
+
+        # 3. Weitere Build-Parameter (wie zuvor, aber ohne die bereits gesetzten -b/-c/-d)
         argmap = [
-            ("sphinx_builder", "-b", "{}"),               # html, latex, man, etc.
-            ("sphinx_conf_path", "-c", "{}"),             # conf.py directory
-            ("sphinx_doctrees", "-d", "{}"),              # doctrees directory
+            # ("sphinx_builder", "-b", "{}"),            # bereits oben gesetzt
+            # ("sphinx_conf_path", "-c", "{}"),          # bereits oben gesetzt
+            # ("sphinx_doctrees", "-d", "{}"),           # bereits oben gesetzt
             ("sphinx_parallel", "-j", "{}"),              # parallele Jobs
             ("sphinx_warning_is_error", "-W", None),      # Warnings as errors
             ("sphinx_quiet", "-q", None),                 # Quiet
@@ -64,10 +89,10 @@ class CPG0000000:
             ("sphinx_color", "--color", None),            # Farbausgabe erzwingen
             ("sphinx_no_color", "--no-color", None),      # Farbausgabe deaktivieren
         ]
+
         for attr, flag, valfmt in argmap:
             value = getattr(project, attr, None)
             if value:
-                # für boolsche Optionen
                 if isinstance(value, bool):
                     if value:
                         sphinx_cmd.append(flag)
@@ -82,13 +107,13 @@ class CPG0000000:
                 else:
                     sphinx_cmd.append(flag)
 
-        # Weitere freie Argumente wie z.B. "--keep-going"
+        # 4. Weitere freie Argumente wie z.B. "--keep-going"
         sphinx_args = getattr(project, "sphinx_args", [])
         if isinstance(sphinx_args, str):
             sphinx_args = sphinx_args.split()
         sphinx_cmd += sphinx_args
 
-        # Quell- und Zielverzeichnis anhängen
+        # 5. Quell- und Zielverzeichnis anhängen
         sphinx_cmd.append(str(source_path))
         sphinx_cmd.append(str(build_path))
 
@@ -104,12 +129,18 @@ class CPG0000000:
                 check=False
             )
             log_info(log_file, "Sphinx stdout:")
-            log_info(log_file, result.stdout)
+            if result.stdout:
+                log_info(log_file, result.stdout)
+            else:
+                log_info(log_file, "(kein stdout)")
+
             if result.stderr:
                 log_warning(log_file, "Sphinx stderr:")
                 log_warning(log_file, result.stderr)
+
             if result.returncode != 0:
-                log_warning(log_file, f"Sphinx-Build beendet mit Rückgabewert {result.returncode}")
+                log_error(log_file, f"Sphinx-Build fehlgeschlagen (rc={result.returncode})")
+                raise RuntimeError(f"sphinx-build failed (rc={result.returncode})")
         except Exception as e:
             log_error(log_file, f"Unerwarteter Fehler beim Sphinx-Build: {e}")
             raise
