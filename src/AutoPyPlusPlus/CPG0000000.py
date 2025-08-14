@@ -69,11 +69,8 @@ class CPG0000000:
             doctrees = str(build_path.parent / "doctrees")
         sphinx_cmd += ["-d", doctrees]
 
-        # 3. Weitere Build-Parameter (wie zuvor, aber ohne die bereits gesetzten -b/-c/-d)
+        # 3. Weitere Build-Parameter (ohne -b/-c/-d)
         argmap = [
-            # ("sphinx_builder", "-b", "{}"),            # bereits oben gesetzt
-            # ("sphinx_conf_path", "-c", "{}"),          # bereits oben gesetzt
-            # ("sphinx_doctrees", "-d", "{}"),           # bereits oben gesetzt
             ("sphinx_parallel", "-j", "{}"),              # parallele Jobs
             ("sphinx_warning_is_error", "-W", None),      # Warnings as errors
             ("sphinx_quiet", "-q", None),                 # Quiet
@@ -81,7 +78,7 @@ class CPG0000000:
             ("sphinx_very_verbose", "-vv", None),         # Very verbose
             ("sphinx_keep_going", "--keep-going", None),  # Bei Fehlern weitermachen
             ("sphinx_tags", "-t", "{}"),                  # Tags für bedingte Blöcke
-            ("sphinx_define", "-D", "{}"),                # Konfigwerte überschreiben
+            # ("sphinx_define", "-D", "{}"),              # SPEZIALBEHANDLUNG unten!
             ("sphinx_new_build", "-E", None),             # Alles neu bauen (kein Cache)
             ("sphinx_all_files", "-a", None),             # Alle Dateien neu bauen
             ("sphinx_logfile", "-w", "{}"),               # Logfile
@@ -107,7 +104,24 @@ class CPG0000000:
                 else:
                     sphinx_cmd.append(flag)
 
-        # 4. Weitere freie Argumente wie z.B. "--keep-going"
+        # 3a. -D (Define) mit Dict/Listen/Strings unterstützen
+        define_val = getattr(project, "sphinx_define", None)
+        if define_val is not None:
+            if isinstance(define_val, dict):
+                for k, v in define_val.items():
+                    sphinx_cmd += ["-D", f"{k}={v}"]
+            elif isinstance(define_val, (list, tuple)):
+                for item in define_val:
+                    sphinx_cmd += ["-D", str(item)]
+            else:
+                sphinx_cmd += ["-D", str(define_val)]
+
+        # 3b. Color-Flags konfliktfrei priorisieren (--no-color gewinnt)
+        if "--color" in sphinx_cmd and "--no-color" in sphinx_cmd:
+            # Entferne '--color', wenn beide gesetzt wurden
+            sphinx_cmd = [x for x in sphinx_cmd if x != "--color"]
+
+        # 4. Weitere freie Argumente
         sphinx_args = getattr(project, "sphinx_args", [])
         if isinstance(sphinx_args, str):
             sphinx_args = sphinx_args.split()
@@ -120,13 +134,19 @@ class CPG0000000:
         log_info(log_file, "Sphinx-Befehl wird ausgeführt:")
         log_info(log_file, " ".join(map(str, sphinx_cmd)))
 
+        # 6. Timeout (Standard 600s, über project.sphinx_timeout konfigurierbar)
+        timeout_s = getattr(project, "sphinx_timeout", None)
+        if not isinstance(timeout_s, (int, float)) or timeout_s <= 0:
+            timeout_s = 600
+
         try:
             result = subprocess.run(
                 sphinx_cmd,
                 cwd=str(source_path),
                 capture_output=True,
                 text=True,
-                check=False
+                check=False,
+                timeout=timeout_s
             )
             log_info(log_file, "Sphinx stdout:")
             if result.stdout:
@@ -141,6 +161,16 @@ class CPG0000000:
             if result.returncode != 0:
                 log_error(log_file, f"Sphinx-Build fehlgeschlagen (rc={result.returncode})")
                 raise RuntimeError(f"sphinx-build failed (rc={result.returncode})")
+        except subprocess.TimeoutExpired as e:
+            log_error(log_file, f"Sphinx-Build Timeout nach {timeout_s} Sekunden.")
+            # ggf. Partial-Output loggen
+            if e.stdout:
+                log_warning(log_file, "Partielles stdout (Timeout):")
+                log_warning(log_file, e.stdout)
+            if e.stderr:
+                log_warning(log_file, "Partielles stderr (Timeout):")
+                log_warning(log_file, e.stderr)
+            raise
         except Exception as e:
             log_error(log_file, f"Unerwarteter Fehler beim Sphinx-Build: {e}")
             raise
