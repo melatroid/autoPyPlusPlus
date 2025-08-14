@@ -760,14 +760,28 @@ class SphinxEditor:
         if not src or not os.path.isdir(src):
             messagebox.showerror("Error", "The source directory must exist!")
             return
-        # 2. conf.py must exist
-        if not conf or not os.path.isfile(conf):
-            messagebox.showerror("Error", f"The selected conf.py was not found:\n{conf}\nPlease select the correct file.")
+
+        # 2. conf.py must exist (akzeptiere Ordner oder Datei)
+        if not conf:
+            messagebox.showerror("Error", "Please select conf.py or its directory.")
             return
+        conf_path = conf
+        if os.path.isdir(conf_path):
+            candidate = os.path.join(conf_path, "conf.py")
+            if os.path.isfile(candidate):
+                conf_path = candidate
+            else:
+                messagebox.showerror("Error", f"No conf.py found in '{conf}'.")
+                return
+        elif not os.path.isfile(conf_path):
+            messagebox.showerror("Error", f"The selected conf.py was not found:\n{conf}\nPlease select the correct file or its folder.")
+            return
+
         # 3. Build dir not empty
         if not build:
             messagebox.showerror("Error", "Build directory cannot be empty!")
             return
+
         # 4. Builder valid
         if not builder:
             messagebox.showerror("Error", "Builder (e.g. html, latex) must be set!")
@@ -775,6 +789,7 @@ class SphinxEditor:
         if builder not in BUILDER_TYPES:
             if not messagebox.askyesno("Warning", f"Unusual builder '{builder}' selected.\nContinue anyway?"):
                 return
+
         # 5. Parallel
         try:
             n = int(getattr(self, "e_parallel").get().strip())
@@ -783,6 +798,7 @@ class SphinxEditor:
         except Exception:
             messagebox.showerror("Error", "Please enter a valid number for parallel jobs (1-128)!")
             return
+
         # 6. Theme
         if not theme:
             messagebox.showerror("Error", "Theme must be set!")
@@ -792,7 +808,7 @@ class SphinxEditor:
         self.project.sphinx_source = src
         self.project.sphinx_build = build
         self.project.sphinx_builder = builder
-        self.project.sphinx_conf_path = conf
+        self.project.sphinx_conf_path = conf_path  # ggf. korrigiert
         self.project.sphinx_doctrees = doctrees
         self.project.sphinx_theme = theme
         self.project.sphinx_parallel = n
@@ -836,11 +852,23 @@ class SphinxEditor:
         if theme_opts is not None:
             self.project.sphinx_theme_options = theme_opts
 
+        # Falls ein Custom-Theme gewählt ist, html_theme_path automatisch ergänzen
+        try:
+            theme_paths = list(getattr(self.project, "sphinx_theme_path", []) or [])
+            if self.project.sphinx_theme in getattr(self, "_custom_theme_map", {}):
+                src_path = self._custom_theme_map[self.project.sphinx_theme]
+                if src_path not in theme_paths:
+                    theme_paths.append(src_path)
+            self.project.sphinx_theme_path = theme_paths or None
+        except Exception:
+            # still proceed; not critical for saving
+            pass
+
         # --- Overlay file + hook ---
         try:
-            ensure_gui_hook(conf)
+            ensure_gui_hook(conf_path)
 
-            conf_dir = os.path.dirname(conf)
+            conf_dir = os.path.dirname(conf_path)
 
             # make html_theme_path relative to conf_dir for portability
             theme_paths = getattr(self.project, "sphinx_theme_path", None)
