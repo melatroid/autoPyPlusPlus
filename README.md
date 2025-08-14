@@ -1,6 +1,6 @@
 <img src="https://autopyplusplus.wordpress.com/wp-content/uploads/2025/05/autopy-2.png" alt="Alt-Text" width="100" />
 
-# Version 2.38
+# Version 2.38b
 
 # Setup & Usage Guide
 
@@ -245,13 +245,13 @@ gcc --version
 - Inspector reads specific logs on top
 - autopy++ runs primary in venv envirnoment
 
-### (Preview) Version 2.40
+### (Preview) Version 2.39
 - Working Sphinx
 
-### (Preview) Version 2.39
+### (lastest) Version 2.38b
 - Bugfixes
-  
-### (latest) Version 2.38
+
+### Version 2.38
 - Better Sphinx Gui
 - Automatic finding of Sphinx Themes in _themes folder
 - Load existing conf.py settings in autopy++ (no conf.py overwrite)
@@ -486,5 +486,6 @@ gcc --version
 ---
 
 *End of README*
+
 
 
