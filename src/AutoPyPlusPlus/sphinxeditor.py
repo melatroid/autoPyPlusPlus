@@ -12,6 +12,15 @@ import types
 import sys
 import zipfile
 
+# Für Entry-Point-Erkennung von pip-Themes (sphinx.html_themes)
+try:
+    from importlib.metadata import entry_points as _entry_points  # Py>=3.10
+except Exception:
+    try:
+        from importlib_metadata import entry_points as _entry_points  # Backport
+    except Exception:
+        _entry_points = None
+
 try:
     from .help import show_sphinx_helper  # type: ignore
 except Exception:
@@ -35,13 +44,39 @@ CANDIDATE_THEMES = [
 
 
 def get_installed_themes():
+    """
+    Liefert eine sortierte Liste verfügbarer Themes:
+      - eingebaute Themes
+      - optionale Kandidaten per Importprobe
+      - per Entry-Points registrierte pip-Themes (sphinx.html_themes)
+    """
     available = set(BUILTIN_THEMES)
+
+    # Kandidaten weiterhin per Import-Probe (best-effort)
     for name in CANDIDATE_THEMES:
         try:
             __import__(name)
             available.add(name)
         except ImportError:
             pass
+
+    # Moderne, robuste Erkennung: Entry Points "sphinx.html_themes"
+    try:
+        if _entry_points is not None:
+            eps = _entry_points()
+            # Py>=3.10: MappingAPI mit .select(); Backports evtl. Liste
+            if hasattr(eps, "select"):
+                group = eps.select(group="sphinx.html_themes")  # type: ignore[attr-defined]
+            else:
+                group = [ep for ep in eps if getattr(ep, "group", None) == "sphinx.html_themes"]
+            for ep in group or []:
+                name = getattr(ep, "name", None)
+                if name:
+                    available.add(name)
+    except Exception:
+        # EP-Erkennung ist optional – never fail
+        pass
+
     return sorted(available)
 
 
@@ -70,12 +105,22 @@ def discover_custom_themes(theme_paths):
         try:
             with zipfile.ZipFile(path) as z:
                 members = set(z.namelist())
-                # top-level dirs inside zip
-                tops = {m.split("/", 1)[0] for m in members if "/" in m}
-                for top in tops:
-                    if f"{top}/theme.conf" in members:
+                # Robuste Suche: *jedes* Vorkommen von theme.conf finden (auch tiefere Ebenen)
+                theme_conf_members = [m for m in members if m.replace("\\", "/").endswith("/theme.conf")]
+                for m in theme_conf_members:
+                    m_norm = m.replace("\\", "/")
+                    # top-level Ordnername (vor dem ersten '/')
+                    top = m_norm.split("/", 1)[0] if "/" in m_norm else m_norm
+                    if top:
                         names.add(top)
                         mapping[top] = path
+                if not theme_conf_members:
+                    # Fallback: bisherige Heuristik
+                    tops = {m.split("/", 1)[0] for m in members if "/" in m}
+                    for top in tops:
+                        if f"{top}/theme.conf" in members:
+                            names.add(top)
+                            mapping[top] = path
         except Exception:
             pass
 
@@ -617,13 +662,18 @@ class SphinxEditor:
         found, mapping = discover_custom_themes(paths)
         self._custom_theme_map = mapping  # keep for debugging / future features
         themes.update(found)
+
+        # Sicherstellen, dass der aktuell konfigurierte Theme-Name nicht verloren geht
+        current_sel = (self.theme_var.get() or getattr(self.project, "sphinx_theme", "") or "").strip()
+        if current_sel:
+            themes.add(current_sel)
+
         values = sorted(themes) if themes else ["alabaster"]
         self.theme_combo["values"] = values
 
         # preserve selection if possible
-        current = self.theme_var.get() or getattr(self.project, "sphinx_theme", "")
-        if current in values:
-            self.theme_combo.set(current)
+        if current_sel in values:
+            self.theme_combo.set(current_sel)
         elif values:
             self.theme_combo.set(values[0])
 
@@ -905,3 +955,4 @@ class SphinxEditor:
 
         self.saved = True
         self.win.destroy()
+
