@@ -51,7 +51,6 @@ def get_installed_themes():
     """
     available = set(BUILTIN_THEMES)
 
-    # Kandidaten weiterhin per Import-Probe (best-effort)
     for name in CANDIDATE_THEMES:
         try:
             __import__(name)
@@ -59,7 +58,6 @@ def get_installed_themes():
         except ImportError:
             pass
 
-    # Moderne, robuste Erkennung: Entry Points "sphinx.html_themes"
     try:
         if _entry_points is not None:
             eps = _entry_points()
@@ -173,7 +171,6 @@ def ensure_gui_hook(conf_path: str):
     )
     content = re.sub(pattern, "\n", content)
 
-    # Falls nur Start oder nur Ende unglücklich existiert, ebenfalls bereinigen
     content = re.sub(r"(?m)^.*#\s*>>> SPHINX GUI HOOK.*\n?", "", content)
     content = re.sub(r"(?m)^.*#\s*<<< SPHINX GUI HOOK.*\n?", "", content)
 
@@ -1027,3 +1024,4 @@ class SphinxEditor:
 
         self.saved = True
         self.win.destroy()
+
