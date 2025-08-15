@@ -315,7 +315,7 @@ class SphinxEditor:
     def show(self) -> bool:
         self.win = tk.Toplevel(self.master)
         self.win.title("Sphinx Configuration")
-        self.win.geometry("1040x700")
+        self.win.geometry("1040x720")
         self.win.transient(self.master)
         self.win.grab_set()
 
@@ -914,10 +914,12 @@ class SphinxEditor:
         if os.path.normcase(conf_dir) != os.path.normcase(src_dir):
             cont = messagebox.askyesno(
                 "Note",
-                "conf.py liegt nicht im Source-Verzeichnis.\n"
-                "Das ist okay – der Build nutzt dann 'sphinx-build -c <conf_dir>'\n"
-                "und findet die Konfiguration trotzdem.\n\n"
-                "Weiter speichern?"
+                "Note: conf.py is not located inside the source directory (e.g. 'docs/').\n"
+                "This is perfectly valid – the build will use 'sphinx-build -c <conf_dir>'\n"
+                "so your configuration is still applied correctly.\n\n"
+                "This warning is just informational to avoid confusion, since most\n"
+                "Sphinx tutorials assume conf.py lives in the source folder.\n\n"
+                "Do you want to continue saving?"
             )
             if not cont:
                 return
