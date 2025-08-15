@@ -30,10 +30,10 @@
 │   ├── 🔗 .dll (Windows DLL, rare)
 │   └── 📚 .lib (Static library for C/C++)
 └── 📖 [Sphinx] → 🌐 HTML / 📄 PDF / 📚 LaTeX / 📑 man-pages
-    ├── ⚡ Uses `conf.py` + `conf_autopy.py` (GUI overrides)
+    ├── ⚡ Uses `conf.py`
+    ├── 🔗 Edit your conf.py 
     ├── 📂 Output in `_build/<builder>` (e.g. `_build/html`)
     └── 🎨 Supports pip-installed and custom themes
-
 ```
 
 # Known Bugs
@@ -270,6 +270,7 @@ gcc --version
 ```
 
 ---
+
 
 
 
