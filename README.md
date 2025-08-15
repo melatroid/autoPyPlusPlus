@@ -2,6 +2,54 @@
 
 # Version 2.38b
 
+# Status
+
+| Component   | Status                        |
+|-------------|-------------------------------|
+| Sphinx      | not pretty shure, test it ;)  |
+| Pytest      | works (not fully tested)      |
+| PyInstaller | works well (not fully tested) |
+| PyArmor     | works well (not fully tested) |
+| Nuitka      | works      (not fully tested) |
+| Cython      | works well (not fully tested) |
+| MSVC        | works well (not fully tested) |
+| Inspector   | works well                    |
+| Secure_compilers | coming soon              |
+
+```
+📜 .py
+├── 🔨 [PyInstaller] → 💾 .exe (Standalone bundled application)
+├── 🔒 [PyArmor] → 🔐 .pyc (Encrypted bytecode, requires PyArmor runtime)
+├── ⚙️ [Nuitka]
+│   ├── 💾 .exe (Standalone or dependent executable)
+│   ├── 🔌 .pyd / .so (Python extension module)
+│   └── 🔗 .dll (Rare, Windows DLL)
+├── 🛠️ [Cython] → 📄 .c / .cpp → [C/C++ Compiler]
+│   ├── 🔌 .pyd (Windows) / .so (Linux/Mac) (Extension module)
+│   ├── 💾 .exe (Native executable, rare)
+│   ├── 🔗 .dll (Windows DLL, rare)
+│   └── 📚 .lib (Static library for C/C++)
+└── 📖 [Sphinx] → 🌐 HTML / 📄 PDF / 📚 LaTeX / 📑 man-pages
+    ├── ⚡ Uses `conf.py` + `conf_autopy.py` (GUI overrides)
+    ├── 📂 Output in `_build/<builder>` (e.g. `_build/html`)
+    └── 🎨 Supports pip-installed and custom themes
+
+```
+
+# Known Bugs
+
+**Hard Bugs:**
+- Permission denied when compiling spec files:  
+  WARNING: Execution of '_append_data_to_exe'  
+
+**Low Bugs:**
+- Issues with missing binary libraries (not critical)  
+- Nuitka created exe files detected by antivirus (read practice lesson)
+
+---
+
+
+
 # Setup & Usage Guide
 
 ---
@@ -224,47 +272,5 @@ gcc --version
 ```
 
 ---
-
-# Status
-
-| Component   | Status                        |
-|-------------|-------------------------------|
-| Sphinx      | not pretty shure, test it ;)  |
-| Pytest      | works (not fully tested)      |
-| PyInstaller | works well (not fully tested) |
-| PyArmor     | works well (not fully tested) |
-| Nuitka      | works      (not fully tested) |
-| Cython      | works well (not fully tested) |
-| MSVC        | works well (not fully tested) |
-| Inspector   | works well                    |
-| Secure_compilers | coming soon              |
-|
-```
-📜 .py
-├── 🔨 [PyInstaller] → 💾 .exe (Standalone bundled application)
-├── 🔒 [PyArmor] → 🔐 .pyc (Encrypted bytecode, requires PyArmor runtime)
-├── ⚙️ [Nuitka]
-│   ├── 💾 .exe (Standalone or dependent executable)
-│   ├── 🔌 .pyd / .so (Python extension module)
-│   └── 🔗 .dll (Rare, Windows DLL)
-└── 🛠️ [Cython] → 📄 .c / .cpp → [C/C++ Compiler]
-    ├── 🔌 .pyd (Windows) / .so (Linux/Mac) (Extension module)
-    ├── 💾 .exe (Native executable, rare)
-    ├── 🔗 .dll (Windows DLL, rare)
-    └── 📚 .lib (Static library for C/C++)
-```
-
-# Known Bugs
-
-**Hard Bugs:**
-- Permission denied when compiling spec files:  
-  WARNING: Execution of '_append_data_to_exe'  
-
-**Low Bugs:**
-- Issues with missing binary libraries (not critical)  
-- Nuitka created exe files detected by antivirus (read practice lesson)
-
----
-
 
 
