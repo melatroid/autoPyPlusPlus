@@ -164,6 +164,31 @@ To use PyArmor, include the following in your Python code:
 from pyarmor_runtime import __pyarmor__
 __pyarmor__(__name__, __file__, b'\x28\x83\x20\x58....')
 ```
+---
+# Sphinx Usage
+
+# Sphinx Usage in AutoPy++
+
+AutoPy++ builds documentation with [Sphinx](https://www.sphinx-doc.org/).
+
+- **conf.py**  
+  Your original Sphinx config. Never modified.
+
+- **conf_autopy.py**  
+  Created by AutoPy++ GUI. Loaded *after* `conf.py` and overrides settings.
+
+- **Loading order**  
+  1. `conf.py` (base config)  
+  2. `conf_autopy.py` (GUI overrides: theme, extensions, options)
+
+- **Themes**  
+  - Install via pip (`pip install sphinx_rtd_theme`) → set in GUI.  
+  - Custom themes: add path in `conf.py` → can still override in GUI.  
+
+- **Result**  
+  Base config stays intact. GUI changes are applied via `conf_autopy.py`.  
+  Delete `conf_autopy.py` to revert to pure `conf.py`.
+
 
 ---
 # MSVC Python Extension Usage
@@ -240,252 +265,6 @@ gcc --version
 - Nuitka created exe files detected by antivirus (read practice lesson)
 
 ---
-# Versions
-### (Preview) Version 2.5x
-- Inspector reads specific logs on top
-- autopy++ runs primary in venv envirnoment
-
-### (Preview) Version 2.39
-- Working Sphinx
-
-### (lastest) Version 2.38b
-- Bugfixes
-
-### Version 2.38
-- Better Sphinx Gui
-- Automatic finding of Sphinx Themes in _themes folder
-- Load existing conf.py settings in autopy++ (no conf.py overwrite)
-- Easy Sphinx Extension selector
-
-### Version 2.37
-- New Gui
-- Legancy Gui options
-- Change Script Positions
-- Add Empty Projects
-- Bugfix Projecteditor 
-  
-### Version 2.36
-- Nuitka Sec lvl Bugfix
-- config.json (now in workdir) bugfix
-- simple theme switcher
-- extensions save change / to \ in paths
-  
-### Version 2.35
-- Better Main Gui
-- General Programm Settings (Preview)
-- Nuitka window build bugfix
-- Main Gui Symbol bugfix
-- Log delete bugfix
-- delete txt files, clear workdir
-  
-### Version 2.34
-- Use Pytest in standalone mode
-- Use Sphinx in standalone mode
-- Bugfix, Change Mode with keys
-- Multilanguage Helper  GER/EN/FR/SP
-- Apyscript Quickeditor
-  
-### Version 2.33
-- Nuitka Path replace update !!!
-- Nuitka Compiler/Gui Update for better building
-- Inspector opens to often- bug
-- No more Info popup after compilation
-
-### Version 2.32
-- pytest works in tests
-
-### Version 2.31
-- add autpPy++ test.py -for pytest
-- sphinx as new extension (preview)
-- pytest as new extension (preview)
-
-### Version 2.30
-- cython ready for building standalone executables
-- msvc ready for building standalone executables
-  
-### Version 2.29
-- MSVC pipeline with Cython for pyd builds 
-- Big Bugfixes in msvc editor
-- better pipeline with msvc
-- add testfiles in cpp and pyd
-
-### Version 2.28
-- Gui Update for Cython and Pipeline
-- Autocollect attributs in older Apyscript Projects
-
-### Version 2.27
-- add msvc as new primary c++ compiler
-- New Extensions Editor
-- Big Bug fix Update for Gui
-
-### Version 2.26
-- better windows_start.bat
-- add core functions
-- Save current Project Button
-- Load/Store for extensions_path.ini
-- Project name is output name ...
-
-### Version 2.25
-
-- GCC/GPP editor new functions  
-- Advanced build settings for GPP and Cython  
-- Better pipelining with Cython (not working)
-
-### Version 2.24
-
-- General bug fixes  
-- Bugfix for Cython C++ output  
-- Choose GCC or G++ (preview)
-
-### Version 2.23
-
-- Direct Cython to GCC compiler pipeline  
-- Compiler autodetect  
-- C++ files autodetect  
-- New and better GCC GUI with compiler flags
-
-### Version 2.22
-
-- Cython -> C -> GCC -> exe pipeline  
-- All compilers updated for fallback logic via `extensions_path.ini`  
-- MinGW/GCC (preview)
-
-### Version 2.21
-- Neue Cython GUI  
-- Cython kann Runtime-DLLs (z.B. python310.dll, tkinter.dll) packen  
-
-### Version 2.20
-- Einfacher Windows Bash Starter hinzugefügt  
-- `nutika.exe` wird zu `nuitka.cmd`  
-- Neue Extensions Path.ini Logik (Priorität vor Fallback auf IDE)  
-- Bugfix: Falscher PyInstaller-Pfad behoben  
-- Verbesserte Compiler-Ausnahmen  
-
-### Version 2.16
-- Integration des Cython Compilers  
-- Erweiterte Features für Cython  
-- Unterstützung für `.pyx` Dateien  
-
-### Version 2.15
-- Cython (Preview)  
-- Modus C verfügbar  
-- Farbmodi für Modus C  
-- PyInstaller läuft nun direkt in neuester Python-Version  
-
-### Version 2.14
-- Neue und verbesserte Nuitka Compilerintegration  
-- Log-Löschung für `__pycache__`  
-
-
-### Version 2.13
-- Beta-Version von Nuitka („nutika“)  
-- Neue GUI für Nuitka Editor  
-- Integration des Nuitka Compilers  
-- Bugfix für Farbmodus  
-
-
-### Version 2.12
-- Neue GUI für Nuitka Editor  
-- Bugfixes im Window Management  
-
-
-### Version 2.11
-- Nuitka Editor Preview  
-- Funktioniert: py -> pyarmor -> pyinstaller -> exe (GUI/Console getestet)  
-- Bugfixes: PyArmor / Dist-Folder / Parameter  
-- Diverse ältere Bugfixes, z.B. Inspector Jumper  
-
-### Version 2.10
-- Compiler Update  
-- py -> PyArmor -> PyInstaller -> exe Workflow funktioniert (nicht vollständig getestet)  
-- PyArmor Runtime in PyInstaller eingebunden (nur PyArmor-Builds benötigen das)  
-
-### Version 2.09
-- Bugfixes und Updates  
-- PyArmor Tests  
-- Bugfix Dist-Folder bei PyArmor (verschiedene Ordner)  
-- Bugfix für Modus A/B Switch  
-
-### Version 2.08
-- Feature Updates  
-- Analyzer für Editor  
-- Button Bounce Fix (nicht final)  
-- Sicherheitslevel Features  
-- Neue PyArmor Features & Compiler  
-- Verbesserte PyArmor GUI  
-
-### Version 2.07
-- Helfer für AutoPy++  
-- Hotkeys für schnellere Bedienung  
-- Verbesserte Inspector-Funktionen  
-- Fix Line Runner im Inspector  
-
-
-### Version 2.06
-- Start mit Testdateien / Testordner hinzugefügt  
-- Verbesserte Ausnahmebehandlung  
-- Helfer für Editoren  
-- Fix Save As -> Spec Export  
-- Große Bugfixes (Main, Editor, Inspector)  
-- Syntax Highlighting  
-
-### Version 2.05
-- Neue GUI  
-- Symbole hinzugefügt  
-
-### Version 2.04
-- CPP Save Compiler Preview  
-- Erweiterter Debug Inspector  
-- Set Source Directory  
-- Set Output Name  
-- Besseres Design  
-
-
-### Version 2.03
-- „Load as“ Deklaration  
-- „Export as“ Deklaration  
-- Log-Dateien vor Löschen anzeigen  
-- Optionen zum Löschen von Build- und Spec-Ordnern  
-- Lade/Edite/Speichere .spec vanilla  
-- Verbesserungen im Design und GUI  
-- Logfile Reporter  
-
-### Version 2.02
-- Verbesserte Compiler-Debugging  
-- Animationen über Softwarestatus  
-- Direkter Log nach Export  
-
-
-### Version 2.01
-- Verbesserte Compiler-Debugs  
-- Compiler in einzelne Klassen aufgeteilt  
-- TCL Optionen (on/off)  
-- Spez-Dateien Parsing und Building (bumpy, ungetestet)  
-- Verbesserte GUI und Design  
-- Reengineering der Projektdateien  
-- Import von AutoPy++ ini Dateien  
-- Neue Farbthemen  
-
-### Version 2.00
-- Module aufgeteilt  
-- Compiler aufgeteilt  
-- Bessere GUI  
-- Import/Export Spec Fix  
-- Modus A/B für mehr Flexibilität  
-- Freie Farbauswahl  
-- Neue Themes  
-- Viele Bugfixes  
-- PyInstaller stabil  
-- PyArmor (nicht getestet)  
-
-### Version 1.5
-- PyInstaller stabil (nicht getestet)  
-- PyArmor funktioniert  
-
-
----
-
-*End of README*
 
 
 
