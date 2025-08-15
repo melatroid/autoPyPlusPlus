@@ -215,8 +215,6 @@ __pyarmor__(__name__, __file__, b'\x28\x83\x20\x58....')
 ---
 # Sphinx Usage
 
-# Sphinx Usage in AutoPy++
-
 AutoPy++ builds documentation with [Sphinx](https://www.sphinx-doc.org/).
 
 - **conf.py**  
@@ -272,5 +270,6 @@ gcc --version
 ```
 
 ---
+
 
 
