@@ -12,7 +12,7 @@ from .CPC0000000 import CPC0000000  # Nuitka
 from .CPD0000000 import CPD0000000  # Cython
 from .CPE0000000 import CPE0000000  # C++ Compiler (GCC)
 from .CPF0000000 import CPF0000000  # Pytest
-from .CPG0000000 import CPG0000000  # Sphinxy
+from .CPG0000000 import CPG0000000  # Sphinx
 
 def compile_single(project: Project, log_file, compiler: str = "both") -> str:
     try:
@@ -70,7 +70,7 @@ def compile_single(project: Project, log_file, compiler: str = "both") -> str:
                     err = f"Sphinx Standalone failed: {e}"
                     log_file.write(err + "\n")
                     log_file.flush()
-                    return err  # Build abbrechen!
+                    return err 
             else:
                 try:
                     CPG0000000.run_sphinx(project, log_file)
@@ -78,9 +78,6 @@ def compile_single(project: Project, log_file, compiler: str = "both") -> str:
                     err = f"Sphinx build failed for {project.name or project.script}: {e}"
                     log_file.write(err + "\n")
                     log_file.flush()
-                    # Build läuft weiter, Fehler werden geloggt
-            
-
         compiled = False
 
         # PyArmor if enabled

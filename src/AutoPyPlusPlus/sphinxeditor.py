@@ -51,6 +51,7 @@ def get_installed_themes():
     """
     available = set(BUILTIN_THEMES)
 
+    # Kandidaten weiterhin per Import-Probe (best-effort)
     for name in CANDIDATE_THEMES:
         try:
             __import__(name)
@@ -58,6 +59,7 @@ def get_installed_themes():
         except ImportError:
             pass
 
+    # Moderne, robuste Erkennung: Entry Points "sphinx.html_themes"
     try:
         if _entry_points is not None:
             eps = _entry_points()
@@ -171,6 +173,7 @@ def ensure_gui_hook(conf_path: str):
     )
     content = re.sub(pattern, "\n", content)
 
+    # Falls nur Start oder nur Ende unglücklich existiert, ebenfalls bereinigen
     content = re.sub(r"(?m)^.*#\s*>>> SPHINX GUI HOOK.*\n?", "", content)
     content = re.sub(r"(?m)^.*#\s*<<< SPHINX GUI HOOK.*\n?", "", content)
 
@@ -353,8 +356,8 @@ class SphinxEditor:
         self.e_doctrees = ttk.Entry(form, width=45)
         self.e_doctrees.grid(row=4, column=1, padx=5, pady=(0, 0), sticky="ew")
         self.e_doctrees.insert(0, getattr(self.project, "sphinx_doctrees", ""))
-        # dezenter Hinweis (optisch minimal)
-        ttk.Label(form, text="(leer = <build parent>/doctrees)", foreground="#666").grid(row=5, column=1, sticky="w", padx=5, pady=(0, 6))
+        # subtle hint
+        ttk.Label(form, text="(empty = <build parent>/doctrees)", foreground="#666").grid(row=5, column=1, sticky="w", padx=5, pady=(0, 6))
 
         # --- Project meta ---
         sep = ttk.Separator(form, orient="horizontal")
@@ -395,7 +398,7 @@ class SphinxEditor:
             import webbrowser
             from tkinter import Toplevel, Label, Button, Frame, LEFT, W
 
-            help_win = Toplevel(self.win)  # parent sauber setzen
+            help_win = Toplevel(self.win)  # parent
             help_win.title("Sphinx Theme Installation Guide")
             help_win.geometry("540x470")
             help_win.transient(form.winfo_toplevel())
@@ -406,17 +409,17 @@ class SphinxEditor:
 
             instructions = (
                 "📄 How to install and use Sphinx themes:\n\n"
-                "1.️Built-in themes:\n"
+                "1) Built-in themes:\n"
                 "   • Already included with Sphinx (e.g. alabaster, classic)\n"
                 "   • Just select them from the list – no extra steps.\n\n"
-                "2.️pip-installed themes:\n"
+                "2) pip-installed themes:\n"
                 "   • Install with:\n"
                 "       pip install <theme-name>\n"
                 "   • Example:\n"
                 "       pip install furo\n"
                 "   • Restart this tool so the new theme appears in the list.\n"
                 "   • No need to copy the theme into your project.\n\n"
-                "3.  Local or ZIP themes:\n"
+                "3) Local or ZIP themes:\n"
                 "   • Create a folder or ZIP containing a 'theme.conf'\n"
                 "   • Place it in: docs/_themes/\n"
                 "   • In conf.py set:\n"
@@ -675,7 +678,7 @@ class SphinxEditor:
         self._custom_theme_map = mapping  # keep for debugging / future features
         themes.update(found)
 
-        # Sicherstellen, dass der aktuell konfigurierte Theme-Name nicht verloren geht
+        # Keep currently configured theme in the list
         current_sel = (self.theme_var.get() or getattr(self.project, "sphinx_theme", "") or "").strip()
         if current_sel:
             themes.add(current_sel)
@@ -778,6 +781,77 @@ class SphinxEditor:
         ttk.Button(btm, text="Apply", command=_apply).grid(row=0, column=2, padx=8)
         ttk.Button(btm, text="Cancel", command=dlg.destroy).grid(row=0, column=3, padx=4)
 
+    # --- NEW: Helpers to ensure root_doc/master_doc and _static --------------
+
+    def _find_index_candidate(self, src_dir: str, conf_dir: str) -> tuple[str | None, bool]:
+        """
+        Sucht ein index-ähnliches Master-Dokument.
+        Rückgabe: (Pfad_zu_index.rst_oder_None, liegt_unter_src)
+        """
+        if not src_dir:
+            return None, False
+        # 1) hard candidates at source root
+        for name in ("index.rst", "contents.rst"):
+            p = os.path.join(src_dir, name)
+            if os.path.isfile(p):
+                return p, True
+        # 2) anywhere under source
+        for root, _, files in os.walk(src_dir):
+            for fn in files:
+                if fn.lower() in ("index.rst", "contents.rst"):
+                    return os.path.join(root, fn), True
+        # 3) alternatively in conf directory (if separated)
+        if conf_dir and os.path.isdir(conf_dir):
+            for root, _, files in os.walk(conf_dir):
+                for fn in files:
+                    if fn.lower() in ("index.rst", "contents.rst"):
+                        path = os.path.join(root, fn)
+                        # check if it actually resides under src
+                        try:
+                            rel = os.path.relpath(path, src_dir)
+                            if not rel.startswith(".."):
+                                return path, True
+                        except Exception:
+                            pass
+                        return path, False
+        return None, False
+
+    def _docname_from_path(self, index_path: str, src_dir: str) -> str:
+        """
+        Create docname for root_doc/master_doc (relative to src, no .rst, forward slashes).
+        """
+        rel = os.path.relpath(index_path, src_dir)
+        rel = rel.replace(os.sep, "/")
+        if rel.lower().endswith(".rst"):
+            rel = rel[:-4]
+        return rel
+
+    def _ensure_static_dir_or_disable(self, src_dir: str) -> dict:
+        """
+        Check '_static': if the folder is missing, ask the user to either
+          - create it, or
+          - disable html_static_path by setting it to []
+        Returns an overrides fragment if needed.
+        """
+        overrides = {}
+        static_dir = os.path.join(src_dir, "_static")
+        if not os.path.isdir(static_dir):
+            res = messagebox.askyesno(
+                "Static assets",
+                "html_static_path typically points to '_static', but the folder does not exist.\n\n"
+                "Yes: Create a '_static' folder in the source directory\n"
+                "No:  Set html_static_path = [] (disable static folder)"
+            )
+            if res:
+                try:
+                    os.makedirs(static_dir, exist_ok=True)
+                except Exception as e:
+                    messagebox.showwarning("Static", f"Could not create '_static':\n{e}\nDisabling it instead.")
+                    overrides["html_static_path"] = []
+            else:
+                overrides["html_static_path"] = []
+        return overrides
+
     # --- Save ----------------------------------------------------------------
 
     def _parse_theme_options(self, text: str):
@@ -827,7 +901,7 @@ class SphinxEditor:
 
             if t in blacklist:
                 if t in takes_value:
-                    # den nächsten Token (Wert) mitüberspringen, falls vorhanden
+                    # skip next token (value) if present
                     if i + 1 < len(tokens) and not tokens[i + 1].startswith("-"):
                         skip_next = 1
                 i += 1
@@ -860,7 +934,7 @@ class SphinxEditor:
             messagebox.showerror("Error", "The source directory must exist!")
             return
 
-        # 2. conf.py must exist (akzeptiere Ordner oder Datei)
+        # 2. conf.py must exist (accept directory or file)
         if not conf:
             messagebox.showerror("Error", "Please select conf.py or its directory!")
             return
@@ -881,15 +955,15 @@ class SphinxEditor:
             messagebox.showerror("Error", "Build directory cannot be empty!")
             return
 
-        # 4. Builder valid (+ Normalisierung)
+        # 4. Builder valid (+ normalization)
         if not builder:
             messagebox.showerror("Error", "Builder (e.g. html, latex) must be set!")
             return
         builder_lc = builder.lower()
-        if builder_lc not in BUILDER_TYPES:  # whitespace fix below
+        if builder_lc not in BUILDER_TYPES:
             if not messagebox.askyesno("Warning", f"Unusual builder '{builder}' selected.\nContinue anyway?"):
                 return
-        builder = builder_lc  # normalisiert verwenden
+        builder = builder_lc  # normalized
 
         # 5. Parallel
         try:
@@ -905,7 +979,7 @@ class SphinxEditor:
             messagebox.showerror("Error", "Theme must be set!")
             return
 
-        # 6a. Warnung, wenn conf_dir != source_dir (Erklärung zu -c)
+        # 6a. Info if conf_dir != source_dir (-c explanation)
         conf_dir = os.path.dirname(os.path.abspath(conf_path))
         src_dir = os.path.abspath(src)
         if os.path.normcase(conf_dir) != os.path.normcase(src_dir):
@@ -914,18 +988,70 @@ class SphinxEditor:
                 "Note: conf.py is not located inside the source directory (e.g. 'docs/').\n"
                 "This is perfectly valid – the build will use 'sphinx-build -c <conf_dir>'\n"
                 "so your configuration is still applied correctly.\n\n"
-                "This warning is just informational to avoid confusion, since most\n"
+                "This warning is only informational to avoid confusion, since many\n"
                 "Sphinx tutorials assume conf.py lives in the source folder.\n\n"
                 "Do you want to continue saving?"
             )
             if not cont:
                 return
 
-        # --- Save values into project ---
+        # --- Master document check & correction (NEW) ------------------------
+        root_doc_val = None
+        overrides_extra = {}
+        idx_path, inside_src = self._find_index_candidate(src_dir, conf_dir)
+
+        if idx_path is None:
+            # Nothing found -> offer quickstart
+            if messagebox.askyesno(
+                "No index.rst found",
+                "No 'index.rst' (or 'contents.rst') was found in the source directory.\n"
+                "Do you want to run 'sphinx-quickstart' in the selected source folder?"
+            ):
+                if self._run_quickstart(src_dir):
+                    idx_path = os.path.join(src_dir, "index.rst")
+                    inside_src = True
+                else:
+                    return
+            else:
+                messagebox.showerror(
+                    "Missing master document",
+                    "Sphinx requires a master document (index.rst or contents.rst). Please add one."
+                )
+                return
+        else:
+            # Found, but possibly outside of source
+            if not inside_src:
+                new_src = os.path.dirname(idx_path)
+                if not messagebox.askyesno(
+                    "Master document is outside the source directory",
+                    "The master document (index.rst/contents.rst) is not under the current source.\n\n"
+                    f"Current source:  {src_dir}\n"
+                    f"Found document:  {idx_path}\n\n"
+                    "Do you want to switch the source directory to the folder that contains the master document?"
+                ):
+                    messagebox.showerror(
+                        "Invalid setup",
+                        "The master document MUST reside within the source directory.\n"
+                        "Please adjust the source or move index.rst."
+                    )
+                    return
+                # Update UI & project source text field
+                src_dir = new_src
+                self.e_source.delete(0, tk.END); self.e_source.insert(0, src_dir)
+
+        # At this point, idx_path is guaranteed to be inside src_dir
+        root_doc_val = self._docname_from_path(idx_path, src_dir)
+
+        # Check/create or disable _static
+        overrides_extra = self._ensure_static_dir_or_disable(src_dir)
+
+        # --- Save values into project ----------------------------------------
+        # Important: src may have been adjusted
+        src = src_dir
         self.project.sphinx_source = src
         self.project.sphinx_build = build
         self.project.sphinx_builder = builder
-        self.project.sphinx_conf_path = conf_path  # ggf. korrigiert
+        self.project.sphinx_conf_path = conf_path  # possibly corrected
         self.project.sphinx_doctrees = doctrees
         self.project.sphinx_theme = theme
         self.project.sphinx_parallel = n
@@ -933,7 +1059,7 @@ class SphinxEditor:
         self.project.sphinx_keep_going = self.var_keep_going.get()
         self.project.use_sphinx_standalone = self.var_standalone.get()
 
-        # 6b. Zusätzliche Argumente säubern (Safety)
+        # 6b. Sanitize additional args
         self.project.sphinx_args = self._sanitize_args(args_raw)
 
         # Persisted meta fields
@@ -971,7 +1097,7 @@ class SphinxEditor:
         if theme_opts is not None:
             self.project.sphinx_theme_options = theme_opts
 
-        # Falls ein Custom-Theme gewählt ist, html_theme_path automatisch ergänzen
+        # If a custom theme is selected, auto-append its source path to html_theme_path
         try:
             theme_paths = list(getattr(self.project, "sphinx_theme_path", []) or [])
             if self.project.sphinx_theme in getattr(self, "_custom_theme_map", {}):
@@ -983,7 +1109,7 @@ class SphinxEditor:
             # still proceed; not critical for saving
             pass
 
-        # --- Overlay file + hook ---
+        # --- Overlay file + hook ---------------------------------------------
         try:
             ensure_gui_hook(conf_path)
 
@@ -1009,11 +1135,21 @@ class SphinxEditor:
                 "release": getattr(self.project, "sphinx_release", None),
                 "language": getattr(self.project, "sphinx_language", None),
                 "html_theme": self.project.sphinx_theme,
+
+                # Master document (compat: root_doc + master_doc)
+                "root_doc": root_doc_val,
+                "master_doc": root_doc_val,
+
                 # Complex types
                 "extensions": getattr(self.project, "sphinx_extensions", None),
                 "html_theme_options": getattr(self.project, "sphinx_theme_options", None),
                 "html_theme_path": rel_paths,
             }
+
+            # Merge html_static_path override, if any
+            for k, v in (overrides_extra or {}).items():
+                overrides[k] = v
+
             # Drop None values
             overrides = {k: v for k, v in overrides.items() if v is not None}
 
@@ -1024,4 +1160,3 @@ class SphinxEditor:
 
         self.saved = True
         self.win.destroy()
-
