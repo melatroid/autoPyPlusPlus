@@ -5,9 +5,9 @@ import sys
 sys.path.insert(0, os.path.abspath('../src'))
 
 # -- Project information -----------------------------------------------------
-project = 'Your Project'
-copyright = '2025, Your Name'
-author = 'Your Name'
+project = 'Hello World'
+copyright = '2025, Hello World 2'
+author = 'Hello World 3'
 release = '1.0.0'
 
 # -- General configuration ---------------------------------------------------
@@ -16,8 +16,8 @@ extensions = [
     'sphinx.ext.napoleon',        # Support for Google/Numpy style docstrings
     'sphinx.ext.viewcode',        # Add links to highlighted source code
     'sphinx.ext.autosummary',     # Generate summary tables for modules/classes
-    'sphinx_autodoc_typehints',   # Show type hints in the API docs
-    'myst_parser',                # Support for Markdown files (MyST)
+    #'myst_parser',                # Support for Markdown files (MyST)
+    #'sphinx_autodoc_typehints',   # Show type hints in the API docs
     # 'sphinx.ext.intersphinx',   # Cross-references to other projects' documentation
     # 'sphinx.ext.todo',          # Support for todo items
     # 'sphinx.ext.mathjax',       # Render math formulas using MathJax
@@ -29,7 +29,7 @@ exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store']
 autosummary_generate = True
 
 # -- Options for HTML output -------------------------------------------------
-html_theme = 'sphinx_rtd_theme'
+html_theme = 'alabaster'
 html_static_path = ['_static']
 
 # -- HTML theme options (commented examples) ---------------------------------
@@ -108,3 +108,10 @@ myst_enable_extensions = [
 # def setup(app):
 #     app.add_css_file('custom.css')
 #     app.add_js_file('custom.js')
+
+# >>> SPHINX GUI HOOK (do not remove)
+try:
+    from conf_autopy import *  # noqa: F401,F403
+except Exception:
+    pass
+# <<< SPHINX GUI HOOK
