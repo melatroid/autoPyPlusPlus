@@ -55,7 +55,7 @@ def show_about_dialog(master, style, theme_func):
 
     # --- Text ---
     text = (
-        "Version 2.39 (Date: 15.08.2025)\n"
+        "Version 2.40 (Date: 21.08.2025)\n"
         "Developer: melatroid\n"
         "© 2025 by melatroid\n"
         "Bug reports: dseccg@gmail.com\n"
