@@ -4,10 +4,10 @@
 - Inspector reads specific logs on top
 - autopy++ runs primary in venv envirnoment
 
-### (Preview) Version 2.40
+### (lastest) Version 2.40
 - Working Sphinx
 
-### (lastest) Version 2.39
+### Version 2.39
 - Bugfixes
 - Sphinxeditor merged original conf.py and new conf_autopy.py
 
