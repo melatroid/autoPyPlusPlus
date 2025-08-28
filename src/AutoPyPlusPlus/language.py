@@ -18,9 +18,13 @@ LANGUAGES = {
         "clear_work_dir_btn": "🗑 Log löschen",
         "compile_all_btn": "🚀 Start Export",
         "extensions_btn": "⚙ Erweiterungen",
+        "duplicate_btn": "📄 Duplizieren",
+        "rename_btn": "🏷 Umbenennen",
         "mode_a": "Modus A",
         "mode_b": "Modus B",
         "mode_c": "Modus C",
+
+        
         "tooltip_compile_mode": "Aktiven Kompilier-Modus wählen (A oder B)",
         "status_ready": "💤",
         "error_no_entry": "Kein Eintrag ausgewählt.",
@@ -31,6 +35,8 @@ LANGUAGES = {
         "tooltip_load_ini_btn": "INI-Datei auswählen und überschreiben",
         "store_ini_popup_btn": "📤 INI exportieren",
         "load_ini_popup_btn": "📥 INI laden",
+        "tooltip_rename_btn": "Namen des ausgewählten Projekts ändern",
+        "tooltip_duplicate_btn": "Erstellt eine Kopie des ausgewählten Projekts.",
         "tooltip_extensions_btn": "Konfiguration externer Tools",
         "tooltip_debug_btn": "Öffnet den Debug-Inspector",
         "tooltip_save_project": "💾 Speichern.",
@@ -79,6 +85,24 @@ LANGUAGES = {
         "noupx_label": "🚫 No UPX",
         "runtime_hook_label": "🪝 Runtime Hook:",
         "splash_label": "🖼 Splash-Bild:",
+        
+        
+        "menu_open":     "📂 Öffnen…",
+        "menu_new":      "🆕 Neues Apyscript",
+        "menu_save":     "💾 Apyscript speichern",
+        "menu_save_as":  "💾📝 Speichern unter…",
+        "menu_exit":     "🚪 Beenden",
+        
+        "menu_duplicate": "📄📄 Duplizieren",
+        "menu_add_empty": "➕ Leeres",
+        "menu_add_file": "➕📄 Add File",
+        "menu_edit": "✏️ Bearbeiten",
+        "menu_delete": "🗑 Löschen",
+        "menu_rename": "🏷 Umbenennen",
+                
+        "menu_inspector": "🔎 Inspector",
+        "menu_apyeditor": "📝 ApyEditor",
+        "menu_extensions": "🧩 Erweiterungen",
     },
     "en": {
         "title": "AutoPy++",
@@ -107,11 +131,19 @@ LANGUAGES = {
         "error_no_entry": "No entry selected.",
         "debug_btn": "🔎 Inspector",
         "about_btn": "ℹ️ About",
+        "duplicate_btn": "📄 Duplicate",
+        "rename_btn": "🏷 Rename",
+        
+
+        
+        
         "tooltip_about_btn": "Shows information about AutoPy++",
         "load_ini_btn": "⚙️ Load INI",
         "tooltip_load_ini_btn": "Select and overwrite INI file",
         "store_ini_popup_btn": "📤 Export INI",
         "load_ini_popup_btn": "📥 Load INI",
+        "tooltip_rename_btn": "Change the selected project's name",
+        "tooltip_duplicate_btn": "Creates a copy of the selected project.",
         "tooltip_extensions_btn": "Configure external tools",
         "tooltip_debug_btn": "Opens the debug inspector",
         "tooltip_save_project": "💾 Save.",
@@ -159,5 +191,23 @@ LANGUAGES = {
         "noupx_label": "🚫 No UPX",
         "runtime_hook_label": "🪝 Runtime Hook:",
         "splash_label": "🖼 Splash Image:",
+        
+        "menu_open":     "📂 Open…",
+        "menu_new":      "🆕 New Apyscript",
+        "menu_save":     "💾 Save Apyscript",
+        "menu_save_as":  "💾📝 Save As…",
+        "menu_exit":     "🚪 Exit",
+        
+        "menu_duplicate": "📄📄 Duplicate",
+        "menu_add_empty": "➕ Empty",
+        "menu_add_file": "➕📄 Add File",
+        "menu_edit": "✏️ Edit",
+        "menu_delete": "🗑 Delete",
+        "menu_rename": "🏷 Rename",
+        
+        "menu_inspector": "🔎 Inspector",
+        "menu_apyeditor": "📝 ApyEditor",
+        "menu_extensions": "🧩 Extensions",
+        
     }
 }

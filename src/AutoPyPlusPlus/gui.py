@@ -1,7 +1,7 @@
 from __future__ import annotations  # Enables postponed evaluation of type annotations for forward references
 
 import os  # For interacting with the operating system (e.g., file/directory handling)
-
+import copy # Deep Copy
 import tkinter as tk  # Tkinter: main module for creating GUIs
 from tkinter import ttk, filedialog, messagebox, colorchooser, simpledialog  # Tkinter modules for advanced GUI widgets, file dialogs, message boxes, and color pickers
 from datetime import datetime  # For working with date and time
@@ -112,15 +112,134 @@ class AutoPyPlusPlusGUI:
         self.default_bg: str = "#ffffff"
 
         # -------- Thread-Anzahl (wird automatisch gespeichert) --------
-        self.thread_count_var = tk.IntVar(value=self.config.get("thread_count", 1))
-        self.thread_count_var.trace_add("write", self._save_thread_count)
+        self.max_threads = max(1, (os.cpu_count() or 1))
+        init_threads = int(self.config.get("thread_count", self.max_threads) or self.max_threads)
+        init_threads = max(1, min(self.max_threads, init_threads))
 
+        self.thread_count_var = tk.IntVar(value=init_threads)
+        self.thread_count_var.trace_add("write", self._save_thread_count)
         # -------- UI aufbauen & Projekte laden ------------------------
-        self._build_ui()
+        self.status_var = tk.StringVar(value=self.texts["status_ready"])
+        self._build_ui()        
         self._auto_load()
         self._register_hotkeys()
         show_about_dialog(self.master, self.style, self.themes[self.current_theme_index])
     # ------------------------- Hilfsmethoden --------------------------
+
+    def _build_ui(self):
+        # vorhandene Widgets (außer Toplevels) entfernen, dann alles neu aufbauen
+        for w in self.master.winfo_children():
+            if isinstance(w, tk.Toplevel):
+                continue
+            w.destroy()
+
+        # Menüleiste
+        self._build_menubar()
+
+        # Haupt-Container
+        self.main_frame = ttk.Frame(self.master, padding=10)
+        self.main_frame.pack(fill="both", expand=True)
+
+        # --- Toolbar ---
+        self.bar = ttk.Frame(self.main_frame)
+        self.bar.pack(fill="x", pady=5)
+
+        def _btn(txt_key, cmd, tip_key):
+            b = ttk.Button(self.bar, text=self.texts[txt_key], command=cmd)
+            b.pack(side="left", padx=5)
+            CreateToolTip(b, self.texts[tip_key])
+            return b
+
+        # Linke Buttons (immer erstellen)
+        self.add_btn       = _btn("add_btn",       self._add,             "tooltip_add_btn")
+        self.edit_btn      = _btn("edit_btn",      self._edit,            "tooltip_edit_btn")
+        self.delete_btn    = _btn("delete_btn",    self._delete,          "tooltip_delete_btn")
+        self.duplicate_btn = _btn("duplicate_btn", self._duplicate,       "tooltip_duplicate_btn")
+        self.rename_btn    = _btn("rename_btn",    self._rename_project,  "tooltip_rename_btn")
+
+        ttk.Label(self.bar, text="|").pack(side="left", padx=5)
+
+        self.save_btn      = _btn("save_btn",      self._save_current_file, "tooltip_save_btn")
+        self.save_as_btn   = _btn("save_as_btn",   self._save_as,           "tooltip_save_as_btn")
+        self.load_btn      = _btn("load_btn",      self._load,              "tooltip_load_btn")
+        self.clear_btn     = _btn("clear_btn",     self._clear,             "tooltip_clear_btn")
+
+        # Rechte Buttons
+        self.compile_all_btn    = _btn("compile_all_btn", self.compile_all,       "tooltip_compile_all_btn")
+        self.debug_btn          = _btn("debug_btn",       self._open_debuginspector, "tooltip_debug_btn")
+        self.clear_work_dir_btn = _btn("clear_work_dir_btn", self.clear_work_dir, "tooltip_clear_work_dir_btn")
+
+        _Spinbox = getattr(ttk, "Spinbox", tk.Spinbox)  # Fallback, falls ttk.Spinbox fehlt
+        self.thread_spin = _Spinbox(
+            self.bar,
+            from_=1,
+            to=self.max_threads,
+            textvariable=self.thread_count_var,
+            width=3,
+            justify="center",
+        )
+        self.thread_spin.pack(side="right", padx=6)
+
+        # Kompiliermodus (rechts)
+        self.mode_menu = ttk.OptionMenu(
+            self.bar,
+            self.compile_mode_var,
+            self.compile_mode_var.get(),
+            "A", "B", "C",
+            command=lambda _: self._toggle_mode()
+        )
+        self.mode_menu.pack(side="right", padx=6)
+        self.mode_menu.config(width=2)
+        CreateToolTip(self.mode_menu, self.texts["tooltip_compile_mode"])
+
+        # --- Treeview ---
+        cols = ("A","B","C","Name","Pytest","PyArmor","Nuitka","Cython","Sphinx","Script")
+        self.tree = ttk.Treeview(self.main_frame, columns=cols, show="headings", style="BigEmoji.Treeview")
+
+        # Spalten-Header
+        self.tree.heading("A", text=self.texts["compile_a_col"])
+        self.tree.heading("B", text=self.texts["compile_b_col"])
+        self.tree.heading("C", text=self.texts["compile_c_col"])
+        self.tree.heading("Name", text=self.texts["name_col"], anchor="center")
+        self.tree.heading("Script", text=self.texts["script_col"], anchor="center")
+        self.tree.heading("PyArmor", text="PyArmor", anchor="center")
+        self.tree.heading("Nuitka", text="Nuitka", anchor="center")
+        self.tree.heading("Cython", text="Cython", anchor="center")
+        self.tree.heading("Pytest", text="Pytest", anchor="center")
+        self.tree.heading("Sphinx", text="Sphinx", anchor="center")
+
+        # Spalten-Breiten
+        self.tree.column("A", width=90, anchor="center", stretch=False)
+        self.tree.column("B", width=90, anchor="center", stretch=False)
+        self.tree.column("C", width=90, anchor="center", stretch=False)
+        self.tree.column("Name", width=120, anchor="center", stretch=False)
+        self.tree.column("Script", width=600, anchor="center", stretch=False)
+        self.tree.column("PyArmor", width=80, anchor="center", stretch=False)
+        self.tree.column("Nuitka", width=80, anchor="center", stretch=False)
+        self.tree.column("Cython", width=80, anchor="center", stretch=False)
+        self.tree.column("Pytest", width=70, anchor="center", stretch=False)
+        self.tree.column("Sphinx", width=70, anchor="center", stretch=False)
+
+        self._update_tag_colors()
+        self.tree.pack(fill="both", expand=True, pady=(5, 10))
+        self.tree.bind("<Button-1>", self._toggle_cell)
+        self.tree.tag_configure("divider", background="#41578e", font=("", 10, "bold"))
+
+        # --- Statusleiste ---
+        self.status_label = ttk.Label(
+            self.main_frame,
+            textvariable=self.status_var,
+            relief="sunken",
+            anchor="w",
+            padding=5,
+            font=("Helvetica", 14),
+        )
+        self.status_label.pack(fill="x")
+
+        # Initial render
+        self._update_headings()
+        self._refresh_tree()
+
 
     def _fallback_texts(self) -> None:
         fb = {
@@ -133,6 +252,14 @@ class AutoPyPlusPlusGUI:
             "mode_a": "Modus A",
             "mode_b": "Modus B",
             "mode_c": "Modus C",
+            "duplicate_btn": "Duplicate",
+            "tooltip_duplicate_btn": "Duplicate",
+            "rename_btn": "Rename",
+            "tooltip_rename_btn": "Change name",
+            "rename_title": "Rename Project",
+            "rename_prompt": "New name:",
+            "rename_empty": "Please enter a name.",
+            "status_renamed": "Project “{old}” → “{new}” renamed.",
         }
         for k, v in fb.items():
             self.texts.setdefault(k, v)
@@ -181,192 +308,66 @@ class AutoPyPlusPlusGUI:
             self.tree.selection_set(f"proj_{idx+1}")
 
     
-    def _build_ui(self) -> None:
-        if not hasattr(self, "main_frame"):
-            for w in self.master.winfo_children():
-                if isinstance(w, tk.Toplevel):
-                    continue
-                w.destroy()
+    def _build_menubar(self):
+        self.menubar = tk.Menu(self.master)
+        self.master.config(menu=self.menubar)
 
-            root = ttk.Frame(self.master, padding=10)
-            root.pack(fill="both", expand=True)
-            self.main_frame = root
+        # ----- Projects / File -----
+        self.file_menu = tk.Menu(self.menubar, tearoff=False)
+        self.menubar.add_cascade(label=self.texts.get("menu_projects", "Projects"), menu=self.file_menu)
+        self.file_menu.add_command(label=self.texts.get("menu_open", "Open"), command=self._load)
+        self.file_menu.add_command(label=self.texts.get("menu_new", "New"), command=self._clear)
+        self.file_menu.add_separator()
+        self.file_menu.add_command(label=self.texts.get("menu_save", "Save"), command=self._save_current_file)
+        self.file_menu.add_command(label=self.texts.get("menu_save_as", "Save As..."), command=self._save_as)
+        self.file_menu.add_separator()
+        self.file_menu.add_command(label=self.texts.get("menu_exit", "Exit"), command=self.master.quit)
 
-            # --------- Menüleiste ---------
-            menubar = tk.Menu(self.master)
-            self.master.config(menu=menubar)
+        # ----- Scripts -----
+        self.project_menu = tk.Menu(self.menubar, tearoff=False)
+        self.menubar.add_cascade(label=self.texts.get("menu_scripts", "Scripts"), menu=self.project_menu)
+        self.project_menu.add_command(label=self.texts.get("menu_add_empty", "Add Empty"), command=self._add_empty_project)
+        self.project_menu.add_command(label=self.texts.get("menu_add_file", "Add File"), command=self._add)
+        self.project_menu.add_command(label=self.texts.get("menu_edit", "Edit"), command=self._edit)
+        self.project_menu.add_command(label=self.texts.get("menu_delete", "Delete"), command=self._delete)
+        self.project_menu.add_command(label=self.texts.get("menu_duplicate", "Duplicate"), command=self._duplicate)
+        self.project_menu.add_command(label=self.texts.get("menu_rename", "Rename"), command=self._rename_project)
 
-            file_menu = tk.Menu(menubar, tearoff=False)
-            menubar.add_cascade(label="Projects", menu=file_menu)
-            file_menu.add_command(label="Open", command=self._load)
-            file_menu.add_command(label="New", command=self._clear)
-            file_menu.add_separator()
-            file_menu.add_command(label="Save", command=self._save_current_file)
-            file_menu.add_command(label="Save As...", command=self._save_as)
-            file_menu.add_separator()
-            file_menu.add_command(label="Exit", command=self.master.quit)
+        # ----- Tools -----
+        self.tools_menu = tk.Menu(self.menubar, tearoff=False)
+        self.menubar.add_cascade(label=self.texts.get("menu_tools", "Tools"), menu=self.tools_menu)
+        self.tools_menu.add_command(label=self.texts.get("menu_inspector", "Inspector"), command=self._open_debuginspector)
+        self.tools_menu.add_command(label=self.texts.get("menu_apyeditor", "ApyEditor"), command=self._open_apy_editor)
+        self.tools_menu.add_command(label=self.texts.get("menu_extensions", "Extensions"), command=self._show_extensions_popup)
 
-            project_menu = tk.Menu(menubar, tearoff=False)
-            menubar.add_cascade(label="Scripts", menu=project_menu)
-            project_menu.add_command(label="Add Empty", command=self._add_empty_project)
-            project_menu.add_command(label="Add File", command=self._add)
-            project_menu.add_command(label="Edit", command=self._edit)
-            project_menu.add_command(label="Delete", command=self._delete)
+        # ----- Build -----
+        self.build_menu = tk.Menu(self.menubar, tearoff=False)
+        self.menubar.add_cascade(label=self.texts.get("menu_build", "Build"), menu=self.build_menu)
+        self.build_menu.add_command(label=self.texts.get("menu_compile_all", "Compile All"), command=self.compile_all)
+        self.build_menu.add_separator()
+        self.build_menu.add_command(label=self.texts.get("menu_clean_workdir", "Clean Working Directory"), command=self.clear_work_dir)
 
-            tools_menu = tk.Menu(menubar, tearoff=False)
-            menubar.add_cascade(label="Tools", menu=tools_menu)
-            tools_menu.add_command(label="Inspector", command=self._open_debuginspector)
-            tools_menu.add_command(label="ApyEditor", command=self._open_apy_editor)
-            tools_menu.add_command(label="Extensions", command=self._show_extensions_popup)
+        # ----- Settings -----
+        self.settings_menu = tk.Menu(self.menubar, tearoff=False)
+        self.menubar.add_cascade(label=self.texts.get("menu_settings", "General Settings"), menu=self.settings_menu)
 
-            build_menu = tk.Menu(menubar, tearoff=False)
-            menubar.add_cascade(label="Build", menu=build_menu)
-            build_menu.add_command(label="Compile All", command=self.compile_all)
-            build_menu.add_separator()
-            build_menu.add_command(label="Clean Working Directory", command=self.clear_work_dir)
+        self.language_submenu = tk.Menu(self.settings_menu, tearoff=False)
+        for lang in LANGUAGES.keys():
+            self.language_submenu.add_command(label=lang, command=lambda l=lang: self._select_language(l))
+        self.settings_menu.add_cascade(label=self.texts.get("menu_language", "Language"), menu=self.language_submenu)
 
-            settings_menu = tk.Menu(menubar, tearoff=False)
-            menubar.add_cascade(label="General Settings", menu=settings_menu)
+        self.theme_submenu = tk.Menu(self.settings_menu, tearoff=False)
+        for idx, theme_name in enumerate(self.theme_names):
+            self.theme_submenu.add_command(label=theme_name, command=lambda i=idx: self._set_theme_from_menu(i))
+        self.settings_menu.add_cascade(label=self.texts.get("menu_themes", "Themes"), menu=self.theme_submenu)
 
-            language_submenu = tk.Menu(settings_menu, tearoff=False)
-            for lang in LANGUAGES.keys():
-                language_submenu.add_command(
-                    label=lang,
-                    command=lambda l=lang: self._select_language(l)
-                )
-            settings_menu.add_cascade(label="Language", menu=language_submenu)
-
-            theme_submenu = tk.Menu(settings_menu, tearoff=False)
-            for idx, theme_name in enumerate(self.theme_names):
-                theme_submenu.add_command(
-                    label=theme_name,
-                    command=lambda i=idx: self._set_theme_from_menu(i)
-                )
-            settings_menu.add_cascade(label="Themes", menu=theme_submenu)
-
-            settings_menu.add_separator()
-            settings_menu.add_command(label="AutoPy++ General", command=self._open_general_settings)
-            settings_menu.add_command(label="Colors", command=self._choose_colors)
-            settings_menu.add_command(label="Toggle Fullscreen", command=self._toggle_fullscreen)
-            settings_menu.add_separator()
-            settings_menu.add_command(label="Show Helper", command=lambda: show_main_helper(self.master))
-            settings_menu.add_command(label="About", command=lambda: show_about_dialog(self.master, self.style, self.themes[self.current_theme_index]))
-
-            # --------- Buttonleiste ---------
-            self.bar = ttk.Frame(self.main_frame)
-            self.bar.pack(fill="x", pady=5)
-
-            def _btn(txt_key, cmd, tip_key):
-                b = ttk.Button(self.bar, text=self.texts[txt_key], command=cmd)
-                b.pack(side="left", padx=5)
-                CreateToolTip(b, self.texts[tip_key])
-                return b
-
-            # Legacy-Modus? => Zusätzliche Steuer-Elemente/Design wie früher
-            if self.legacy_gui_mode:
-                self.move_up_btn = ttk.Button(self.bar, text="▲", command=self._move_project_up, width=2)
-                self.move_up_btn.pack(side="left", padx=2)
-
-                self.move_down_btn = ttk.Button(self.bar, text="▼", command=self._move_project_down, width=2)
-                self.move_down_btn.pack(side="left", padx=2)
-
-                ttk.Label(self.bar, text="|").pack(side="left", padx=5)
-
-                # Immer (egal ob legacy oder nicht):
-                self.add_btn    = _btn("add_btn",    self._add,    "tooltip_add_btn")
-                self.edit_btn   = _btn("edit_btn",   self._edit,   "tooltip_edit_btn")
-                self.delete_btn = _btn("delete_btn", self._delete, "tooltip_delete_btn")
-                ttk.Label(self.bar, text="|").pack(side="left", padx=5)
-                self.save_btn   = _btn("save_btn",   self._save_current_file, "tooltip_save_btn")
-                self.save_as_btn= _btn("save_as_btn",self._save_as, "tooltip_save_as_btn")
-                self.load_btn   = _btn("load_btn",   self._load,   "tooltip_load_btn")
-                self.clear_btn  = _btn("clear_btn",  self._clear,  "tooltip_clear_btn")
-                ttk.Label(self.bar, text="|").pack(side="left", padx=5)
-
-            self.debug_btn  = _btn("debug_btn",  self._open_debuginspector, "tooltip_debug_btn")
-            self.compile_all_btn = _btn("compile_all_btn", self.compile_all, "tooltip_compile_all_btn")
-            self.clear_work_dir_btn = _btn("clear_work_dir_btn", self.clear_work_dir, "tooltip_clear_work_dir_btn")
-
-            # Threads-Spinbox, nur im Legacy-Modus anzeigen
-            if self.legacy_gui_mode:
-                ttk.Label(self.bar, text="::Threads").pack(side="right", padx=5)
-                ttk.Spinbox(
-                    self.bar, from_=1, to=os.cpu_count() or 4, width=2,
-                    textvariable=self.thread_count_var
-                ).pack(side="right")
-
-            # ---- NEU: Kompiliermodus als Dropdown-Menu rechts ---
-            mode_names = {
-                "A": self.texts.get("mode_a", "Modus A"),
-                "B": self.texts.get("mode_b", "Modus B"),
-                "C": self.texts.get("mode_c", "Modus C"),
-            }
-            self.compile_mode_var = tk.StringVar(value=self.config.get("compile_mode", "A"))
-
-            self.mode_menu = ttk.OptionMenu(
-                self.bar,
-                self.compile_mode_var,     # Das ist die tk.StringVar!
-                self.compile_mode_var.get(), # Was zuerst angezeigt wird (A/B/C)
-                "A", "B", "C",                # Die Auswahlmöglichkeiten
-                command=lambda mode: self._toggle_mode()
-            )
-            self.mode_menu.pack(side="right", padx=6)
-            self.mode_menu.config(width=2) 
-            CreateToolTip(self.mode_menu, self.texts["tooltip_compile_mode"])
-
-            # --------- Treeview ---------
-            self.tree = ttk.Treeview(
-                self.main_frame,
-                columns=("A", "B", "C", "Name", "Pytest", "PyArmor", "Nuitka", "Cython", "Sphinx", "Script"),
-                show="headings",
-                style="BigEmoji.Treeview"
-            )
-
-            # Spalten konfigurieren
-            self.tree.heading("Nuitka", text="Nuitka", anchor="center")
-            self.tree.column("Nuitka", width=80, anchor="center", stretch=False)
-            self.tree.heading("PyArmor", text="PyArmor", anchor="center")
-            self.tree.column("PyArmor", width=80, anchor="center", stretch=False)
-            self.tree.heading("Cython", text="Cython", anchor="center")
-            self.tree.column("Cython", width=80, anchor="center", stretch=False)
-            self.tree.heading("Pytest", text="Pytest", anchor="center")
-            self.tree.column("Pytest", width=70, anchor="center", stretch=False)
-            self.tree.heading("Sphinx", text="Sphinx", anchor="center")
-            self.tree.column("Sphinx", width=70, anchor="center", stretch=False)
-            self.tree.heading("A", text=self.texts["compile_a_col"])
-            self.tree.heading("B", text=self.texts["compile_b_col"])
-            self.tree.heading("C", text=self.texts["compile_c_col"])
-            self.tree.heading("Name", text=self.texts["name_col"], anchor="center")
-            self.tree.heading("Script", text=self.texts["script_col"], anchor="center")
-            self.tree.column("A", width=90, anchor="center", stretch=False)
-            self.tree.column("B", width=90, anchor="center", stretch=False)
-            self.tree.column("C", width=90, anchor="center", stretch=False)
-            self.tree.column("Name", width=120, anchor="center", stretch=False)
-            self.tree.column("Script", width=600, anchor="center", stretch=False)
-
-            self._update_tag_colors()
-            self.tree.pack(fill="both", expand=True, pady=(5, 10))
-            self.tree.bind("<Button-1>", self._toggle_cell)
-            self.tree.tag_configure("divider", background="#41578e", font=("", 10, "bold"))
-
-            # --------- Statuszeile ---------
-            self.status_var = tk.StringVar(value=self.texts["status_ready"])
-            self.status_label = ttk.Label(
-                self.main_frame,
-                textvariable=self.status_var,
-                relief="sunken",
-                anchor="w",
-                padding=5,
-                font=("Helvetica", 14)
-            )
-            self.status_label.pack(fill="x")
-        else:
-            # Aktualisiere nur Texte
-            self._update_ui_texts()
-
-        # Initiales Rendern
-        self._update_headings()
-        self._refresh_tree()
+        self.settings_menu.add_separator()
+        self.settings_menu.add_command(label=self.texts.get("menu_autopy_general", "AutoPy++ General"), command=self._open_general_settings)
+        self.settings_menu.add_command(label=self.texts.get("menu_colors", "Colors"), command=self._choose_colors)
+        self.settings_menu.add_command(label=self.texts.get("menu_toggle_fullscreen", "Toggle Fullscreen"), command=self._toggle_fullscreen)
+        self.settings_menu.add_separator()
+        self.settings_menu.add_command(label=self.texts.get("menu_show_helper", "Show Helper"), command=lambda: show_main_helper(self.master))
+        self.settings_menu.add_command(label=self.texts.get("menu_about", "About"), command=lambda: show_about_dialog(self.master, self.style, self.themes[self.current_theme_index]))
 
 
     def _toggle_mode_by_display_name(self, display_name, mode_names):
@@ -509,11 +510,129 @@ class AutoPyPlusPlusGUI:
         self.master.update_idletasks()
 
         print("UI texts updated.")
+    
+    def _rename_project(self):
+        sel = self.tree.selection()
+        if not sel or not sel[0].startswith("proj_"):
+            messagebox.showwarning("Fehler", self.texts.get("error_no_entry", "Kein Eintrag ausgewählt."))
+            return
+
+        try:
+            idx = int(sel[0].split("_")[1])
+            proj = self.projects[idx]
+        except (ValueError, IndexError):
+            messagebox.showerror("Fehler", "Ungültige Projekt-ID.")
+            return
+
+        new_name = simpledialog.askstring(
+            self.texts.get("rename_title", "Projekt umbenennen"),
+            self.texts.get("rename_prompt", "Neuer Name:"),
+            initialvalue=proj.name,
+            parent=self.master
+        )
+        if new_name is None:
+            return  # Abbruch
+        new_name = new_name.strip()
+        if not new_name:
+            messagebox.showerror("Fehler", self.texts.get("rename_empty", "Bitte einen Namen eingeben."))
+            return
+
+        # Kollisionen automatisch vermeiden
+        new_name = self._unique_name(new_name)
+
+        old_name = proj.name
+        proj.name = new_name
+        self._refresh_tree()
+        self.tree.selection_set(f"proj_{idx}")
+        self.tree.see(f"proj_{idx}")
+
+        try:
+            self._save_current_file()
+        except Exception:
+            pass
+
+        self.status_var.set(self.texts.get("status_renamed", "Umbenannt.").format(old=old_name, new=new_name))
+
         
+    def _unique_name(self, base: str) -> str:
+        existing = {p.name for p in self.projects}
+        if base not in existing:
+            return base
+        i = 2
+        while True:
+            candidate = f"{base} {i}"
+            if candidate not in existing:
+                return candidate
+            i += 1
+
+    
+    def _duplicate(self):
+        sel = self.tree.selection()
+        if not sel:
+            messagebox.showwarning("Error", self.texts.get("error_no_entry", "No entry selected."))
+            return
+
+        row_id = sel[0]
+        if not row_id.startswith("proj_"):
+            return
+
+        try:
+            idx = int(row_id.split("_")[1])
+            original: Project = self.projects[idx]
+        except (ValueError, IndexError):
+            messagebox.showerror("Error", "Ungültige Projekt-ID.")
+            return
+
+        # Tief kopieren
+        try:
+            new_p: Project = copy.deepcopy(original)
+        except Exception:
+            # Fallback: flacher Kopierer — falls deepcopy wegen exotischer Felder scheitert
+            new_p = Project()
+            for k, v in vars(original).items():
+                setattr(new_p, k, copy.deepcopy(v) if isinstance(v, (dict, list, set, tuple)) else v)
+
+        # Neuen Namen vergeben
+        base_name = f"{original.name} (Kopie)"
+        new_p.name = self._unique_name(base_name)
+
+        # Optional: Checkboxen zurücksetzen/übernehmen (hier: übernehmen)
+        # new_p.compile_a_selected = original.compile_a_selected
+        # new_p.compile_b_selected = original.compile_b_selected
+        # new_p.compile_c_selected = original.compile_c_selected
+
+        # Direkt unter dem Original einfügen
+        insert_at = idx + 1
+        self.projects.insert(insert_at, new_p)
+
+        # UI aktualisieren & Auswahl auf die Kopie setzen
+        self._refresh_tree()
+        self.tree.selection_set(f"proj_{insert_at}")
+        self.tree.see(f"proj_{insert_at}")
+
+        # Speichern (optional): aktuelle Datei überschreiben, wenn vorhanden
+        try:
+            self._save_current_file()
+        except Exception:
+            pass
+
+        self.status_var.set(f"Projekt „{new_p.name}“ erstellt (Duplikat).")
+
     
     def _save_thread_count(self, *args):  # pylint: disable=unused-argument
-        self.config["thread_count"] = self.thread_count_var.get()
+        try:
+            val = int(self.thread_count_var.get())
+        except Exception:
+            val = 1
+        val = max(1, min(self.max_threads, val))
+        if self.thread_count_var.get() != val:
+            # falls Nutzer Text eingibt, normalisieren
+            self.thread_count_var.set(val)
+        self.config["thread_count"] = val
         save_config(self.config)
+        # dezentes Feedback
+        self.status_var.set(self.texts.get("status_threads_saved", "Threads: {n}").format(n=val))
+
 
     def _choose_colors(self):
         color_a = colorchooser.askcolor(title="Farbe für Modus A wählen", color=self.color_a)[1]
@@ -766,6 +885,7 @@ class AutoPyPlusPlusGUI:
         self.texts = LANGUAGES[self.current_language]
         #print(f"Loaded texts for {self.current_language}: {self.texts}")
         self._fallback_texts()
+        self._build_menubar()
         self._update_ui_texts()
         self._refresh_tree()
         self.config["language"] = self.current_language
