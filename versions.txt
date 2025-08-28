@@ -4,11 +4,11 @@
 - Inspector reads specific logs on top
 - autopy++ runs primary in venv envirnoment
 
-### Version 2.41
+### (lastest) Version 2.41
 - Rename Button
 - Duplicate Button
 
-### (lastest) Version 2.40
+### Version 2.40
 - Working Sphinx
 
 ### Version 2.39
