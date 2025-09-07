@@ -1154,6 +1154,8 @@ class AutoPyPlusPlusGUI:
                     prog.set((cur / total) * 100)
 
                 
+                compiler_mode = "pyinstaller" 
+
                 if all(p.use_pyarmor and not p.use_nuitka and not p.use_cython for p in selected):
                     compiler_mode = "pyarmor"
                 elif all(p.use_nuitka and not p.use_pyarmor and not p.use_cython for p in selected):
@@ -1162,7 +1164,7 @@ class AutoPyPlusPlusGUI:
                     compiler_mode = "cython"
                 elif all(not p.use_pyarmor and not p.use_nuitka and not p.use_cython for p in selected):
                     compiler_mode = "pyinstaller"
-                    
+                                    
                     
                 print(f"[DEBUG] Selected compiler_mode: {compiler_mode}")
                 log_hdl.write(f"Selected compiler_mode: {compiler_mode}\n")
