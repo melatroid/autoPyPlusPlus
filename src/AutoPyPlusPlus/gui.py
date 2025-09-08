@@ -157,6 +157,12 @@ class AutoPyPlusPlusGUI:
         self.duplicate_btn = _btn("duplicate_btn", self._duplicate,       "tooltip_duplicate_btn")
         self.rename_btn    = _btn("rename_btn",    self._rename_project,  "tooltip_rename_btn")
 
+        self.up_btn = ttk.Button(self.bar, text="⮝", width=2, command=self._move_project_up)
+        self.up_btn.pack(side="left", padx=(8,2))
+
+        self.down_btn = ttk.Button(self.bar, text="⮟", width=2, command=self._move_project_down)
+        self.down_btn.pack(side="left", padx=(2,8))
+
         ttk.Label(self.bar, text="|").pack(side="left", padx=5)
 
         self.save_btn      = _btn("save_btn",      self._save_current_file, "tooltip_save_btn")
