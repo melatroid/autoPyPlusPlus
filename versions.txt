@@ -4,7 +4,7 @@
 - Inspector reads specific logs on top
 - autopy++ runs primary in venv envirnoment
 
-### (lastest) Version 2.42
+### (Preview) Version 2.42
 - Bugfix in main compiler
 - Move Up/Down Bugfix
 
