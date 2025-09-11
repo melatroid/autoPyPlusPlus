@@ -77,6 +77,7 @@ class AutoPyPlusPlusGUI:
 
         # -------- Fenstergrunddaten -----------------------------------
         master.title(self.texts["title"])
+       
         master.geometry("1450x500")
         master.minsize(1350, 250)
         icon = Path(__file__).parent / "autoPy++.ico"

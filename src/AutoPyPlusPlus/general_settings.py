@@ -39,17 +39,29 @@ def show_general_settings(master, config: dict, style, theme_func):
 
     # Save button
     def save():
-        config["working_dir"] = working_dir_var.get()
+        wd = Path(working_dir_var.get()).expanduser().resolve()
+
+        if not wd.exists():
+            try:
+                wd.mkdir(parents=True, exist_ok=True)
+            except Exception as e:
+                messagebox.showerror("Fehler", f"Kann Arbeitsverzeichnis nicht erstellen:\n{e}")
+                return
+
+        config["working_dir"] = str(wd)
         config["legacy_gui_mode"] = legacy_var.get()
         save_config(config)
-        # Attribute im Parent (dein Main-Window) aktualisieren:
+
+        # Live-Übernahme
         if hasattr(master, "working_dir"):
-            master.working_dir = working_dir_var.get()
+            master.working_dir = str(wd)
         if hasattr(master, "legacy_gui_mode"):
             master.legacy_gui_mode = legacy_var.get()
             if hasattr(master, "_build_ui"):
-                master._build_ui()  # GUI neu aufbauen!
-        messagebox.showinfo("Saved", "Restart AutoPY++!")
+                master._build_ui()
+
+        messagebox.showinfo("Gespeichert", f"Working Directory: {wd}\n(Ein Neustart ist ggf. nur nötig, wenn andere Module den Pfad beim Import cachen.)")
         win.destroy()
+
         
     ttk.Button(win, text="💾 Save", command=save).pack(pady=10)

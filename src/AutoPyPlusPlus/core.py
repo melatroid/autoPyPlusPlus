@@ -1,8 +1,7 @@
 import json
 from pathlib import Path
-from typing import List, Tuple
+from typing import Iterable, Tuple, List, Union
 import shutil
-
 from .project import Project
 from .spec_parser import generate_spec_file
 
@@ -88,45 +87,76 @@ def load_extensions_ini(src_ini: Path, dest_ini: Path) -> None:
     Path(dest_ini).write_text(content, encoding="utf-8")
 
 # === Workdir-Cleanup ===
+def _is_under(path: Path, base: Path) -> bool:
+    try:
+        return path.resolve().is_relative_to(base.resolve())  # Py 3.9+
+    except AttributeError:
+        try:
+            path.resolve().relative_to(base.resolve())
+            return True
+        except Exception:
+            return False
 
-def find_cleanup_targets(work_dir: Path) -> Tuple[list, list]:
-    print("Working dir:", Path.cwd())
+def find_cleanup_targets(work_dir: Path,
+                         exclude_dirs: Iterable[Path | str] = ("TESTFILES",)
+                        ) -> Tuple[List[Path], List[Path]]:
     """
-    Liefert zwei Listen zurück:
-    - zu löschende Dateien (Logfiles, .spec)
-    - zu löschende Ordner (build, dist, __pycache__)
+    Findet zu löschende Dateien & Ordner im work_dir, klammert TESTFILES (oder weitere) aus.
+
+    Dateien (rekursiv): compile_*, *.spec, *.log, *.txt
+    Ordner (rekursiv): build, _build, dist, __pycache__, *egg-info
     """
-    files = []
-    folders = []
-    for f in work_dir.iterdir():
-        if f.is_file() and (
-            f.name.startswith("compile_")
-            or f.name.endswith(".spec")
-            or f.name.endswith(".log")
-            or f.name.endswith(".txt")
-        ):
-            files.append(f)
-    for d in ["build", "dist", "AutoPyplusplus/__pycache__"]:
-        dir_path = work_dir / d
-        if dir_path.exists():
-            folders.append(dir_path)
+    work_dir = work_dir.resolve()
+    print("Working dir:", work_dir)
+
+    # Excludes auflösen
+    exclude_paths: List[Path] = []
+    for e in exclude_dirs:
+        ep = (work_dir / e) if isinstance(e, str) else Path(e)
+        exclude_paths.append(ep.resolve())
+
+    def _excluded(p: Path) -> bool:
+        return any(_is_under(p, ex) for ex in exclude_paths)
+
+    # --- Dateien sammeln (rekursiv) ---
+    file_patterns = ["compile_*", "*.spec", "*.log", "*.txt"]
+    files: List[Path] = []
+    for pat in file_patterns:
+        for p in work_dir.rglob(pat):
+            if p.is_file() and not _excluded(p):
+                files.append(p)
+
+    # --- Ordner sammeln (rekursiv) ---
+    folder_names = {"build", "_build", "dist", "__pycache__"}
+    folders: List[Path] = []
+
+    for p in work_dir.rglob("*"):
+        if p.is_dir() and not _excluded(p):
+            name = p.name
+            if name in folder_names or name.endswith(".egg-info"):
+                folders.append(p)
+
+    # Deduplizieren + sortieren (optional nur für stabile Ausgabe)
+    files    = sorted(set(files))
+    folders  = sorted(set(folders))
+
     return files, folders
 
+
 def delete_files_and_dirs(targets: List[Path]) -> int:
-    """Löscht alle übergebenen Dateien/Ordner. Gibt die Anzahl der gelöschten Objekte zurück."""
     deleted = 0
     for t in targets:
         try:
             if t.is_file():
-                t.unlink()
+                # missing_ok=True verhindert Race-Conditions (falls schon weg)
+                t.unlink(missing_ok=True)
                 deleted += 1
             elif t.is_dir():
-                shutil.rmtree(t)
+                shutil.rmtree(t, ignore_errors=False)
                 deleted += 1
         except Exception as e:
-            print(f"[ERROR] Konnte {t} nicht löschen: {e}")
+            print(f"[ERROR] Konnte {t} nicht löschen: {e!r}")
     return deleted
-
 # === Projekt-Konsistenzprüfung ===
 
 def fix_project_consistency(projects: List[Project]) -> None:
