@@ -4,6 +4,10 @@
 - Inspector reads specific logs on top
 - autopy++ runs primary in venv envirnoment
 
+### (Preview) Version 2.43
+- Bugfix Processbar color
+
+
 ### (lastest) Version 2.42
 - Bugfix in main compiler
 - Move Up/Down Bugfix
