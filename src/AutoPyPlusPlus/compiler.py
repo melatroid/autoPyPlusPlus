@@ -16,38 +16,37 @@ from .CPG0000000 import CPG0000000  # Sphinx
 
 def compile_single(project: Project, log_file, compiler: str = "both") -> str:
     try:
-        # Debugging-Ausgabe für Konsole
-        #print(f"[DEBUG] compile_single START for {project.name or project.script}")
-        #print(f"[DEBUG] Compiler: {compiler}")
-        #print(f"[DEBUG] use_nuitka: {project.use_nuitka}, use_pyarmor: {project.use_pyarmor}")
-        #print(f"[DEBUG] use_cython: {project.use_cython}, use_cpp: {project.use_cpp}")
-        #print(f"[DEBUG] Project config: {project.to_dict()}")
+        # Debug prints for console
+        # print(f"[DEBUG] compile_single START for {project.name or project.script}")
+        # print(f"[DEBUG] Compiler: {compiler}")
+        # print(f"[DEBUG] use_nuitka: {project.use_nuitka}, use_pyarmor: {project.use_pyarmor}")
+        # print(f"[DEBUG] use_cython: {project.use_cython}, use_cpp: {project.use_cpp}")
+        # print(f"[DEBUG] Project config: {project.to_dict()}")
 
         log_file.write(f"--- compile_single() START for {project.name or project.script} (compiler={compiler}) ---\n")
-        #log_file.write(f"Project config: {project.to_dict()}\n")
+        # log_file.write(f"Project config: {project.to_dict()}\n")
         log_file.flush()
 
-
         if getattr(project, "use_pytest_standalone", False) and getattr(project, "use_sphinx_standalone", False):
-            msg = "Fehler: Sowohl Pytest- als auch Sphinx-Standalone aktiviert. Nur eins ist erlaubt!"
+            msg = "Error: Both Pytest and Sphinx standalone are enabled. Only one is allowed!"
             log_file.write(msg + "\n")
             log_file.flush()
             return msg
 
-        # --- 1. Pytest vor Kompilierung ---
+        # --- 1. Pytest before compilation ---
         if getattr(project, "use_pytest", False):
             log_file.write("Running pytest before compilation...\n")
             log_file.flush()
-            # Prüfe Standalone-Modus!
+            # Check standalone mode
             if getattr(project, "use_pytest_standalone", False):
                 try:
                     result = CPF0000000.run_pytest(project, log_file)
-                    return f"Pytest Standalone: {result}"  # Sofortiger Return
+                    return f"Pytest Standalone: {result}"  # Immediate return
                 except Exception as e:
                     err = f"Pytest Standalone failed: {e}"
                     log_file.write(err + "\n")
                     log_file.flush()
-                    return err  # Build abbrechen!
+                    return err  # Abort build
             else:
                 try:
                     CPF0000000.run_pytest(project, log_file)
@@ -55,22 +54,22 @@ def compile_single(project: Project, log_file, compiler: str = "both") -> str:
                     err = f"Pytest failed for {project.name or project.script}: {e}"
                     log_file.write(err + "\n")
                     log_file.flush()
-                    return err  # Build abbrechen!
+                    return err  # Abort build
 
-        # --- 2. Sphinxy/Sphinx vor Kompilierung ---
+        # --- 2. Sphinx before compilation ---
         if getattr(project, "use_sphinx", False):
             log_file.write("Running sphinx before compilation...\n")
             log_file.flush()
-            # Prüfe Standalone-Modus!
+            # Check standalone mode
             if getattr(project, "use_sphinx_standalone", False):
                 try:
                     result = CPG0000000.run_sphinx(project, log_file)
-                    return f"Sphinx Standalone: {result}"  # Sofortiger Return
+                    return f"Sphinx Standalone: {result}"  # Immediate return
                 except Exception as e:
                     err = f"Sphinx Standalone failed: {e}"
                     log_file.write(err + "\n")
                     log_file.flush()
-                    return err 
+                    return err
             else:
                 try:
                     CPG0000000.run_sphinx(project, log_file)
@@ -136,7 +135,7 @@ def compile_single(project: Project, log_file, compiler: str = "both") -> str:
         log_file.write(f"Completed {project.name or project.script}\n")
         log_file.flush()
 
-        # --- Zusätzliche Dateien kopieren in den Output-Ordner ---
+        # --- Copy additional files into the output directory ---
         try:
             out_dir = Path(
                 project.cython_output_dir
@@ -151,11 +150,11 @@ def compile_single(project: Project, log_file, compiler: str = "both") -> str:
                     log_file.write(f"Copied additional file {src_path} -> {dst}\n")
             log_file.flush()
         except Exception as e:
-            print(f"[DEBUG] Fehler beim Kopieren zusätzlicher Dateien: {e}")
+            print(f"[DEBUG] Error while copying additional files: {e}")
             log_file.write(f"Error copying additional files: {e}\n")
             log_file.flush()
 
-        return f"{project.name or Path(project.script).stem} done."
+        return f"{project.name or Path(project.script).stem} done"
     except Exception as e:
         msg = f"Error with {project.name or project.script}: {e}"
         print(f"[DEBUG] {msg}")
@@ -174,9 +173,9 @@ def compile_projects(
     compiler: str = "both"
 ) -> List[str]:
     """
-    Kompiliert mehrere Projekte parallel im angegebenen Modus und mit dem gewählten Compiler.
-    - mode: "A", "B" oder "C" zur Auswahl der Projekte.
-    - compiler: "pyarmor", "nuitka", "cython", "pyinstaller" oder "both".
+    Compile multiple projects in parallel in the given mode and with the selected compiler.
+    - mode: "A", "B" or "C" to select the projects.
+    - compiler: "pyarmor", "nuitka", "cython", "pyinstaller" or "both".
     """
     print(f"[DEBUG] compile_projects START: {len(projects)} projects, thread_count={thread_count}, mode={mode}, compiler={compiler}")
     selected_projects = [

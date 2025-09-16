@@ -121,6 +121,11 @@ class AutoPyPlusPlusGUI:
         self.thread_count_var.trace_add("write", self._save_thread_count)
         # -------- UI aufbauen & Projekte laden ------------------------
         self.status_var = tk.StringVar(value=self.texts["status_ready"])
+        self._status_lock = threading.Lock()
+        self._last_user_status = self.texts["status_ready"]
+        self._hold_until_ts = 0.0        
+        self._default_hold_ms = int(self.config.get("status_hold_ms", 2000))
+        
         self._build_ui()        
         self._auto_load()
         self._register_hotkeys()
@@ -278,6 +283,17 @@ class AutoPyPlusPlusGUI:
             return self.texts["mode_c"]
         else:
             return self.texts["mode_a"]
+
+    def set_status(self, msg: str, hold_ms: int | None = None) -> None:
+        """Setzt den Status-Text und schützt ihn für hold_ms Millisekunden vor der Animation."""
+        if hold_ms is None:
+            hold_ms = self._default_hold_ms
+        now = time.time()
+        with self._status_lock:
+            self._last_user_status = msg
+            self._hold_until_ts = now + (hold_ms / 1000.0)
+            self.status_var.set(msg)
+            self.master.update_idletasks()
 
     def _select_language(self, lang):
         self.language_var.set(lang)
@@ -1122,20 +1138,23 @@ class AutoPyPlusPlusGUI:
             messagebox.showerror("Fehler", "Unbekanntes Exportformat!")
 
                 
-    def run_status_animation(self, stop_event: threading.Event, message: str = "Work...", interval: float = 0.2) -> None:
+    def run_status_animation(self, stop_event: threading.Event, interval: float = 0.15) -> None:
         idx = 0
-        chars = ["⠁", "⠃", "⠇", "⠧", "⠷", "⠿", "⠷", "⠧", "⠇", "⠃", "⠁", " "]
+        frames = ["⠁","⠃","⠇","⠧","⠷","⠿","⠷","⠧","⠇","⠃","⠁"]
         while not stop_event.is_set():
-            #current_status = self.status_var.get()
-            # Animation nur anzeigen, wenn der Status derzeit "bereit" oder leer ist
-            self.status_var.set(chars[idx % len(chars)])
+            now = time.time()
+            with self._status_lock:
+                # Nur animieren, wenn die Schutzzeit vorbei ist
+                if now >= self._hold_until_ts:
+                    base = self._last_user_status or self.texts.get("status_ready","Ready")
+                    spinner = frames[idx % len(frames)]
+                    # Nur anhängen, nicht überschreiben
+                    self.status_var.set(f"{base}  {spinner}")
+                # Falls noch Schutzzeit: nichts tun (User-Text bleibt stehen)
             idx += 1
             self.master.update_idletasks()
             time.sleep(interval)
-        # Animation stoppen – Status nur zurücksetzen, wenn er nicht währenddessen geändert wurde
-        final_status = self.status_var.get()
-        if final_status in chars:
-            self.master.after(0, lambda: self.status_var.set(self.texts["status_ready"]))
+
 
     def compile_all(self):
         print("Start compilation...")
@@ -1175,7 +1194,7 @@ class AutoPyPlusPlusGUI:
                 log_hdl.flush()
 
                 def upd_status(msg):
-                    self.status_var.set(msg)
+                    self.master.after(0, lambda: self.set_status(msg, hold_ms=2000))
 
                 def upd_prog(cur, total):
                     prog.set((cur / total) * 100)
