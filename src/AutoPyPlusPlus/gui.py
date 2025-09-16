@@ -103,15 +103,15 @@ class AutoPyPlusPlusGUI:
         default_theme = 1  # Index 1 = set_light_mode
         self.current_theme_index = self.config.get("theme", default_theme) % len(self.themes)
         self.themes[self.current_theme_index](self.style, master)
-        self.current_theme_index = self.config.get("theme", default_theme) % len(self.themes)
-        self.themes[self.current_theme_index](self.style, master)
-
+        
+            
         # -------- Farben ----------------------------------------------
         self.color_a: str = self.config.get("color_a", "#43d6b5")   
         self.color_b: str = self.config.get("color_b", "#4a1aae")   
         self.color_c: str = self.config.get("color_c", "#cd146c")   
         self.default_bg: str = "#ffffff"
-
+        self.pb_style_name = "Compile.Horizontal.TProgressbar"
+        self._apply_progressbar_style()
         # -------- Thread-Anzahl (wird automatisch gespeichert) --------
         self.max_threads = max(1, (os.cpu_count() or 1))
         init_threads = int(self.config.get("thread_count", self.max_threads) or self.max_threads)
@@ -291,6 +291,7 @@ class AutoPyPlusPlusGUI:
         self.status_var.set(f"Theme gewechselt: {self.theme_names[idx]}")
         self._update_tag_colors()
         self._refresh_tree()
+        self._apply_progressbar_style()
 
     def _move_project_up(self):
         sel = self.tree.selection()
@@ -378,7 +379,6 @@ class AutoPyPlusPlusGUI:
 
 
     def _toggle_mode_by_display_name(self, display_name, mode_names):
-        # Umkehren des Dicts: Anzeige -> Key
         rev = {v: k for k, v in mode_names.items()}
         self.compile_mode_var.set(rev[display_name])
         self._toggle_mode()
@@ -388,6 +388,24 @@ class AutoPyPlusPlusGUI:
         self.tree.tag_configure("mode_a", background=self.color_a, foreground="white")
         self.tree.tag_configure("mode_b", background=self.color_b, foreground="white")
         self.tree.tag_configure("mode_c", background=self.color_c, foreground="white")
+
+
+    def _apply_progressbar_style(self):
+        mode = self.compile_mode_var.get()
+        mode_color = {"A": self.color_a, "B": self.color_b, "C": self.color_c}.get(mode, self.color_a)
+        try:
+            trough = self.style.lookup("TFrame", "background")
+            if not trough:
+                trough = self.default_bg
+        except Exception:
+            trough = self.default_bg
+
+        try:
+            self.style.configure(self.pb_style_name,
+                                 background=mode_color, 
+                                 troughcolor=trough)     
+        except Exception:
+            self.style.configure(self.pb_style_name, background=mode_color)
 
 
     def _toggle_fullscreen(self):
@@ -657,7 +675,7 @@ class AutoPyPlusPlusGUI:
         save_config(self.config)
         self._update_tag_colors()
         self._refresh_tree()
-
+        self._apply_progressbar_style() 
 
     def _update_headings(self):
         mode = self.compile_mode_var.get()
@@ -772,7 +790,7 @@ class AutoPyPlusPlusGUI:
 
         tags = self.tree.item(row_id, "tags")
         if "divider" in tags:
-            return  # Ignoriere Klicks auf Trennzeilen
+            return  
 
         if row_id.startswith("proj_"):
             proj_index = int(row_id.split("_")[1])
@@ -908,15 +926,17 @@ class AutoPyPlusPlusGUI:
         self.status_var.set(f"Theme gewechselt: {selected_theme.__name__}")
         self._update_tag_colors()
         self._refresh_tree()
+        self._apply_progressbar_style()
 
     def _toggle_mode(self):
         #self.mode_btn.config(text=self._mode_label())
         self.status_var.set(f"Aktiver Kompilier-Modus: {self._mode_label()}")
         self.config["compile_mode"] = self.compile_mode_var.get()
         save_config(self.config)
-        self._update_tag_colors()  # <---- WICHTIG!
+        self._update_tag_colors() 
         self._update_headings()
         self._refresh_tree()
+        self._apply_progressbar_style()
 
     def clear_work_dir(self):
         work_dir = Path(__file__).parent.parent
@@ -1102,7 +1122,6 @@ class AutoPyPlusPlusGUI:
             messagebox.showerror("Fehler", "Unbekanntes Exportformat!")
 
                 
-            
     def run_status_animation(self, stop_event: threading.Event, message: str = "Work...", interval: float = 0.2) -> None:
         idx = 0
         chars = ["⠁", "⠃", "⠇", "⠧", "⠷", "⠿", "⠷", "⠧", "⠇", "⠃", "⠁", " "]
@@ -1119,15 +1138,16 @@ class AutoPyPlusPlusGUI:
             self.master.after(0, lambda: self.status_var.set(self.texts["status_ready"]))
 
     def compile_all(self):
-        print(f"Start compilation...")
+        print("Start compilation...")
         stop_event = threading.Event()
-        animation_thread = threading.Thread(target=self.run_status_animation, args=(stop_event,), daemon=True)
-        animation_thread.start()
+        threading.Thread(target=self.run_status_animation, args=(stop_event,), daemon=True).start()
 
         # Fortschrittsbalken im GUI-Thread erzeugen
         prog = tk.DoubleVar(value=0)
-        pb = ttk.Progressbar(self.main_frame, variable=prog, maximum=100)
+        self._apply_progressbar_style()
+        pb = ttk.Progressbar(self.main_frame, variable=prog, maximum=100, style=self.pb_style_name)
         pb.pack(fill="x", pady=5)
+
 
         def do_compile():
             try:
