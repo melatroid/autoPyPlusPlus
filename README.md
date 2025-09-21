@@ -102,7 +102,7 @@ Before you use this software:
 > This software is currently under development.  
 > **Backup your files before you start compiling!** Errors in the software or incorrect flags could delete your files!  
 > It can contain bugs that crash your whole system... use it carefully.  
-> Send us error reports with detailed text and screenshots to: dseccg@gmail.com
+> Send us error reports with detailed text and screenshots to: info@nexosoft-engineering.de
 
 ---
 
@@ -271,6 +271,7 @@ gcc --version
 ```
 
 ---
+
 
 
 
