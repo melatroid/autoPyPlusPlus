@@ -1,6 +1,7 @@
 <img src="https://autopyplusplus.wordpress.com/wp-content/uploads/2025/05/autopy-2.png" alt="Alt-Text" width="100" />
 
-# Version 2.42
+# Version 2.43
+www.nexosoft-engineering.de/autopyplusplus
 
 # Status
 
@@ -270,6 +271,7 @@ gcc --version
 ```
 
 ---
+
 
 
 
