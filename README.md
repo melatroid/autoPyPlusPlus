@@ -1,7 +1,6 @@
-<img src="https://autopyplusplus.wordpress.com/wp-content/uploads/2025/05/autopy-2.png" alt="Alt-Text" width="100" />
+<img src="https://nexosoft-engineering.de/autopyplusplus/logo.png" alt="Alt-Text" width="100" />
 
 # Version 2.43
-www.nexosoft-engineering.de/autopyplusplus
 
 # Status
 
@@ -271,6 +270,7 @@ gcc --version
 ```
 
 ---
+
 
 
 
