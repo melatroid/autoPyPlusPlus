@@ -1,4 +1,5 @@
 import os
+import webbrowser
 import tkinter as tk
 from tkinter import ttk
 
@@ -7,13 +8,12 @@ def show_about_dialog(master, style, theme_func):
 
     about_win = tk.Toplevel(master)
     about_win.title("About AutoPy++")
-    about_win.geometry("250x570")
+    about_win.geometry("300x500")
     about_win.resizable(False, False)
     about_win.transient(master)
     about_win.grab_set()
     about_win.protocol("WM_DELETE_WINDOW", lambda: None)
 
-    # --- Fenster-Icon (.ico) ---
     try:
         about_win.iconbitmap('autoPy++.ico')
     except Exception:
@@ -27,23 +27,9 @@ def show_about_dialog(master, style, theme_func):
 
     # Centering config
     main_frame.grid_columnconfigure(0, weight=1)
-    main_frame.grid_rowconfigure("all", weight=1)
 
     row = 0
 
-    # --- ICO im Fenster mit fester Größe ---
-    try:
-        from PIL import Image, ImageTk
-        ico_img = Image.open("autoPy++.ico").resize((64, 64), Image.LANCZOS)
-        ico_photo = ImageTk.PhotoImage(ico_img)
-        ico_label = ttk.Label(main_frame, image=ico_photo)
-        ico_label.image = ico_photo
-        ico_label.grid(row=row, column=0, pady=(4, 8), padx=(65, 0), sticky="w")
-        row += 1
-    except Exception as e:
-        print("ICO konnte nicht geladen werden:", e)
-
-    # --- about.png darunter ---
     try:
         about_img = tk.PhotoImage(file="about.png")
         img_label = ttk.Label(main_frame, image=about_img)
@@ -53,19 +39,30 @@ def show_about_dialog(master, style, theme_func):
     except Exception as e:
         print("about.png konnte nicht geladen werden:", e)
 
-    # --- Text ---
     text = (
-        "Version 2.42 (Date: 12.09.2025)\n"
+        "Version 2.43 (Date: 21.09.2025)\n"
         "Developer: melatroid\n"
         "© 2025 by melatroid\n"
-        "Bug reports: dseccg@gmail.com\n"
-        "www.autopyplusplus.wordpress.com\n\n"
+        "info@nexosoft-engineering.de\n"
+        "nexosoft-engineering.de/autopyplusplus/\n\n"
         "License: MIT License\n\n"
         "Buy me a coffee 😊☕\n"
         "Software is a lot of work\n please respect it.\n"
     )
     label = ttk.Label(main_frame, text=text, justify="center", font=("Segoe UI", 10))
     label.grid(row=row, column=0, pady=8)
+    row += 1
+
+    # --- Website Button ---
+    website_url = "https://nexosoft-engineering.de/autopyplusplus/"
+    def open_website():
+        try:
+            webbrowser.open(website_url, new=2)  # new=2 -> neuer Tab, falls möglich
+        except Exception as e:
+            print("Konnte Webseite nicht öffnen:", e)
+
+    website_button = ttk.Button(main_frame, text="🌐 Website", command=open_website)
+    website_button.grid(row=row, column=0, pady=(0, 10))
     row += 1
 
     # --- PayPal ---
@@ -118,4 +115,4 @@ def show_about_dialog(master, style, theme_func):
             countdown_var.set("Enjoy!")
             about_win.after(350, about_win.destroy)
 
-    update_countdown(3)
+    update_countdown(5)
