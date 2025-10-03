@@ -367,9 +367,9 @@ class AutoPyPlusPlusGUI:
         # ----- Build -----
         self.build_menu = tk.Menu(self.menubar, tearoff=False)
         self.menubar.add_cascade(label=self.texts.get("menu_build", "Build"), menu=self.build_menu)
-        self.build_menu.add_command(label=self.texts.get("menu_compile_all", "Compile All"), command=self.compile_all)
+        self.build_menu.add_command(label=self.texts.get("menu_compile_all", "🚀 Compile All"), command=self.compile_all)
         self.build_menu.add_separator()
-        self.build_menu.add_command(label=self.texts.get("menu_clean_workdir", "Clean Working Directory"), command=self.clear_work_dir)
+        self.build_menu.add_command(label=self.texts.get("menu_clean_workdir", "🧹 Clean Working Directory"), command=self.clear_work_dir)
 
         # ----- Settings -----
         self.settings_menu = tk.Menu(self.menubar, tearoff=False)
@@ -982,8 +982,9 @@ class AutoPyPlusPlusGUI:
 
     def _delete_files(self, targets):
         deleted_files = delete_files_and_dirs(targets)
-        self.status_var.set(f"{deleted_files} files/folders deleted in working directory.")
-        self.master.after(0, lambda: messagebox.showinfo("Done", f"{deleted_files} files/folders deleted."))
+        # nur Statusleiste, kein Popup
+        self.master.after(0, lambda: self.set_status(f"{deleted_files} files/folders deleted.", hold_ms=3000))
+
 
 
     def _save(self):
@@ -1177,10 +1178,11 @@ class AutoPyPlusPlusGUI:
                     or (mode == "B" and p.compile_b_selected)
                     or (mode == "C" and p.compile_c_selected)
                 ]
+                
                 if not selected:
-                    self.master.after(0, lambda: messagebox.showwarning("Error", self.texts["error_no_entry"]))
+                    self.master.after(0, lambda: self.set_status(self.texts["error_no_entry"], hold_ms=2500))
                     return
-
+                
                 if selected:
                     proj_name = selected[0].name.replace(" ", "_")
                     if len(selected) > 1:
@@ -1239,12 +1241,20 @@ class AutoPyPlusPlusGUI:
                     ))
 
             except Exception as e:
-                self.master.after(0, lambda: (
-                    self.status_var.set("Kompilierung fehlgeschlagen."),
-                    messagebox.showerror("Error", f"Kompilierung fehlgeschlagen: {e}")
-                ))
-                with open(log_hdl.name, "a", encoding="utf-8") as log_hdl:
-                    log_hdl.write(f"Compilation failed: {e}\n")
+                def _on_fail():
+                    self.status_var.set("Kompilierung fehlgeschlagen.")
+                    # ins Log schreiben (falls vorhanden)
+                    try:
+                        with open(log_hdl.name, "a", encoding="utf-8") as _hdl:
+                            _hdl.write(f"Compilation failed: {e}\n")
+                    except Exception:
+                        pass
+                    # Popup ENTFERNT – direkt Inspector öffnen, wenn es ein Log gibt
+                    if 'log_hdl' in locals():
+                        debuginspector(self.master, log_hdl.name, [], self.style, self.config)
+                self.master.after(0, _on_fail)
+
+
             finally:
                 stop_event.set()
                 self.master.after(0, pb.destroy)

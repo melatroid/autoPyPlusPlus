@@ -40,11 +40,9 @@ def show_about_dialog(master, style, theme_func):
         print("about.png konnte nicht geladen werden:", e)
 
     text = (
-        "Version 2.43 (Date: 21.09.2025)\n"
-        "Developer: melatroid\n"
+        "Version 2.44 Preview (Date: 03.10.2025)\n"
         "© 2025 by melatroid\n"
         "info@nexosoft-engineering.de\n"
-        "nexosoft-engineering.de/autopyplusplus/\n\n"
         "License: MIT License\n\n"
         "Buy me a coffee 😊☕\n"
         "Software is a lot of work\n please respect it.\n"
