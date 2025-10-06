@@ -4,11 +4,14 @@
 - Inspector reads specific logs on top
 - autopy++ runs primary in venv envirnoment
 
-### (preview) Version 2.44
+### (lastest) Version 2.45
+- (NEW) Use simplexAPI.ini to control autopy++ from any ide
+
+### Version 2.44
 - Fewer annoying pop-up windows
 - Tiny Bugs
 
-### (lastest) Version 2.43
+### Version 2.43
 - Bugfix Processbar color
 - Bugfix Compiler Messages
 
