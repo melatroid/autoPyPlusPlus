@@ -18,6 +18,8 @@ from .help import show_main_helper
 
 from .about import show_about_dialog
 
+from .simplex_api import SimplexAPIWatcher
+
 from .debuginspector import debuginspector
 
 from .project import Project
@@ -130,6 +132,23 @@ class AutoPyPlusPlusGUI:
         self._auto_load()
         self._register_hotkeys()
         show_about_dialog(self.master, self.style, self.themes[self.current_theme_index])
+        
+        # --- Simplex API Watcher ---
+        ini_path = (self.working_dir / "simplexAPI.ini")
+        self._simplex_watcher = SimplexAPIWatcher(self, ini_path, poll_interval=1.0)
+        self._simplex_watcher.start()
+
+        def _on_close():
+            try:
+                if hasattr(self, "_simplex_watcher"):
+                    self._simplex_watcher.stop()
+            except Exception:
+                pass
+            self.master.quit()
+
+        self.master.protocol("WM_DELETE_WINDOW", _on_close)
+                        
+        
     # ------------------------- Hilfsmethoden --------------------------
 
     def _build_ui(self):
