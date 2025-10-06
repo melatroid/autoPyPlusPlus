@@ -48,8 +48,6 @@
 
 ---
 
-
-
 # Setup & Usage Guide
 
 ---
@@ -191,6 +189,31 @@ echo $MSYSTEM
 - Press the "Save" button often when making changes in your project settings.
 
 ---
+
+# Simplex-API Usage
+
+- Set a flag to ON (or any truthy value listed below) to trigger the action.
+- The watcher detects a rising edge (OFF -> ON) and runs the action once.
+- If AutoReset=true, the watcher will write the flag back to OFF after firing.
+
+Accepted truthy values: 1, true, on, yes, y, an, ein, aktiv, start
+Accepted falsy values : 0, false, off, no, n, aus, stop
+Optional settings:
+Mode        : A | B | C       (compile mode to apply before actions)
+ThreadCount : integer >=1     (clamped to [1..max threads] in GUI)
+AutoReset   : true | false    (true = write flag back to OFF after trigger)
+
+Notes:
+; - Place this file in the working directory that the GUI uses.
+```python
+[Simplex]
+Compile_all = OFF
+Inspector = OFF
+DeleteLogs = OFF
+AutoReset = true
+```
+---
+
 # Nuitka Usage
 
 To startup nuitka compiled .exe files you need to,
@@ -270,6 +293,7 @@ gcc --version
 ```
 
 ---
+
 
 
 
