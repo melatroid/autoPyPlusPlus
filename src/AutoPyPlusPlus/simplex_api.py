@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Callable
 
 # Accept a flexible set of boolean spellings (both EN/DE allowed for convenience).
-TRUTHY = {"1", "true", "on", "yes", "y", "an", "ein", "aktiv", "start"}
+TRUTHY = {"1", "true", "on", "yes", "y", "an", "ein", "aktiv", "activ","start"}
 FALSY  = {"0", "false", "off", "no", "n", "aus", "stop"}
 
 def _to_bool(s: str | None) -> bool:
@@ -152,3 +152,4 @@ class SimplexAPIWatcher(threading.Thread):
         if not cfg.has_section(section):
             cfg.add_section(section)
         cfg[section][key] = "OFF"
+
