@@ -1,6 +1,5 @@
 <img src="https://nexosoft-engineering.de/autopyplusplus/git.png" alt="Alt-Text" width="250" />
 
-
 # Version 2.45
 
 # Status
@@ -294,6 +293,7 @@ gcc --version
 ```
 
 ---
+
 
 
 
