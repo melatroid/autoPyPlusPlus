@@ -1,0 +1,13 @@
+//
+//Type this in Windows Powershell:
+
+//1.) Install Git :
+
+winget install --id Git.Git -e
+
+//2.) Check version
+git --versiongit --version
+
+//3.) Start Git update 
+git --versiongit --version
+
