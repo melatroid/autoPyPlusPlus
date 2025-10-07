@@ -4,8 +4,11 @@
 - Inspector reads specific logs on top
 - autopy++ runs primary in venv envirnoment
 
+### (preview) Version 2.46
+- hashcheck.py for more security
+
 ### (lastest) Version 2.45
-- (NEW) Use simplexAPI.ini to control autopy++ from any ide
+- Use simplexAPI.ini to control autopy++ from any ide
 
 ### Version 2.44
 - Fewer annoying pop-up windows
