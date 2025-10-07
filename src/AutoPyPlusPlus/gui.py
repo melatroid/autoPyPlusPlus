@@ -56,8 +56,6 @@ from .themes import (
 
 
 class AutoPyPlusPlusGUI:
-    """GUI mit zwei Checkbox-Spalten: *Kompilieren A* und *Kompilieren B*."""
-
     # ------------------------------ init -------------------------------
     def __init__(self, master: tk.Tk):
         
@@ -66,7 +64,6 @@ class AutoPyPlusPlusGUI:
         self.config = load_config()
         self.projects: list[Project] = []
         self.working_dir = Path(self.config.get("working_dir")) if self.config.get("working_dir") else Path(__file__).parent.parent
-        self.legacy_gui_mode = bool(self.config.get("legacy_gui_mode", False))
 
         # -------- Sprache / Texte -------------------------------------
         self.current_language = self.config.get("language", "de")
@@ -98,8 +95,8 @@ class AutoPyPlusPlusGUI:
 
         self.theme_names = [
             "Dark", "Light", "Arctic Blue", "Galaxy", "Sunset", "Forest", "Retro",
-            "Pastel", "Autumn", "Candy", "Inferno", "Cyberpunk", "Obsidian",
-            "Nebula", "Midnight Forest", "Phantom", "Deep Space", "Onyx", "Lava Flow"
+            "Pastel", "Autumn", "Candy", "Inferno Red", "Cyberpunk", "Obsidian",
+            "Nebula", "Midnight Forest", "Phantom", "Developer", "Onyx Grey", "Lava Flow"
         ]
         
         default_theme = 1  # Index 1 = set_light_mode
@@ -152,7 +149,6 @@ class AutoPyPlusPlusGUI:
     # ------------------------- Hilfsmethoden --------------------------
 
     def _build_ui(self):
-        # vorhandene Widgets (außer Toplevels) entfernen, dann alles neu aufbauen
         for w in self.master.winfo_children():
             if isinstance(w, tk.Toplevel):
                 continue

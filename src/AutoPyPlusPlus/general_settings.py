@@ -9,8 +9,7 @@ from .config import save_config
 def show_general_settings(master, config: dict, style, theme_func):
     win = tk.Toplevel(master)
     win.title("AutoPy++ – General Settings")
-    win.geometry("560x260")
-    # win.resizable(False, False)
+    win.geometry("560x220") 
     win.transient(master)
     win.grab_set()
 
@@ -83,35 +82,25 @@ def show_general_settings(master, config: dict, style, theme_func):
         row=0, column=4, padx=(6, 0), pady=(0, 6), sticky="e"
     )
 
-    # Horizontal scrollbar for very long paths (spans columns 1..4)
+    # Horizontal scrollbar
     xscroll = ttk.Scrollbar(
         frame_dir, orient="horizontal", command=entry_dir.xview
     )
     xscroll.grid(row=1, column=1, columnspan=4, sticky="ew")
     entry_dir.configure(xscrollcommand=xscroll.set)
 
-    # --- Legacy GUI Mode ---
-    legacy_var = tk.BooleanVar(value=config.get("legacy_gui_mode", False))
-    ttk.Checkbutton(
-        win, text="Legacy GUI Mode", variable=legacy_var
-    ).pack(anchor="w", padx=18, pady=(4, 0))
-
-    # Save button (enabled only when changed)
+    # Save button
     save_btn = ttk.Button(win, text="💾 Save")
     save_btn.pack(pady=10)
 
     def _toggle_save_btn(*_):
-        changed = (
-            working_dir_var.get() != original_wd
-            or bool(legacy_var.get()) != bool(config.get("legacy_gui_mode", False))
-        )
+        changed = (working_dir_var.get() != original_wd)
         if changed:
             save_btn.state(["!disabled"])
         else:
             save_btn.state(["disabled"])
 
     working_dir_var.trace_add("write", _toggle_save_btn)
-    legacy_var.trace_add("write", _toggle_save_btn)
     _toggle_save_btn()
 
     def save():
@@ -131,7 +120,7 @@ def show_general_settings(master, config: dict, style, theme_func):
                 messagebox.showerror("Error", f"Cannot create working directory:\n{e}")
                 return
 
-        # writeability check
+        # writability check
         try:
             testfile = wd / ".appp_write_test.tmp"
             with open(testfile, "w", encoding="utf-8") as f:
@@ -145,20 +134,13 @@ def show_general_settings(master, config: dict, style, theme_func):
             messagebox.showerror("Error", f"Directory is not writable:\n{e}")
             return
 
+
         config["working_dir"] = str(wd)
-        config["legacy_gui_mode"] = bool(legacy_var.get())
         save_config(config)
 
         # Apply live changes
         if hasattr(master, "working_dir"):
             master.working_dir = str(wd)
-        if hasattr(master, "legacy_gui_mode"):
-            master.legacy_gui_mode = bool(legacy_var.get())
-            if hasattr(master, "_build_ui"):
-                try:
-                    master._build_ui()
-                except Exception:
-                    pass
 
         messagebox.showinfo(
             "Saved",
