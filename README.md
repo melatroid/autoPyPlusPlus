@@ -202,10 +202,10 @@ ThreadCount : integer >=1     (clamped to [1..max threads] in GUI)
 AutoReset   : true | false    (true = write flag back to OFF after trigger)
 
 ```python
-[Simplex]
-Compile_all = 1 
-Inspector = OFF
-DeleteLogs = 1
+[Simplex Example Configuration]
+Compile_all = 1
+Inspector = stop
+DeleteLogs = true
 AutoReset = true
 ```
 ---
@@ -289,6 +289,7 @@ gcc --version
 ```
 
 ---
+
 
 
 
