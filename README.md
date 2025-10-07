@@ -2,8 +2,6 @@
 
 # Version 2.45
 
-# Status
-
 | Component   | Status                        |
 |-------------|-------------------------------|
 | Sphinx      | works (not fully tested)      |
@@ -293,6 +291,7 @@ gcc --version
 ```
 
 ---
+
 
 
 
