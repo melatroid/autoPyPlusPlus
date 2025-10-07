@@ -6,6 +6,7 @@
 
 ### (preview) Version 2.46
 - hashcheck.py for more security
+- update service for powershell and git
 - bugfix path in general settings editor
 
 ### (lastest) Version 2.45
