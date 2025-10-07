@@ -3,7 +3,7 @@ import hashlib
 import os
 import threading
 import queue
-import time  # <— NEU
+import time 
 from typing import List, Tuple
 import tkinter as tk
 from tkinter import ttk, filedialog, messagebox
@@ -295,3 +295,4 @@ if __name__ == "__main__":
     app = HashCompareApp(root)
     root.geometry("700x360")
     root.mainloop()
+
