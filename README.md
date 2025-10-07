@@ -194,8 +194,8 @@ echo $MSYSTEM
 - The watcher detects a rising edge (OFF -> ON) and runs the action once.
 - If AutoReset=true, the watcher will write the flag back to OFF after firing.
 
-Accepted truthy values: 1, true, on, yes, y, an, ein, aktiv, start
-Accepted falsy values : 0, false, off, no, n, aus, stop
+- Accepted truthy values: 1, true, on, yes, y, an, ein, aktiv, start
+- Accepted falsy values : 0, false, off, no, n, aus, stop
 Optional settings:
 Mode        : A | B | C       (compile mode to apply before actions)
 ThreadCount : integer >=1     (clamped to [1..max threads] in GUI)
@@ -203,9 +203,9 @@ AutoReset   : true | false    (true = write flag back to OFF after trigger)
 
 ```python
 [Simplex]
-Compile_all = OFF
+Compile_all = 1 
 Inspector = OFF
-DeleteLogs = OFF
+DeleteLogs = 1
 AutoReset = true
 ```
 ---
@@ -289,6 +289,7 @@ gcc --version
 ```
 
 ---
+
 
 
 
