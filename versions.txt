@@ -6,6 +6,7 @@
 
 ### (preview) Version 2.46
 - hashcheck.py for more security
+- bugfix path in general settings editor
 
 ### (lastest) Version 2.45
 - Use simplexAPI.ini to control autopy++ from any ide
