@@ -1,4 +1,4 @@
-Use src/hashcheck.py to compare the hashes:
+Use src/autoPyPlusPlus/hashcheck.py to compare the hashes:
 07.10.2025
 sha256: 64530655f8acc9118a1cbe7d670e25d2f07972472000f3801a79c377f395afc5
 sha384: a1289dc5fe481d1e7b4dbae564cce85ed04cbde2ebb23e86ea3744473e43d3706c432b351cb47d4346341063d4dd355e
