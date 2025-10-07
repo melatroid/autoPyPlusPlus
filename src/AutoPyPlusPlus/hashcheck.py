@@ -30,6 +30,7 @@ ALLOWED_STEMS = {
     "speceditor",
     "nuitkaeditor",
     "gcceditor",
+    "hashcheck",
     "apyeditor"
 }
 
