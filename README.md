@@ -86,8 +86,7 @@
 7. **Update autoPy++ to newer version**
    ```cmd/ powershell
    Read this file -> src/update_howto.txt
-   After that use -> src/windows_update.ps1 
-    
+   After that use -> src/windows_update.ps1
 
 ## More Important!
 
@@ -288,6 +287,7 @@ gcc --version
 ```
 
 ---
+
 
 
 
