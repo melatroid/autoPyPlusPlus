@@ -84,11 +84,8 @@
    (Create a shortcut from this to your desktop and change icon to src\autoPy++.ico)
    
 7. **Update autoPy++ to newer version**
-   ```cmd/ powershell
-   cd c:\pathto\autoPyPlusPlus
-   git pull origin main
-   pip install -r requirements.txt --upgrade
----
+  Read this file: src/update_howto.txt
+  After that use  src/windows_update.ps1 
 
 ## More Important!
 
@@ -289,6 +286,7 @@ gcc --version
 ```
 
 ---
+
 
 
 
