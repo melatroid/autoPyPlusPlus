@@ -9,7 +9,7 @@ from .config import save_config
 def show_general_settings(master, config: dict, style, theme_func):
     win = tk.Toplevel(master)
     win.title("AutoPy++ – General Settings")
-    win.geometry("560x220") 
+    win.geometry("600x300")
     win.transient(master)
     win.grab_set()
 
@@ -17,20 +17,45 @@ def show_general_settings(master, config: dict, style, theme_func):
     if theme_func:
         theme_func(style, win)
 
-    # --- Working Directory ---
-    frame_dir = ttk.LabelFrame(win, text="Working Directory", padding=10)
-    frame_dir.pack(fill="x", padx=16, pady=10)
-
-    # Use grid for stretchy layout
-    frame_dir.columnconfigure(1, weight=1)
-
+    # -------------------- state + helpers --------------------
     working_dir_var = tk.StringVar(
         value=config.get(
             "working_dir",
             os.path.abspath(os.path.join(os.path.dirname(__file__), "..")),
         )
     )
+    enable_hashcheck_var = tk.BooleanVar(value=bool(config.get("enable_hashcheck", True)))
+
     original_wd = working_dir_var.get()
+    original_hash = enable_hashcheck_var.get()
+
+    def enable_save_btn_if_changed(*_):
+        changed = (
+            working_dir_var.get() != original_wd
+            or enable_hashcheck_var.get() != original_hash
+        )
+        if changed:
+            save_btn.state(["!disabled"])
+        else:
+            save_btn.state(["disabled"])
+
+    # ===================== Working Directory =====================
+    frame_dir = ttk.LabelFrame(win, text="Working Directory", padding=10)
+    frame_dir.pack(fill="x", padx=16, pady=(12, 8))
+    frame_dir.columnconfigure(1, weight=1)
+
+    # short description
+    ttk.Label(
+        frame_dir,
+        text="Base folder where logs, artifacts and temporary files are stored.",
+        wraplength=540,
+        foreground="#666",
+    ).grid(row=0, column=0, columnspan=5, sticky="w", pady=(0, 6))
+
+    ttk.Label(frame_dir, text="Path:").grid(row=1, column=0, padx=(0, 6), pady=(0, 6), sticky="w")
+
+    entry_dir = ttk.Entry(frame_dir, textvariable=working_dir_var)
+    entry_dir.grid(row=1, column=1, padx=(0, 6), pady=(0, 6), sticky="ew")
 
     def browse_dir():
         folder = filedialog.askdirectory(
@@ -62,49 +87,49 @@ def show_general_settings(master, config: dict, style, theme_func):
         win.update()
         messagebox.showinfo("Copied", "Working directory path copied to clipboard.")
 
-    # Label
-    ttk.Label(frame_dir, text="Path:").grid(
-        row=0, column=0, padx=(0, 6), pady=(0, 6), sticky="w"
-    )
+    ttk.Button(frame_dir, text="Browse…", width=9, command=browse_dir).grid(row=1, column=2, pady=(0, 6), sticky="e")
+    ttk.Button(frame_dir, text="Open",    width=7, command=open_working_dir).grid(row=1, column=3, padx=(6, 0), pady=(0, 6), sticky="e")
+    ttk.Button(frame_dir, text="Copy",    width=7, command=copy_path).grid(row=1, column=4, padx=(6, 0), pady=(0, 6), sticky="e")
 
-    # Entry that stretches horizontally
-    entry_dir = ttk.Entry(frame_dir, textvariable=working_dir_var)
-    entry_dir.grid(row=0, column=1, padx=(0, 6), pady=(0, 6), sticky="ew")
-
-    # Buttons: Browse / Open / Copy
-    ttk.Button(frame_dir, text="Browse…", width=8, command=browse_dir).grid(
-        row=0, column=2, pady=(0, 6), sticky="e"
-    )
-    ttk.Button(frame_dir, text="Open", width=6, command=open_working_dir).grid(
-        row=0, column=3, padx=(6, 0), pady=(0, 6), sticky="e"
-    )
-    ttk.Button(frame_dir, text="Copy", width=6, command=copy_path).grid(
-        row=0, column=4, padx=(6, 0), pady=(0, 6), sticky="e"
-    )
-
-    # Horizontal scrollbar
-    xscroll = ttk.Scrollbar(
-        frame_dir, orient="horizontal", command=entry_dir.xview
-    )
-    xscroll.grid(row=1, column=1, columnspan=4, sticky="ew")
+    xscroll = ttk.Scrollbar(frame_dir, orient="horizontal", command=entry_dir.xview)
+    xscroll.grid(row=2, column=1, columnspan=4, sticky="ew")
     entry_dir.configure(xscrollcommand=xscroll.set)
 
-    # Save button
-    save_btn = ttk.Button(win, text="💾 Save")
-    save_btn.pack(pady=10)
+    # ===================== Build Safety (Hash Check) =====================
+    frame_hash = ttk.LabelFrame(win, text="Build Safety", padding=10)
+    frame_hash.pack(fill="x", padx=16, pady=(0, 8))
 
-    def _toggle_save_btn(*_):
-        changed = (working_dir_var.get() != original_wd)
-        if changed:
-            save_btn.state(["!disabled"])
-        else:
-            save_btn.state(["disabled"])
+    ttk.Label(
+        frame_hash,
+        text=(
+            "Verify project source checksums against a trusted reference before running ‘Compile All’. "
+            "This helps detect unintended edits or tampering."
+        ),
+        wraplength=540,
+        foreground="#666",
+    ).grid(row=0, column=0, sticky="w", pady=(0, 6))
 
-    working_dir_var.trace_add("write", _toggle_save_btn)
-    _toggle_save_btn()
+    chk = ttk.Checkbutton(
+        frame_hash,
+        text="Enable hash check before ‘Compile All’",
+        variable=enable_hashcheck_var,
+        onvalue=True,
+        offvalue=False,
+        command=enable_save_btn_if_changed,
+    )
+    chk.grid(row=1, column=0, sticky="w")
+
+    # ===================== Save / Close =====================
+    btns = ttk.Frame(win)
+    btns.pack(fill="x", padx=16, pady=(6, 12))
+
+    save_btn = ttk.Button(btns, text="💾 Save")
+    save_btn.pack(side="right")
+    close_btn = ttk.Button(btns, text="Close", command=win.destroy)
+    close_btn.pack(side="right", padx=(0, 8))
 
     def save():
-        # expand %VARS% and ~
+        # Resolve and validate working dir
         raw = working_dir_var.get()
         expanded = os.path.expandvars(os.path.expanduser(raw))
         wd = Path(expanded).resolve()
@@ -134,19 +159,30 @@ def show_general_settings(master, config: dict, style, theme_func):
             messagebox.showerror("Error", f"Directory is not writable:\n{e}")
             return
 
-
+        # persist
         config["working_dir"] = str(wd)
+        config["enable_hashcheck"] = bool(enable_hashcheck_var.get())
         save_config(config)
 
-        # Apply live changes
+        # live-apply to main window if available
         if hasattr(master, "working_dir"):
-            master.working_dir = str(wd)
+            master.working_dir = wd
+        if hasattr(master, "enable_hashcheck_var"):
+            try:
+                master.enable_hashcheck_var.set(bool(enable_hashcheck_var.get()))
+            except Exception:
+                pass
 
         messagebox.showinfo(
             "Saved",
             f"Working Directory: {wd}\n"
-            "(A restart might only be necessary if other modules cache the path during import.)",
+            f"Hash Check: {'enabled' if enable_hashcheck_var.get() else 'disabled'}\n\n"
+            "(A restart might only be necessary if other modules cache settings during import.)",
         )
         win.destroy()
 
     save_btn.configure(command=save)
+
+    # traces to enable/disable save
+    working_dir_var.trace_add("write", enable_save_btn_if_changed)
+    enable_save_btn_if_changed()  # evaluate initial state

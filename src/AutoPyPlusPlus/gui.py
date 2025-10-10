@@ -5,7 +5,7 @@ import copy # Deep Copy
 import tkinter as tk  # Tkinter: main module for creating GUIs
 from tkinter import ttk, filedialog, messagebox, colorchooser, simpledialog  # Tkinter modules for advanced GUI widgets, file dialogs, message boxes, and color pickers
 from datetime import datetime  # For working with date and time
-
+from . import hashcheck # Check Developer Compiler Hashes
 from typing import Optional  # For type hinting optional variables
 from pathlib import Path  # For object-oriented filesystem paths
 
@@ -62,6 +62,10 @@ class AutoPyPlusPlusGUI:
         self.current_apyscript: Optional[Path] = Path("myProject.apyscript")
         self.master = master
         self.config = load_config()
+        # --- Hash-Check Setting (Default: an) ---
+        self.config.setdefault("enable_hashcheck", True)
+        self.enable_hashcheck_var = tk.BooleanVar(value=bool(self.config.get("enable_hashcheck", True)))
+
         self.projects: list[Project] = []
         self.working_dir = Path(self.config.get("working_dir")) if self.config.get("working_dir") else Path(__file__).parent.parent
 
@@ -437,6 +441,110 @@ class AutoPyPlusPlusGUI:
                                  troughcolor=trough)     
         except Exception:
             self.style.configure(self.pb_style_name, background=mode_color)
+
+# Small auto-closing info toast (non-blocking)
+    def _info_toast(self, title: str, message: str, *, ms: int = 1400) -> None:
+        try:
+            toast = tk.Toplevel(self.master)
+            toast.overrideredirect(True)          # borderless
+            try:
+                toast.attributes("-topmost", True)
+            except Exception:
+                pass
+
+            # Content
+            frame = ttk.Frame(toast, padding=12)
+            frame.pack(fill="both", expand=True)
+            ttk.Label(frame, text=title, font=("", 11, "bold")).pack(anchor="w")
+            ttk.Label(frame, text=message, wraplength=360, justify="left").pack(anchor="w", pady=(4, 0))
+
+            # Position bottom-right of main window
+            self.master.update_idletasks()
+            mx, my = self.master.winfo_rootx(), self.master.winfo_rooty()
+            mw, mh = self.master.winfo_width(), self.master.winfo_height()
+
+            toast.update_idletasks()
+            tw, th = toast.winfo_width(), toast.winfo_height()
+            x = mx + mw - tw - 24
+            y = my + mh - th - 24
+            toast.geometry(f"+{max(0, x)}+{max(0, y)}")
+
+            # Auto-close
+            toast.after(ms, toast.destroy)
+        except Exception:
+            # Fallback: just update status
+            self.set_status(message, hold_ms=ms)
+
+
+    # --- PATCH REPLACE: _check_hashes_before_build ---
+    def _check_hashes_before_build(self) -> bool:
+        """
+        Check local source checksums against a trusted reference before building.
+        Returns True to proceed, False to abort.
+        Skips the check if 'enable_hashcheck' is disabled or the 'hashcheck' module is unavailable.
+        """
+        # 1) Globally disabled by setting? -> proceed
+        if not bool(self.enable_hashcheck_var.get()):
+            return True
+
+        # 2) Module not available? -> proceed (without check)
+        if hashcheck is None:
+            self.set_status("Hash check skipped (module not available).", hold_ms=1500)
+            return True
+
+        try:
+            project_root = str(self.working_dir)
+            # 3) Reference source (robust if the constant is missing)
+            reference = getattr(hashcheck, "DEFAULT_HASH_URL", None)
+
+            summary = hashcheck.verify_against_reference(
+                project_root=project_root,
+                reference_source=reference,   # may be None if your function supports it
+                algorithms=None,              # defaults
+                validate_syntax=True,         # optional: run syntax check
+            )
+        except Exception as e:
+            # On verification error: be safe and abort
+            messagebox.showerror(
+                "Hash check failed",
+                f"Could not run reference verification:\n{e}"
+            )
+            return False
+
+        if getattr(summary, "overall_ok", False):
+            # Short non-blocking info window that auto-closes
+            self._info_toast(
+                "Hash check passed",
+                "All source hashes match the reference. Safe to build.",
+                ms=1400,
+            )
+            return True
+
+        # Build a concise, informative mismatch summary
+        lines = []
+        for r in getattr(summary, "results", []):
+            if getattr(r, "error", None):
+                lines.append(f"[{getattr(r, 'algorithm', '?')}] ERROR: {r.error}")
+            elif not getattr(r, "match", True):
+                first = getattr(r, "first_diff", None)
+                where = f"(first difference at pos {first})" if first is not None else ""
+                lines.append(f"[{getattr(r, 'algorithm', '?')}] MISMATCH {where}")
+
+        details = "\n".join(lines) if lines else "Unknown mismatch."
+        msg = (
+            "Source checksums do not match the trusted reference:\n\n"
+            f"{details}\n\n"
+            "Proceed anyway?"
+        )
+
+        proceed = messagebox.askyesno("Warning – hash mismatch", msg, icon="warning", default="no")
+        if not proceed:
+            self.set_status("Build aborted (hash mismatch).", hold_ms=2500)
+            return False
+
+        self.set_status("Continuing despite hash mismatch …", hold_ms=1500)
+        return True
+    # --- END PATCH REPLACE ---
 
 
     def _toggle_fullscreen(self):
@@ -1173,6 +1281,8 @@ class AutoPyPlusPlusGUI:
 
 
     def compile_all(self):
+        if not self._check_hashes_before_build():
+            return  # Abbruch
         print("Start compilation...")
         stop_event = threading.Event()
         threading.Thread(target=self.run_status_animation, args=(stop_event,), daemon=True).start()
