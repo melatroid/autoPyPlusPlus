@@ -10,6 +10,7 @@
 - bugfix path in general settings editor
 - better general settings
 - hashcheck bevor compiling starts (Debug: Disabled it in general Settings)
+- windows update
 
 ### Version 2.45
 - Use simplexAPI.ini to control autopy++ from any ide
