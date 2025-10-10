@@ -4,12 +4,14 @@
 - Inspector reads specific logs on top
 - autopy++ runs primary in venv envirnoment
 
-### (preview) Version 2.46
+### (lastest) Version 2.46
 - hashcheck.py for more security
 - update service for powershell and git
 - bugfix path in general settings editor
+- better general settings
+- hashcheck bevor compiling starts (Debug: Disabled it in general Settings)
 
-### (lastest) Version 2.45
+### Version 2.45
 - Use simplexAPI.ini to control autopy++ from any ide
 
 ### Version 2.44
