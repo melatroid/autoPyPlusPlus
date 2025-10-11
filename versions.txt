@@ -1,8 +1,15 @@
 
 # Versions
-### (Preview) Version 2.5x
+### (preview) Version 2.5x
 - Inspector reads specific logs on top
 - autopy++ runs primary in venv envirnoment
+
+### (preview) Version 2.47
+- Top/Down Pipeline Mode (A/B/C)
+- Create and Edit Deviders
+- Better Log Look&feel
+- Less messageboxes
+- Cleanup Gui code
 
 ### (lastest) Version 2.46
 - hashcheck.py for more security
