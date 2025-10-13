@@ -3,6 +3,7 @@
 ### (preview) Version 2.5x
 - Inspector reads specific logs on top
 - autopy++ runs primary in venv envirnoment
+- Pyarmor Basic/Pro featueres
 
 ### (preview) Version 2.47
 - Top/Down Pipeline Mode (A/B/C)
