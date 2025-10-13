@@ -5,10 +5,6 @@
 - autopy++ runs primary in venv envirnoment
 - Better Pyarmor Basic/Pro featueres
 
-### (preview) Version 2.48
-- Update AutoPy++ from Menubar
-- Load last opened Apyscript
-
 ### (latest) Version 2.47
 - Top/Down Pipeline Mode (A/B/C)
 - Create and Edit Deviders
@@ -16,6 +12,8 @@
 - Less messageboxes
 - Cleanup Gui code
 - new start mechanism
+- Load last opened Apyscript
+- Update AutoPy++ from Menubar
 
 ### Version 2.46
 - hashcheck.py for more security
