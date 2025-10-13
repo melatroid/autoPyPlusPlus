@@ -10,6 +10,7 @@ from pathlib import Path  # For object-oriented filesystem paths
 import threading  # For running code in separate threads (concurrent tasks)
 import time  # For time-related functions (e.g., delays, measuring time)
 import configparser 
+import subprocess # For update function
 
 from .help import show_main_helper  # Open the main in-app help window
 
@@ -33,7 +34,10 @@ from .project import Project  # Data model for a build/project entry
 
 from . import hashcheck  # Check developer/compiler hashes
 
-from .config import load_config, save_config  # Read/write application configuration
+from .config import ( # Read/write application configuration
+    load_config, save_config,
+    get_last_apyscript, set_last_apyscript
+)  
 
 from .tooltip import CreateToolTip  # Tooltip helper for Tk widgets
 
@@ -43,11 +47,11 @@ from .speceditor import SpecEditor  # Editor UI for .spec-based projects
 
 from .apyeditor import ApyEditor  # Editor for .apyscript bundle files
 
-from .core import (
+from .core import (   # Persistence & housekeeping utilities
     save_projects, load_projects,
     export_extensions_ini, load_extensions_ini,
     find_cleanup_targets, delete_files_and_dirs
-)  # Persistence & housekeeping utilities
+) 
 
 from .themes import (  # Built-in theme setup functions
     set_dark_mode, set_light_mode, set_arcticblue_mode, set_sunset_mode,
@@ -57,6 +61,9 @@ from .themes import (  # Built-in theme setup functions
     set_phantom_mode, set_deep_space_mode, set_onyx_mode, set_lava_flow_mode,
 )
 
+TEXT = "\ufe0e"         
+CHECKED  = "⬛" + TEXT     
+UNCHECKED = "⬜" + TEXT   
 
 class AutoPyPlusPlusGUI:
     # ------------------------------ init -------------------------------
@@ -74,7 +81,7 @@ class AutoPyPlusPlusGUI:
         try:
             self.pipeline_cooldown_s = int(self.config.get("pipeline_cooldown_s", 0))
         except Exception:
-            self.pipeline_cooldown_s = 0
+            self.pipeline_cooldown_s = 3
 
         self.projects: list[Project] = []
         self.working_dir = Path(self.config.get("working_dir")) if self.config.get("working_dir") else Path(__file__).parent.parent
@@ -411,36 +418,50 @@ class AutoPyPlusPlusGUI:
         self.settings_menu = tk.Menu(self.menubar, tearoff=False)
         self.menubar.add_cascade(label=self.texts.get("menu_settings", "Settings"), menu=self.settings_menu)
 
+        # Sprache
         self.language_submenu = tk.Menu(self.settings_menu, tearoff=False)
         for lang in LANGUAGES.keys():
             self.language_submenu.add_command(label=lang, command=lambda l=lang: self._select_language(l))
         self.settings_menu.add_cascade(label=self.texts.get("menu_language", "Language"), menu=self.language_submenu)
 
+        # Themes
         self.theme_submenu = tk.Menu(self.settings_menu, tearoff=False)
         for idx, theme_name in enumerate(self.theme_names):
             self.theme_submenu.add_command(label=theme_name, command=lambda i=idx: self._set_theme_from_menu(i))
         self.settings_menu.add_cascade(label=self.texts.get("menu_themes", "Themes"), menu=self.theme_submenu)
 
+        # Weitere Settings
         self.settings_menu.add_separator()
         self.settings_menu.add_command(label=self.texts.get("menu_autopy_general", "Advanced"), command=self._open_general_settings)
         self.settings_menu.add_command(label=self.texts.get("menu_colors", "Mode Colors"), command=self._choose_colors)
         self.settings_menu.add_command(label=self.texts.get("menu_toggle_fullscreen", "Toggle Fullscreen"), command=self._toggle_fullscreen)
+
+        # --- Update ---
+        self.update_submenu = tk.Menu(self.settings_menu, tearoff=False)
+        self.update_submenu.add_command(
+            label=self.texts.get("menu_run_windows_update", "Update"),
+            command=self._run_windows_update
+        )
+        self.update_submenu.add_command(
+            label=self.texts.get("menu_run_windows_update_admin", "Update as Admin"),
+            command=lambda: self._run_windows_update(as_admin=True)
+        )
+        self.settings_menu.add_cascade(label=self.texts.get("menu_update", "Update"), menu=self.update_submenu)
+
+        # Hilfe & About
         self.settings_menu.add_separator()
         self.settings_menu.add_command(label=self.texts.get("menu_show_helper", "Show Helper"), command=lambda: show_main_helper(self.master))
         self.settings_menu.add_command(label=self.texts.get("menu_about", "About"), command=lambda: show_about_dialog(self.master, self.style, self.themes[self.current_theme_index]))
-
 
     def _toggle_mode_by_display_name(self, display_name, mode_names):
         rev = {v: k for k, v in mode_names.items()}
         self.compile_mode_var.set(rev[display_name])
         self._toggle_mode()
 
-            
     def _update_tag_colors(self):
         self.tree.tag_configure("mode_a", background=self.color_a, foreground="white")
         self.tree.tag_configure("mode_b", background=self.color_b, foreground="white")
         self.tree.tag_configure("mode_c", background=self.color_c, foreground="white")
-
 
     def _apply_progressbar_style(self):
         mode = self.compile_mode_var.get()
@@ -458,6 +479,22 @@ class AutoPyPlusPlusGUI:
                                  troughcolor=trough)     
         except Exception:
             self.style.configure(self.pb_style_name, background=mode_color)
+
+
+    def _initial_dir(self) -> str:
+        try:
+            if self.current_apyscript:
+                return str(Path(self.current_apyscript).parent)
+            last = get_last_apyscript(self.config)
+            if last:
+                return str(last.parent)
+            wd = self.config.get("working_dir")
+            if wd:
+                return str(Path(wd))
+        except Exception:
+            pass
+        return os.getcwd()
+    
 
     def _info_toast(self, title: str, message: str, *, ms: int = 1400) -> None:
         try:
@@ -901,11 +938,11 @@ class AutoPyPlusPlusGUI:
                 else "📚" if getattr(p, "use_sphinx", False)
                 else ""
             )
+            
+            chk_a = CHECKED if getattr(p, "compile_a_selected", False) else UNCHECKED
+            chk_b = CHECKED if getattr(p, "compile_b_selected", False) else UNCHECKED
+            chk_c = CHECKED if getattr(p, "compile_c_selected", False) else UNCHECKED
 
-            # Checkboxen für Kompiliermodus A/B/C
-            chk_a = "☑" if getattr(p, "compile_a_selected", False) else "☐"
-            chk_b = "☑" if getattr(p, "compile_b_selected", False) else "☐"
-            chk_c = "☑" if getattr(p, "compile_c_selected", False) else "☐"
             
             if mode == "A":
                 tags = ("mode_a",)
@@ -1200,7 +1237,7 @@ class AutoPyPlusPlusGUI:
         file = filedialog.askopenfilename(
             title="Open .apyscript",
             filetypes=[("apyscript files", "*.apyscript")],
-            initialdir=str(self.current_apyscript.parent) if self.current_apyscript else os.getcwd()
+            initialdir=self._initial_dir()
         )
         if not file:
             self.status_info("Open canceled.")
@@ -1212,40 +1249,8 @@ class AutoPyPlusPlusGUI:
 
         try:
             self.projects = load_projects(file)
-            self.current_apyscript = Path(file)
-            for p in self.projects:
-                if getattr(p, "use_pyarmor", False) and getattr(p, "use_nuitka", False):
-                    p.use_nuitka = False
-                if not hasattr(p, "is_divider"):
-                    setattr(p, "is_divider", False)
-                if getattr(p, "is_divider", False) and not hasattr(p, "divider_label"):
-                    setattr(p, "divider_label", p.name)
-            self._refresh_tree()
-            self.status_ok(f"Loaded: {file} 📂")
-        except Exception as err:
-            self.status_err(f"Load failed: {err}")
-
-
-    def update_treeview(self):
-        self._refresh_tree()
-
-    def _load(self):
-        file = filedialog.askopenfilename(
-            title="Open .apyscript",
-            filetypes=[("apyscript files", "*.apyscript")],
-            initialdir=str(self.current_apyscript.parent) if self.current_apyscript else os.getcwd()
-        )
-        if not file:
-            self.set_status("Open canceled. ❌", hold_ms=1500)
-            return
-
-        if not file.lower().endswith(".apyscript"):
-            messagebox.showerror("Invalid file", "Only .apyscript files are allowed. 🚫")
-            return
-
-        try:
-            self.projects = load_projects(file)
-            self.current_apyscript = Path(file)
+            self.current_apyscript = Path(file)                  
+            set_last_apyscript(self.config, self.current_apyscript) 
 
             # Fix potential inconsistent states
             for p in self.projects:
@@ -1257,22 +1262,44 @@ class AutoPyPlusPlusGUI:
                     setattr(p, "divider_label", p.name)
 
             self._refresh_tree()
-            self.set_status(f"Loaded: {file} 📂", hold_ms=2200)
-
+            self.status_ok(f"Loaded: {file} 📂")
         except Exception as err:
-            messagebox.showerror("Load failed", f"Could not load file:\n{err}")
+            self.status_err(f"Load failed: {err}")
 
 
+
+    def update_treeview(self):
+        self._refresh_tree()
     def _auto_load(self):
+        # 1) optional: letztes Projekt laden
+        if bool(self.config.get("load_last_on_start", True)):
+            last = get_last_apyscript(self.config)
+            if last and last.is_file():
+                try:
+                    self.projects = load_projects(last)
+                    self.current_apyscript = last
+                    for p in self.projects:
+                        if getattr(p, "use_pyarmor", False) and getattr(p, "use_nuitka", False):
+                            p.use_nuitka = False
+                        if not hasattr(p, "is_divider"):
+                            setattr(p, "is_divider", False)
+                        if getattr(p, "is_divider", False) and not hasattr(p, "divider_label"):
+                            setattr(p, "divider_label", p.name)
+                    self._refresh_tree()
+                    self.set_status(f"Auto-loaded last project: {last} 📂", hold_ms=2000)
+                    return
+                except Exception as e:
+                    self.set_status(f"Auto-load last failed: {e} ❌", hold_ms=3500)
+
+        # 2) Fallback: myProject.apyscript
         default_file = Path("myProject.apyscript")
         if default_file.is_file():
             try:
                 self.projects = load_projects(default_file)
                 self.current_apyscript = default_file
-                # Korrigiere potenzielle inkonsistente Zustände
                 for p in self.projects:
                     if getattr(p, "use_pyarmor", False) and getattr(p, "use_nuitka", False):
-                        p.use_nuitka = False  # Oder umgekehrt
+                        p.use_nuitka = False
                     if not hasattr(p, "is_divider"):
                         setattr(p, "is_divider", False)
                     if getattr(p, "is_divider", False) and not hasattr(p, "divider_label"):
@@ -1295,7 +1322,10 @@ class AutoPyPlusPlusGUI:
 
         save_projects(self.projects, self.current_apyscript)
         self.status_var.set(f"Saved: {self.current_apyscript} 💾")
-        
+        try:
+            set_last_apyscript(self.config, self.current_apyscript)
+        except Exception:
+            pass
         
     def _save_as(self):
         if not self.projects:
@@ -1306,8 +1336,9 @@ class AutoPyPlusPlusGUI:
             title="Save As",
             defaultextension=".apyscript",
             filetypes=[("apyscript", "*.apyscript"), ("Spec File", "*.spec")],
-            initialdir=str(self.current_apyscript.parent) if self.current_apyscript else os.getcwd()
+            initialdir=self._initial_dir()
         )
+
         if not f:
             self.status_info("Save canceled.")
             return
@@ -1315,7 +1346,9 @@ class AutoPyPlusPlusGUI:
         if f.lower().endswith(".apyscript"):
             save_projects(self.projects, f)
             self.current_apyscript = Path(f)
+            set_last_apyscript(self.config, self.current_apyscript)  # << hinzufügen
             self.status_ok(f"Saved all projects → {f} 💾")
+
 
         elif f.lower().endswith(".spec"):
             sel = self.tree.selection()
@@ -1356,6 +1389,54 @@ class AutoPyPlusPlusGUI:
             return max(0, int(self.config.get("pipeline_cooldown_s", getattr(self, "pipeline_cooldown_s", 0))))
         except Exception:
             return 0
+
+
+    def _run_windows_update(self, as_admin: bool = False) -> None:
+        """
+        Startet windows_update.ps1 mit sichtbarem Konsolenfenster
+        und schließt anschließend AutoPy++.
+        """
+        try:
+            root = Path(__file__).resolve().parent.parent
+            ps1 = root / "windows_update.ps1"
+
+            if not ps1.exists():
+                messagebox.showerror("Datei nicht gefunden", f"windows_update.ps1 nicht gefunden:\n{ps1}")
+                return
+
+            self.status_info("Starte Windows-Update …")
+
+            # Sichtbares Konsolenfenster für nicht-admin Run
+            creationflags_normal = subprocess.CREATE_NEW_CONSOLE | subprocess.CREATE_NEW_PROCESS_GROUP
+
+            if as_admin:
+                # Erhöht starten: das ELEVATED-Fenster ist sichtbar (WindowStyle Normal).
+                # Die nicht-erhöhte Helfer-PowerShell halten wir unsichtbar (kein doppeltes Blinken).
+                arglist = f'-NoProfile -ExecutionPolicy Bypass -File "{ps1}"'
+                ps_cmd = (
+                    f'Start-Process -Verb RunAs -FilePath "powershell.exe" '
+                    f'-ArgumentList {arglist!r} -WindowStyle Normal'
+                )
+
+                subprocess.Popen(
+                    ["powershell", "-NoProfile", "-Command", ps_cmd],
+                    cwd=str(root),
+                    creationflags=subprocess.CREATE_NO_WINDOW  # nur die Helfer-PS verstecken
+                )
+            else:
+                # Normal (sichtbares Konsolenfenster)
+                subprocess.Popen(
+                    ["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", str(ps1)],
+                    cwd=str(root),
+                    creationflags=creationflags_normal
+                )
+
+            self.status_ok("Update gestartet. AutoPy++ wird jetzt geschlossen …")
+            self.master.after(200, self.master.quit)
+
+        except Exception as e:
+            self.status_err(f"Fehler beim Starten: {e}")
+
 
     def compile_all(self):
         if not self._check_hashes_before_build():
