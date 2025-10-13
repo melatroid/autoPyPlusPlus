@@ -5,48 +5,51 @@ import copy # Deep Copy
 import tkinter as tk  # Tkinter: main module for creating GUIs
 from tkinter import ttk, filedialog, messagebox, colorchooser, simpledialog  # Tkinter modules for advanced GUI widgets, file dialogs, message boxes, and color pickers
 from datetime import datetime  # For working with date and time
-from . import hashcheck # Check Developer Compiler Hashes
 from typing import Optional  # For type hinting optional variables
 from pathlib import Path  # For object-oriented filesystem paths
-
 import threading  # For running code in separate threads (concurrent tasks)
 import time  # For time-related functions (e.g., delays, measuring time)
+import configparser 
 
-#OWN MODULES
+from .help import show_main_helper  # Open the main in-app help window
 
-from .help import show_main_helper
+from .language import LANGUAGES  # Localized UI strings
 
-from .about import show_about_dialog
+from .hotkeys import register_hotkeys  # Register global app hotkeys
 
-from .simplex_api import SimplexAPIWatcher
+from .about import show_about_dialog  # “About” dialog with app info
 
-from .debuginspector import debuginspector
+from .general_settings import show_general_settings  # General settings dialog
 
-from .project import Project
+from .simplex_api import SimplexAPIWatcher  # Watches simplexAPI.ini and reacts to changes
 
-from .config import load_config, save_config
+from .projecteditor import ProjectEditor  # Editor UI for regular projects
 
-from .tooltip import CreateToolTip
+from .debuginspector import debuginspector  # Viewer for compile logs & diagnostics
 
-from .parse_spec_file import parse_spec_file
+from .compiler import compile_projects  # Orchestrates the compilation pipeline
 
-from .compiler import compile_projects
+from .project import Project  # Data model for a build/project entry
 
-from .language import LANGUAGES
+from . import hashcheck  # Check developer/compiler hashes
 
-from .projecteditor import ProjectEditor
+from .config import load_config, save_config  # Read/write application configuration
 
-from .apyeditor import ApyEditor
+from .tooltip import CreateToolTip  # Tooltip helper for Tk widgets
+
+from .parse_spec_file import parse_spec_file  # Parse .spec files into Project objects
+
+from .speceditor import SpecEditor  # Editor UI for .spec-based projects
+
+from .apyeditor import ApyEditor  # Editor for .apyscript bundle files
 
 from .core import (
     save_projects, load_projects,
     export_extensions_ini, load_extensions_ini,
     find_cleanup_targets, delete_files_and_dirs
-)
+)  # Persistence & housekeeping utilities
 
-from .hotkeys import register_hotkeys
-
-from .themes import (
+from .themes import (  # Built-in theme setup functions
     set_dark_mode, set_light_mode, set_arcticblue_mode, set_sunset_mode,
     set_forest_mode, set_retro_mode, set_pastel_mode, set_galaxy_mode,
     set_autumn_mode, set_candy_mode, set_inferno_mode,
@@ -58,13 +61,20 @@ from .themes import (
 class AutoPyPlusPlusGUI:
     # ------------------------------ init -------------------------------
     def __init__(self, master: tk.Tk):
-        
+    
         self.current_apyscript: Optional[Path] = Path("myProject.apyscript")
         self.master = master
         self.config = load_config()
-        # --- Hash-Check Setting (Default: an) ---
+        # --- Hash-Check Setting (Default: on) ---
         self.config.setdefault("enable_hashcheck", True)
         self.enable_hashcheck_var = tk.BooleanVar(value=bool(self.config.get("enable_hashcheck", True)))
+
+        # --- Pipeline Cooldown (Sekunden) ---
+        self.config.setdefault("pipeline_cooldown_s", 0)
+        try:
+            self.pipeline_cooldown_s = int(self.config.get("pipeline_cooldown_s", 0))
+        except Exception:
+            self.pipeline_cooldown_s = 0
 
         self.projects: list[Project] = []
         self.working_dir = Path(self.config.get("working_dir")) if self.config.get("working_dir") else Path(__file__).parent.parent
@@ -106,7 +116,7 @@ class AutoPyPlusPlusGUI:
         default_theme = 1  # Index 1 = set_light_mode
         self.current_theme_index = self.config.get("theme", default_theme) % len(self.themes)
         self.themes[self.current_theme_index](self.style, master)
-        
+        show_about_dialog(self.master, self.style, self.themes[self.current_theme_index])  
             
         # -------- Farben ----------------------------------------------
         self.color_a: str = self.config.get("color_a", "#43d6b5")   
@@ -115,13 +125,7 @@ class AutoPyPlusPlusGUI:
         self.default_bg: str = "#ffffff"
         self.pb_style_name = "Compile.Horizontal.TProgressbar"
         self._apply_progressbar_style()
-        # -------- Thread-Anzahl (wird automatisch gespeichert) --------
-        self.max_threads = max(1, (os.cpu_count() or 1))
-        init_threads = int(self.config.get("thread_count", self.max_threads) or self.max_threads)
-        init_threads = max(1, min(self.max_threads, init_threads))
-
-        self.thread_count_var = tk.IntVar(value=init_threads)
-        self.thread_count_var.trace_add("write", self._save_thread_count)
+        
         # -------- UI aufbauen & Projekte laden ------------------------
         self.status_var = tk.StringVar(value=self.texts["status_ready"])
         self._status_lock = threading.Lock()
@@ -131,9 +135,7 @@ class AutoPyPlusPlusGUI:
         
         self._build_ui()        
         self._auto_load()
-        self._register_hotkeys()
-        show_about_dialog(self.master, self.style, self.themes[self.current_theme_index])
-        
+        self._register_hotkeys()        
         # --- Simplex API Watcher ---
         ini_path = (self.working_dir / "simplexAPI.ini")
         self._simplex_watcher = SimplexAPIWatcher(self, ini_path, poll_interval=1.0)
@@ -177,6 +179,7 @@ class AutoPyPlusPlusGUI:
 
         # Linke Buttons (immer erstellen)
         self.add_btn       = _btn("add_btn",       self._add,             "tooltip_add_btn")
+        # ---------------
         self.edit_btn      = _btn("edit_btn",      self._edit,            "tooltip_edit_btn")
         self.delete_btn    = _btn("delete_btn",    self._delete,          "tooltip_delete_btn")
         self.duplicate_btn = _btn("duplicate_btn", self._duplicate,       "tooltip_duplicate_btn")
@@ -199,17 +202,6 @@ class AutoPyPlusPlusGUI:
         self.compile_all_btn    = _btn("compile_all_btn", self.compile_all,       "tooltip_compile_all_btn")
         self.debug_btn          = _btn("debug_btn",       self._open_debuginspector, "tooltip_debug_btn")
         self.clear_work_dir_btn = _btn("clear_work_dir_btn", self.clear_work_dir, "tooltip_clear_work_dir_btn")
-
-        _Spinbox = getattr(ttk, "Spinbox", tk.Spinbox)  # Fallback, falls ttk.Spinbox fehlt
-        self.thread_spin = _Spinbox(
-            self.bar,
-            from_=1,
-            to=self.max_threads,
-            textvariable=self.thread_count_var,
-            width=3,
-            justify="center",
-        )
-        self.thread_spin.pack(side="right", padx=6)
 
         # Kompiliermodus (rechts)
         self.mode_menu = ttk.OptionMenu(
@@ -291,6 +283,8 @@ class AutoPyPlusPlusGUI:
             "rename_prompt": "New name:",
             "rename_empty": "Please enter a name.",
             "status_renamed": "Project “{old}” → “{new}” renamed.",
+            "tooltip_add_divider_btn": "Insert a labeled separator row",
+            "menu_add_divider": "❌ Add Divider",
         }
         for k, v in fb.items():
             self.texts.setdefault(k, v)
@@ -314,16 +308,36 @@ class AutoPyPlusPlusGUI:
             self.status_var.set(msg)
             self.master.update_idletasks()
 
+    def status_info(self, msg: str, hold_ms: int = 2000) -> None:
+        self.set_status(f"ℹ {msg}", hold_ms=hold_ms)
+
+    def status_ok(self, msg: str, hold_ms: int = 2000) -> None:
+        self.set_status(f"✅ {msg}", hold_ms=hold_ms)
+
+    def status_warn(self, msg: str, hold_ms: int = 2500) -> None:
+        self.set_status(f"⚠ {msg}", hold_ms=hold_ms)
+
+    def status_err(self, msg: str, hold_ms: int = 3000) -> None:
+        self.set_status(f"❌ {msg}", hold_ms=hold_ms)
+
     def _select_language(self, lang):
         self.language_var.set(lang)
         self._change_language()
             
+    def _get_thread_count(self) -> int:
+        try:
+            cpu_max = max(1, (os.cpu_count() or 1))
+            v = int(self.config.get("thread_count", cpu_max))
+            return max(1, min(cpu_max, v))
+        except Exception:
+            return max(1, (os.cpu_count() or 1))
+
     def _set_theme_from_menu(self, idx):
         self.current_theme_index = idx
         self.themes[idx](self.style, self.master)
         self.config["theme"] = idx
         save_config(self.config)
-        self.status_var.set(f"Theme gewechselt: {self.theme_names[idx]}")
+        self.status_var.set(f"Theme changed: {self.theme_names[idx]} 🎨")
         self._update_tag_colors()
         self._refresh_tree()
         self._apply_progressbar_style()
@@ -371,6 +385,9 @@ class AutoPyPlusPlusGUI:
         self.menubar.add_cascade(label=self.texts.get("menu_scripts", "Scripts"), menu=self.project_menu)
         self.project_menu.add_command(label=self.texts.get("menu_add_empty", "Add Empty"), command=self._add_empty_project)
         self.project_menu.add_command(label=self.texts.get("menu_add_file", "Add File"), command=self._add)
+        # --- DIVIDER ---
+        self.project_menu.add_command(label=self.texts.get("menu_add_divider", "Add Divider"), command=self._add_divider)
+        # ---------------
         self.project_menu.add_command(label=self.texts.get("menu_edit", "Edit"), command=self._edit)
         self.project_menu.add_command(label=self.texts.get("menu_delete", "Delete"), command=self._delete)
         self.project_menu.add_command(label=self.texts.get("menu_duplicate", "Duplicate"), command=self._duplicate)
@@ -392,7 +409,7 @@ class AutoPyPlusPlusGUI:
 
         # ----- Settings -----
         self.settings_menu = tk.Menu(self.menubar, tearoff=False)
-        self.menubar.add_cascade(label=self.texts.get("menu_settings", "General Settings"), menu=self.settings_menu)
+        self.menubar.add_cascade(label=self.texts.get("menu_settings", "Settings"), menu=self.settings_menu)
 
         self.language_submenu = tk.Menu(self.settings_menu, tearoff=False)
         for lang in LANGUAGES.keys():
@@ -405,8 +422,8 @@ class AutoPyPlusPlusGUI:
         self.settings_menu.add_cascade(label=self.texts.get("menu_themes", "Themes"), menu=self.theme_submenu)
 
         self.settings_menu.add_separator()
-        self.settings_menu.add_command(label=self.texts.get("menu_autopy_general", "AutoPy++ General"), command=self._open_general_settings)
-        self.settings_menu.add_command(label=self.texts.get("menu_colors", "Colors"), command=self._choose_colors)
+        self.settings_menu.add_command(label=self.texts.get("menu_autopy_general", "Advanced"), command=self._open_general_settings)
+        self.settings_menu.add_command(label=self.texts.get("menu_colors", "Mode Colors"), command=self._choose_colors)
         self.settings_menu.add_command(label=self.texts.get("menu_toggle_fullscreen", "Toggle Fullscreen"), command=self._toggle_fullscreen)
         self.settings_menu.add_separator()
         self.settings_menu.add_command(label=self.texts.get("menu_show_helper", "Show Helper"), command=lambda: show_main_helper(self.master))
@@ -442,7 +459,6 @@ class AutoPyPlusPlusGUI:
         except Exception:
             self.style.configure(self.pb_style_name, background=mode_color)
 
-# Small auto-closing info toast (non-blocking)
     def _info_toast(self, title: str, message: str, *, ms: int = 1400) -> None:
         try:
             toast = tk.Toplevel(self.master)
@@ -475,8 +491,6 @@ class AutoPyPlusPlusGUI:
             # Fallback: just update status
             self.set_status(message, hold_ms=ms)
 
-
-    # --- PATCH REPLACE: _check_hashes_before_build ---
     def _check_hashes_before_build(self) -> bool:
         """
         Check local source checksums against a trusted reference before building.
@@ -505,18 +519,16 @@ class AutoPyPlusPlusGUI:
             )
         except Exception as e:
             # On verification error: be safe and abort
-            messagebox.showerror(
-                "Hash check failed",
-                f"Could not run reference verification:\n{e}"
-            )
+            self.status_err(f"Hash check failed: {e}")
             return False
+
 
         if getattr(summary, "overall_ok", False):
             # Short non-blocking info window that auto-closes
             self._info_toast(
-                "Hash check passed",
+                "Hash ✅",
                 "All source hashes match the reference. Safe to build.",
-                ms=1400,
+                ms=3400,
             )
             return True
 
@@ -544,8 +556,6 @@ class AutoPyPlusPlusGUI:
 
         self.set_status("Continuing despite hash mismatch …", hold_ms=1500)
         return True
-    # --- END PATCH REPLACE ---
-
 
     def _toggle_fullscreen(self):
         is_fullscreen = self.master.attributes("-fullscreen")
@@ -561,14 +571,13 @@ class AutoPyPlusPlusGUI:
             "<S>": self._save_current_file,    
             "<Shift-S>": self._save_as,       
             "<E>": self.clear_work_dir,
-            "<T>": self._toggle_design,
+            "<T>": self._cycle_theme,
             "<Shift-Q>": self.master.quit,
             "<F>": self._toggle_fullscreen,
             "<Return>": self._edit,
         }
         register_hotkeys(self.master, hotkeys)
 
-        
     def _cycle_compile_mode(self, *_):
         modes = ["A", "B", "C"]
         cur = self.compile_mode_var.get()
@@ -583,11 +592,9 @@ class AutoPyPlusPlusGUI:
         apyeditor_window.show()
         
     def _open_general_settings(self):
-        from .general_settings import show_general_settings
         show_general_settings(self.master, self.config, self.style, self.themes[self.current_theme_index])
         
     def _add_empty_project(self):
-        from .project import Project
         name = simpledialog.askstring("Empty Project", "Name:")
         if not name:
             return
@@ -595,13 +602,13 @@ class AutoPyPlusPlusGUI:
         p.compile_a_selected = True
         self.projects.append(p)
         self._refresh_tree()
-        self.status_var.set(f"Leeres Projekt '{name}' hinzugefügt.")
+        self.status_var.set(f"Empty project '{name}' added. ➕")
 
     def _open_debuginspector(self):
-        # Wenn ein compile_*.log existiert, den neuesten nehmen
+        # If any compile_*.log exists, open the newest
         logs = sorted(Path.cwd().glob("compile_*.log"), reverse=True)
         if not logs:
-            messagebox.showinfo("Info", "Keine Logdatei gefunden.")
+            self.set_status("No log file found. 📄🚫", hold_ms=2500)
             return
 
         latest_log = logs[0]
@@ -610,30 +617,7 @@ class AutoPyPlusPlusGUI:
 
     def _update_ui_texts(self) -> None:
         print("Updating UI texts...")
-
-        # Fenstertitel
         self.master.title(self.texts["title"])
-
-        # Sprache-Label
-        #self.language_label.config(text=self.texts["language_label"])
-
-        # About-Button
-        #self.btn_about.config(text=self.texts["about_btn"])
-        #CreateToolTip(self.btn_about, self.texts["tooltip_about_btn"])
-
-        # Extensions-Button
-        #self.btn_extensions.config(text=self.texts["extensions_btn"])
-        #CreateToolTip(self.btn_extensions, self.texts["tooltip_extensions_btn"])
-
-        # Modus-Radiobuttons
-        #self.mode_a_btn.config(text=self.texts["mode_a"])
-        #self.mode_b_btn.config(text=self.texts["mode_b"])
-        #self.mode_c_btn.config(text=self.texts["mode_c"])
-        #CreateToolTip(self.mode_a_btn, self.texts["tooltip_compile_mode"])
-        #CreateToolTip(self.mode_b_btn, self.texts["tooltip_compile_mode"])
-        #CreateToolTip(self.mode_c_btn, self.texts["tooltip_compile_mode"])
-
-        # Treeview-Spaltenüberschriften
         self.tree.heading("A", text=self.texts["compile_a_col"])
         self.tree.heading("B", text=self.texts["compile_b_col"])
         self.tree.heading("C", text=self.texts["compile_c_col"])
@@ -642,8 +626,6 @@ class AutoPyPlusPlusGUI:
         self.tree.heading("PyArmor", text="PyArmor")
         self.tree.heading("Cython", text="Cython")
         self.tree.heading("Nuitka", text="Nuitka")
-
-        # Statusleiste
         self.status_var.set(self.texts["status_ready"])
 
         # Buttons links (Add, Edit, Delete, Save, Save As, Load, Clear)
@@ -678,34 +660,39 @@ class AutoPyPlusPlusGUI:
     def _rename_project(self):
         sel = self.tree.selection()
         if not sel or not sel[0].startswith("proj_"):
-            messagebox.showwarning("Fehler", self.texts.get("error_no_entry", "Kein Eintrag ausgewählt."))
+            self.set_status("No entry selected. ⚠", hold_ms=2500)
             return
 
         try:
             idx = int(sel[0].split("_")[1])
             proj = self.projects[idx]
         except (ValueError, IndexError):
-            messagebox.showerror("Fehler", "Ungültige Projekt-ID.")
+            self.set_status("Invalid project ID. 🆔❌", hold_ms=2500)
             return
-
+        
         new_name = simpledialog.askstring(
             self.texts.get("rename_title", "Projekt umbenennen"),
             self.texts.get("rename_prompt", "Neuer Name:"),
-            initialvalue=proj.name,
+            initialvalue=(getattr(proj, "divider_label", None) if getattr(proj, "is_divider", False) else proj.name),
             parent=self.master
         )
         if new_name is None:
             return  # Abbruch
         new_name = new_name.strip()
         if not new_name:
-            messagebox.showerror("Fehler", self.texts.get("rename_empty", "Bitte einen Namen eingeben."))
+            self.status_warn(self.texts.get("rename_empty", "Please enter a name."))
             return
 
-        # Kollisionen automatisch vermeiden
-        new_name = self._unique_name(new_name)
+        # Kollisionen automatisch vermeiden (nur für echte Projekte relevant)
+        if not getattr(proj, "is_divider", False):
+            new_name = self._unique_name(new_name)
 
         old_name = proj.name
         proj.name = new_name
+        # --- DIVIDER ---
+        if getattr(proj, "is_divider", False):
+            setattr(proj, "divider_label", new_name)
+        # ---------------
         self._refresh_tree()
         self.tree.selection_set(f"proj_{idx}")
         self.tree.see(f"proj_{idx}")
@@ -719,7 +706,7 @@ class AutoPyPlusPlusGUI:
 
         
     def _unique_name(self, base: str) -> str:
-        existing = {p.name for p in self.projects}
+        existing = {p.name for p in self.projects if not getattr(p, "is_divider", False)}
         if base not in existing:
             return base
         i = 2
@@ -729,85 +716,114 @@ class AutoPyPlusPlusGUI:
                 return candidate
             i += 1
 
+    # --- DIVIDER ---
+    def _add_divider(self):
+        label = simpledialog.askstring("Add divider", "Label:", parent=self.master)
+        if label is None:
+            self.status_info("Canceled.")
+            return
+        label = label.strip()
+        if not label:
+            self.status_warn("Please enter a label.")
+            return
+
+        p = Project(name=label)
+        p.is_divider = True
+        p.divider_label = label
+
+        for a in ("compile_a_selected","compile_b_selected","compile_c_selected",
+                  "use_pyarmor","use_nuitka","use_cython",
+                  "use_pytest","use_pytest_standalone",
+                  "use_sphinx","use_sphinx_standalone"):
+            setattr(p, a, False)
+        for a in ("script","spec_file","cython_output_dir","cpp_output_dir"):
+            setattr(p, a, "")
+
+        sel = self.tree.selection()
+        if sel and sel[0].startswith("proj_"):
+            idx = int(sel[0].split("_")[1])
+            insert_at = max(0, min(len(self.projects), idx))
+            self.projects.insert(insert_at, p)
+            select_iid = f"proj_{insert_at}"
+        else:
+            self.projects.append(p)
+            select_iid = f"proj_{len(self.projects)-1}"
+
+        self._refresh_tree()
+        try:
+            self.tree.selection_set(select_iid)
+            self.tree.see(select_iid)
+        except Exception:
+            pass
+        try:
+            self._save_current_file()
+        except Exception:
+            pass
+
+        self.status_ok(f'Divider "{label}" added. ➕')
     
     def _duplicate(self):
         sel = self.tree.selection()
         if not sel:
-            messagebox.showwarning("Error", self.texts.get("error_no_entry", "No entry selected."))
+            self.status_warn(self.texts.get("error_no_entry", "No entry selected."))
             return
 
         row_id = sel[0]
         if not row_id.startswith("proj_"):
+            self.status_warn("Select a project row.")
             return
 
         try:
             idx = int(row_id.split("_")[1])
             original: Project = self.projects[idx]
         except (ValueError, IndexError):
-            messagebox.showerror("Error", "Ungültige Projekt-ID.")
+            self.status_err("Invalid project ID.")
             return
 
-        # Tief kopieren
         try:
             new_p: Project = copy.deepcopy(original)
         except Exception:
-            # Fallback: flacher Kopierer — falls deepcopy wegen exotischer Felder scheitert
             new_p = Project()
             for k, v in vars(original).items():
                 setattr(new_p, k, copy.deepcopy(v) if isinstance(v, (dict, list, set, tuple)) else v)
 
-        # Neuen Namen vergeben
-        base_name = f"{original.name} (Kopie)"
-        new_p.name = self._unique_name(base_name)
+        if getattr(original, "is_divider", False):
+            base_name = f"{getattr(original, 'divider_label', original.name)} (copy)"
+            new_p.name = base_name
+            setattr(new_p, "divider_label", base_name)
+            setattr(new_p, "is_divider", True)
+            for attr in ("compile_a_selected","compile_b_selected","compile_c_selected",
+                         "use_pyarmor","use_nuitka","use_cython","use_pytest","use_sphinx",
+                         "use_pytest_standalone","use_sphinx_standalone"):
+                try: setattr(new_p, attr, False)
+                except Exception: pass
+        else:
+            base_name = f"{original.name} (copy)"
+            new_p.name = self._unique_name(base_name)
 
-        # Optional: Checkboxen zurücksetzen/übernehmen (hier: übernehmen)
-        # new_p.compile_a_selected = original.compile_a_selected
-        # new_p.compile_b_selected = original.compile_b_selected
-        # new_p.compile_c_selected = original.compile_c_selected
-
-        # Direkt unter dem Original einfügen
         insert_at = idx + 1
         self.projects.insert(insert_at, new_p)
-
-        # UI aktualisieren & Auswahl auf die Kopie setzen
         self._refresh_tree()
         self.tree.selection_set(f"proj_{insert_at}")
         self.tree.see(f"proj_{insert_at}")
 
-        # Speichern (optional): aktuelle Datei überschreiben, wenn vorhanden
         try:
             self._save_current_file()
         except Exception:
             pass
 
-        self.status_var.set(f"Projekt „{new_p.name}“ erstellt (Duplikat).")
-
-    
-    def _save_thread_count(self, *args):  # pylint: disable=unused-argument
-        try:
-            val = int(self.thread_count_var.get())
-        except Exception:
-            val = 1
-        val = max(1, min(self.max_threads, val))
-        if self.thread_count_var.get() != val:
-            # falls Nutzer Text eingibt, normalisieren
-            self.thread_count_var.set(val)
-        self.config["thread_count"] = val
-        save_config(self.config)
-        # dezentes Feedback
-        self.status_var.set(self.texts.get("status_threads_saved", "Threads: {n}").format(n=val))
-
+        self.status_ok(f'Project "{new_p.name}" duplicated. 📄➕')
 
     def _choose_colors(self):
-        color_a = colorchooser.askcolor(title="Farbe für Modus A wählen", color=self.color_a)[1]
+        color_a = colorchooser.askcolor(title="Pick color for Mode A 🎨", color=self.color_a)[1]
         if color_a:
             self.color_a = color_a
             self.config["color_a"] = color_a
-        color_b = colorchooser.askcolor(title="Farbe für Modus B wählen", color=self.color_b)[1]
+        color_b = colorchooser.askcolor(title="Pick color for Mode B 🎨", color=self.color_b)[1]
         if color_b:
             self.color_b = color_b
             self.config["color_b"] = color_b
-        color_c = colorchooser.askcolor(title="Farbe für Modus C wählen", color=self.color_c)[1]
+        color_c = colorchooser.askcolor(title="Pick color for Mode C 🎨", color=self.color_c)[1]
         if color_c:
             self.color_c = color_c
             self.config["color_c"] = color_c
@@ -831,7 +847,7 @@ class AutoPyPlusPlusGUI:
         # Sortiere Projekte: SPEC-Dateien unten
         sorted_projects = sorted(
             enumerate(self.projects),
-            key=lambda t: not (t[1].spec_file and t[1].spec_file.lower().endswith(".spec"))
+            key=lambda t: not (getattr(t[1], "spec_file", "") and str(getattr(t[1], "spec_file", "")).lower().endswith(".spec"))
         )
         existing_iids = set(self.tree.get_children())
         new_iids = set()
@@ -840,11 +856,24 @@ class AutoPyPlusPlusGUI:
         for idx, p in sorted_projects:
             if p is None:
                 continue
-            script_name = p.script or p.spec_file or ""
-            is_spec = bool(p.spec_file and p.spec_file.lower().endswith(".spec"))
+
+            if getattr(p, "is_divider", False):
+                iid = f"proj_{idx}"
+                new_iids.add(iid)
+                label = getattr(p, "divider_label", p.name) or "—"
+                values = ("", "", "", f"— {label} —", "", "", "", "", "", "")
+                if iid in existing_iids:
+                    self.tree.item(iid, values=values, tags=("divider",))
+                else:
+                    self.tree.insert("", "end", iid=iid, values=values, tags=("divider",))
+                # Wichtig: last_type NICHT ändern, damit automatische Typ-Trenner stabil bleiben
+                continue
+            # ------------------------------------------------------------
+
+            script_name = p.script or getattr(p, "spec_file", "") or ""
+            is_spec = bool(getattr(p, "spec_file", "") and str(getattr(p, "spec_file")).lower().endswith(".spec"))
             typ = "spec" if is_spec else "py"
 
-            # Trennzeile hinzufügen, wenn Typ wechselt
             if typ != last_type:
                 divider_iid = f"divider_{typ}"
                 new_iids.add(divider_iid)
@@ -858,9 +887,9 @@ class AutoPyPlusPlusGUI:
                     )
                 last_type = typ
 
-            pyarmor_status = "🛡" if p.use_pyarmor else ""
-            nuitka_status  = "⚡" if p.use_nuitka else ""
-            cython_status  = "🧩" if p.use_cython else ""
+            pyarmor_status = "🛡" if getattr(p, "use_pyarmor", False) else ""
+            nuitka_status  = "⚡" if getattr(p, "use_nuitka", False) else ""
+            cython_status  = "🧩" if getattr(p, "use_cython", False) else ""
 
             pytest_status  = (
                 "🧪🔒" if getattr(p, "use_pytest_standalone", False)
@@ -873,10 +902,10 @@ class AutoPyPlusPlusGUI:
                 else ""
             )
 
-            # Checkboxen für Kompiliermodus A/B
-            chk_a = "☑" if p.compile_a_selected else "☐"
-            chk_b = "☑" if p.compile_b_selected else "☐"
-            chk_c = "☑" if p.compile_c_selected else "☐"
+            # Checkboxen für Kompiliermodus A/B/C
+            chk_a = "☑" if getattr(p, "compile_a_selected", False) else "☐"
+            chk_b = "☑" if getattr(p, "compile_b_selected", False) else "☐"
+            chk_c = "☑" if getattr(p, "compile_c_selected", False) else "☐"
             
             if mode == "A":
                 tags = ("mode_a",)
@@ -886,7 +915,6 @@ class AutoPyPlusPlusGUI:
                 tags = ("mode_c",)
             else:
                 tags: tuple = ()
-
 
             # Treeview-Eintrag aktualisieren oder einfügen
             iid = f"proj_{idx}"
@@ -929,7 +957,7 @@ class AutoPyPlusPlusGUI:
 
         tags = self.tree.item(row_id, "tags")
         if "divider" in tags:
-            return  
+            return  # Trennerzeilen sind nicht klick-/umschaltbar
 
         if row_id.startswith("proj_"):
             proj_index = int(row_id.split("_")[1])
@@ -939,11 +967,11 @@ class AutoPyPlusPlusGUI:
         p = self.projects[proj_index]
 
         if col == "#1":
-            p.compile_a_selected = not p.compile_a_selected
+            p.compile_a_selected = not getattr(p, "compile_a_selected", False)
         elif col == "#2":
-            p.compile_b_selected = not p.compile_b_selected
+            p.compile_b_selected = not getattr(p, "compile_b_selected", False)
         elif col == "#3":
-            p.compile_c_selected = not p.compile_c_selected
+            p.compile_c_selected = not getattr(p, "compile_c_selected", False)
         else:
             return
         self._refresh_tree()
@@ -963,7 +991,7 @@ class AutoPyPlusPlusGUI:
         elif path.lower().endswith(".pyx"):
             p = Project(script=path, use_cython=True)  # Explicitly set use_cython to True for .pyx files
         else:
-            p = Project(script=path)  # Default to Python script for .py or other files
+            p = Project(script=path)
 
         if p is not None:
             p.compile_a_selected, p.compile_b_selected, p.compile_c_selected = True, False, False
@@ -971,79 +999,89 @@ class AutoPyPlusPlusGUI:
             self._refresh_tree()
             self.status_var.set(self.texts["status_project_added"].format(name=p.name))
         else:
-            self.status_var.set("Projekt konnte nicht hinzugefügt werden (parse_spec_file gab None zurück)")
-            
+            self.status_var.set("Project could not be added (parse_spec_file returned None)")
 
     def _edit(self) -> None:
         stop_event = threading.Event()
-        animation_thread = threading.Thread(target=self.run_status_animation, args=(stop_event,), daemon=True)
-        animation_thread.start()
-    
+        threading.Thread(
+            target=self.run_status_animation,
+            args=(stop_event,),
+            daemon=True
+        ).start()
+
         sel = self.tree.selection()
         if not sel:
-            messagebox.showwarning("Error", self.texts["error_no_entry"])
+            self.status_warn(self.texts["error_no_entry"])
+            stop_event.set()
             return
 
         row_id = sel[0]
         if not row_id.startswith("proj_"):
+            self.status_warn("Select a project row.")
+            stop_event.set()
             return
 
         try:
             proj_index = int(row_id.split("_")[1])
             proj: Project = self.projects[proj_index]
         except (ValueError, IndexError):
-            messagebox.showerror("Error", "Ungültige Projekt-ID.")
+            self.status_err("Invalid project ID.")
+            stop_event.set()
             return
 
-        if proj.spec_file and proj.spec_file.lower().endswith(".spec"):
-            try:
-                from .speceditor import SpecEditor
-            except ImportError as err:
+        # --- SPEC-Projekt? ---
+        if getattr(proj, "spec_file", None) and str(proj.spec_file).lower().endswith(".spec"):
+            if SpecEditor is None:
                 messagebox.showerror(
-                    "Import-Fehler",
-                    f"SpecEditor-Modul konnte nicht geladen werden:\n{err}",
+                    "Import Error",
+                    f"SpecEditor module could not be loaded:\n{_SPECEDITOR_IMPORT_ERR}"
                 )
+                stop_event.set()
                 return
 
             editor = SpecEditor(self.master, proj, self.texts)
             if editor.show():
                 self._refresh_tree()
                 self._save_current_file()
-                self.status_var.set(f"Spec-Projekt „{proj.name}“ aktualisiert.")
-        else:
-            editor = ProjectEditor(self.master, proj, self.texts, self)
+                self.set_status(f'Spec project "{proj.name}" updated. 🔧', hold_ms=2000)
+            stop_event.set()
+            return
 
-            if editor.show():
-                self._refresh_tree()
-                self._save_current_file()  # <-- hier fehlte es bisher!
-                self.status_var.set(self.texts["status_entry_edited"].format(name=proj.name))
+        # --- Normales Projekt ---
+        editor = ProjectEditor(self.master, proj, self.texts, self)
+        if editor.show():
+            self._refresh_tree()
+            self._save_current_file()
+            self.set_status(f'Project "{proj.name}" updated. ✅', hold_ms=2000)
+
         stop_event.set()
         
     def _delete(self):
         sel = self.tree.selection()
         if not sel:
-            messagebox.showwarning("Error", self.texts["error_no_entry"])
+            self.status_warn(self.texts["error_no_entry"])
             return
         row_id = sel[0]
         if not row_id.startswith("proj_"):
+            self.status_warn("Select a project row.")
             return
         proj_index = int(row_id.split("_")[1])
         name = self.projects[proj_index].name
         del self.projects[proj_index]
         self._refresh_tree()
-        self.status_var.set(f"Projekt {name} gelöscht.")
+        self.status_ok(f'Project "{name}" deleted. 🗑')
+
 
     def _clear(self):
         self.projects.clear()
         self._refresh_tree()
-        self.status_var.set("Alle Projekte gelöscht.")
+        self.status_var.set("All projects removed. 🧹")
 
     def _change_language(self, *_):
         new_language = self.language_var.get()
         print(f"Selected language: {new_language}")
         if new_language not in LANGUAGES:
-            print(f"Error: Language {new_language} not found in LANGUAGES")
-            messagebox.showerror("Error", f"Language {new_language} not supported.")
+            self.status_err(f"Language {new_language} not supported.")
             return
         self.current_language = new_language
         self.texts = LANGUAGES[self.current_language]
@@ -1056,20 +1094,20 @@ class AutoPyPlusPlusGUI:
         save_config(self.config)
         print(f"Config saved with language: {self.config['language']}")
 
-    def _toggle_design(self):
-        self.current_theme_index = (self.current_theme_index + 1) % len(self.themes)
-        selected_theme = self.themes[self.current_theme_index]
-        selected_theme(self.style, self.master)
+    def _cycle_theme(self, step: int = 1):
+        """Cycle through available themes (no Light/Dark toggle; only themes)."""
+        self.current_theme_index = (self.current_theme_index + step) % len(self.themes)
+        self.themes[self.current_theme_index](self.style, self.master)
         self.config["theme"] = self.current_theme_index
         save_config(self.config)
-        self.status_var.set(f"Theme gewechselt: {selected_theme.__name__}")
+        self.set_status(f"Theme: {self.theme_names[self.current_theme_index]} 🎨", hold_ms=1600)
         self._update_tag_colors()
         self._refresh_tree()
         self._apply_progressbar_style()
-
+        
     def _toggle_mode(self):
         #self.mode_btn.config(text=self._mode_label())
-        self.status_var.set(f"Aktiver Kompilier-Modus: {self._mode_label()}")
+        self.status_var.set(f"Active compile mode: {self._mode_label()} 🚦")
         self.config["compile_mode"] = self.compile_mode_var.get()
         save_config(self.config)
         self._update_tag_colors() 
@@ -1084,7 +1122,7 @@ class AutoPyPlusPlusGUI:
         targets = files + folders
 
         if not targets:
-            messagebox.showinfo("Nothing to delete", "No matching files or folders found.")
+            self.status_info("Nothing to delete. 🧺")
             return
 
         file_list = ""
@@ -1105,14 +1143,11 @@ class AutoPyPlusPlusGUI:
 
     def _delete_files(self, targets):
         deleted_files = delete_files_and_dirs(targets)
-        # nur Statusleiste, kein Popup
-        self.master.after(0, lambda: self.set_status(f"{deleted_files} files/folders deleted.", hold_ms=3000))
-
-
-
+        self.master.after(0, lambda: self.set_status(f"{deleted_files} files/folders deleted. 🧹", hold_ms=3000))
+        
     def _save(self):
         if not self.projects:
-            self.status_var.set(self.texts["error_no_entry"])
+            self.status_warn(self.texts["error_no_entry"])
             return
 
         f = filedialog.asksaveasfilename(
@@ -1121,54 +1156,74 @@ class AutoPyPlusPlusGUI:
             initialdir=str(self.current_apyscript.parent) if self.current_apyscript else os.getcwd()
         )
         if not f:
+            self.status_info("Save canceled.")
             return
 
         if f.lower().endswith(".apyscript"):
             save_projects(self.projects, f)
-            self.status_var.set(f"Alle Projekte gespeichert: {f}")
+            self.status_ok(f"Saved all projects → {f} 💾")
+
         elif f.lower().endswith(".spec"):
             sel = self.tree.selection()
             if not sel:
-                messagebox.showerror("Fehler", "Kein Projekt ausgewählt, um als .spec zu exportieren.")
+                self.status_warn("No project selected to export as .spec.")
                 return
             row_id = sel[0]
             if not row_id.startswith("proj_"):
-                messagebox.showerror("Fehler", "Nur Projekte können als .spec exportiert werden.")
+                self.status_warn("Only projects can be exported as .spec.")
                 return
-            idx = int(row_id.split("_")[1])
+            try:
+                idx = int(row_id.split("_")[1])
+            except Exception:
+                self.status_err("Invalid project ID.")
+                return
             save_projects([self.projects[idx]], f)
-            self.status_var.set(f"{self.projects[idx].name} als .spec exportiert: {f}")
-        else:
-            messagebox.showerror("Fehler", "Unbekanntes Exportformat!")
+            self.status_ok(f'Exported "{self.projects[idx].name}" as .spec → {f} 📦')
 
+        else:
+            self.status_err("Unknown export format. ❓")
 
     def _export_ini(self):
         ini_path = Path(__file__).parent / "extensions_path.ini"
-        # User wählt nur den Zielordner, nicht den Dateinamen
-        folder = filedialog.askdirectory(title="Zielordner wählen")
+        folder = filedialog.askdirectory(title="Choose destination folder")
         if not folder:
+            self.status_info("Export canceled.")
             return
         target = Path(folder) / "extensions_path.ini"
         try:
             export_extensions_ini(ini_path, target)
-            self.status_var.set(f"extensions_path.ini exportiert: {target}")
+            self.status_ok(f"Exported extensions_path.ini → {target} 📤")
         except Exception as e:
-            messagebox.showerror("Fehler beim Exportieren", str(e))
+            self.status_err(f"Export error: {e}")
 
-
-    def _load_ini(self):
-        file_path = filedialog.askopenfilename(
-            title="INI-Datei auswählen",
-            filetypes=[("INI-Dateien", "*.ini"), ("Alle Dateien", "*.*")]
+    def _load(self):
+        file = filedialog.askopenfilename(
+            title="Open .apyscript",
+            filetypes=[("apyscript files", "*.apyscript")],
+            initialdir=str(self.current_apyscript.parent) if self.current_apyscript else os.getcwd()
         )
-        if not file_path:
+        if not file:
+            self.status_info("Open canceled.")
             return
-        target_file = Path(__file__).parent / "extensions_path.ini"
+
+        if not file.lower().endswith(".apyscript"):
+            self.status_err("Only .apyscript files are allowed. 🚫")
+            return
+
         try:
-            load_extensions_ini(Path(file_path), target_file)
-            self.status_var.set(f"INI-Datei {file_path} geladen und überschrieben.")
-        except Exception as e:
-            messagebox.showerror("Fehler beim Laden", str(e))
+            self.projects = load_projects(file)
+            self.current_apyscript = Path(file)
+            for p in self.projects:
+                if getattr(p, "use_pyarmor", False) and getattr(p, "use_nuitka", False):
+                    p.use_nuitka = False
+                if not hasattr(p, "is_divider"):
+                    setattr(p, "is_divider", False)
+                if getattr(p, "is_divider", False) and not hasattr(p, "divider_label"):
+                    setattr(p, "divider_label", p.name)
+            self._refresh_tree()
+            self.status_ok(f"Loaded: {file} 📂")
+        except Exception as err:
+            self.status_err(f"Load failed: {err}")
 
 
     def update_treeview(self):
@@ -1176,25 +1231,37 @@ class AutoPyPlusPlusGUI:
 
     def _load(self):
         file = filedialog.askopenfilename(
-            filetypes=[("apyscript", "*.apyscript")],
+            title="Open .apyscript",
+            filetypes=[("apyscript files", "*.apyscript")],
             initialdir=str(self.current_apyscript.parent) if self.current_apyscript else os.getcwd()
         )
         if not file:
+            self.set_status("Open canceled. ❌", hold_ms=1500)
             return
+
         if not file.lower().endswith(".apyscript"):
-            messagebox.showerror("Fehler", "Nur .apyscript-Dateien sind erlaubt!")
+            messagebox.showerror("Invalid file", "Only .apyscript files are allowed. 🚫")
             return
+
         try:
             self.projects = load_projects(file)
             self.current_apyscript = Path(file)
-            # Korrigiere potenzielle inkonsistente Zustände
+
+            # Fix potential inconsistent states
             for p in self.projects:
-                if p.use_pyarmor and p.use_nuitka:
+                if getattr(p, "use_pyarmor", False) and getattr(p, "use_nuitka", False):
                     p.use_nuitka = False
+                if not hasattr(p, "is_divider"):
+                    setattr(p, "is_divider", False)
+                if getattr(p, "is_divider", False) and not hasattr(p, "divider_label"):
+                    setattr(p, "divider_label", p.name)
+
             self._refresh_tree()
-            self.status_var.set(f"{file} geladen.")
+            self.set_status(f"Loaded: {file} 📂", hold_ms=2200)
+
         except Exception as err:
-            messagebox.showerror("Error", f"Laden fehlgeschlagen: {err}")
+            messagebox.showerror("Load failed", f"Could not load file:\n{err}")
+
 
     def _auto_load(self):
         default_file = Path("myProject.apyscript")
@@ -1204,196 +1271,263 @@ class AutoPyPlusPlusGUI:
                 self.current_apyscript = default_file
                 # Korrigiere potenzielle inkonsistente Zustände
                 for p in self.projects:
-                    if p.use_pyarmor and p.use_nuitka:
+                    if getattr(p, "use_pyarmor", False) and getattr(p, "use_nuitka", False):
                         p.use_nuitka = False  # Oder umgekehrt
+                    if not hasattr(p, "is_divider"):
+                        setattr(p, "is_divider", False)
+                    if getattr(p, "is_divider", False) and not hasattr(p, "divider_label"):
+                        setattr(p, "divider_label", p.name)
                 self._refresh_tree()
-                self.status_var.set(f"{default_file} automatisch geladen.")
+                self.set_status(f"Auto-loaded {default_file} 📂", hold_ms=2000)
             except Exception as e:
-                self.status_var.set(f"Fehler beim automatischen Laden von {default_file}: {e}")
+                self.set_status(f"Auto-load failed for {default_file}: {e} ❌", hold_ms=3500)
 
 
     def _save_current_file(self):
         """Speichert Projekte in der zuletzt verwendeten .apyscript-Datei (wie STRG+S)."""
         if not self.projects:
-            self.status_var.set(self.texts["error_no_entry"])
+            self.status_warn(self.texts["error_no_entry"])
             return
 
         if not self.current_apyscript or not str(self.current_apyscript).lower().endswith(".apyscript"):
-            # Wenn keine gültige Datei gesetzt → "Speichern unter..."
             self._save_as()
             return
 
         save_projects(self.projects, self.current_apyscript)
-        self.status_var.set(f"{self.current_apyscript} gespeichert.")
+        self.status_var.set(f"Saved: {self.current_apyscript} 💾")
         
         
     def _save_as(self):
-        """Speichern unter... – fragt nach Dateiname."""
         if not self.projects:
-            self.status_var.set(self.texts["error_no_entry"])
+            self.status_warn("No entries to save.")
             return
 
         f = filedialog.asksaveasfilename(
+            title="Save As",
             defaultextension=".apyscript",
             filetypes=[("apyscript", "*.apyscript"), ("Spec File", "*.spec")],
-            initialdir=str(self.current_apyscript.parent) if self.current_apyscript else os.getcwd()  # <- hier ergänzen!
+            initialdir=str(self.current_apyscript.parent) if self.current_apyscript else os.getcwd()
         )
         if not f:
+            self.status_info("Save canceled.")
             return
 
-        # Speichern und merken!
         if f.lower().endswith(".apyscript"):
             save_projects(self.projects, f)
             self.current_apyscript = Path(f)
-            self.status_var.set(f"Alle Projekte gespeichert: {f}")
+            self.status_ok(f"Saved all projects → {f} 💾")
+
         elif f.lower().endswith(".spec"):
             sel = self.tree.selection()
             if not sel:
-                messagebox.showerror("Fehler", "Kein Projekt ausgewählt, um als .spec zu exportieren.")
+                self.status_warn("Select a project to export as .spec.")
                 return
             row_id = sel[0]
             if not row_id.startswith("proj_"):
-                messagebox.showerror("Fehler", "Nur Projekte können als .spec exportiert werden.")
+                self.status_warn("Only regular projects can be exported as .spec.")
                 return
-            idx = int(row_id.split("_")[1])
+            try:
+                idx = int(row_id.split("_")[1])
+            except Exception:
+                self.status_err("Invalid project ID.")
+                return
             save_projects([self.projects[idx]], f)
-            self.status_var.set(f"{self.projects[idx].name} als .spec exportiert: {f}")
-        else:
-            messagebox.showerror("Fehler", "Unbekanntes Exportformat!")
+            self.status_ok(f'Exported "{self.projects[idx].name}" → {f} 📦')
 
+        else:
+            self.status_err("Unsupported export format. 🚫")
                 
     def run_status_animation(self, stop_event: threading.Event, interval: float = 0.15) -> None:
         idx = 0
-        frames = ["⠁","⠃","⠇","⠧","⠷","⠿","⠷","⠧","⠇","⠃","⠁"]
+        frames = ["⠁","⠃","⠇","⠧","⠷","⠿","⠷","⠧","⠇","⠃","⠁"," "]
         while not stop_event.is_set():
             now = time.time()
             with self._status_lock:
-                # Nur animieren, wenn die Schutzzeit vorbei ist
                 if now >= self._hold_until_ts:
                     base = self._last_user_status or self.texts.get("status_ready","Ready")
                     spinner = frames[idx % len(frames)]
-                    # Nur anhängen, nicht überschreiben
                     self.status_var.set(f"{base}  {spinner}")
-                # Falls noch Schutzzeit: nichts tun (User-Text bleibt stehen)
             idx += 1
             self.master.update_idletasks()
             time.sleep(interval)
 
+    def _get_pipeline_cooldown_s(self) -> int:
+        try:
+            return max(0, int(self.config.get("pipeline_cooldown_s", getattr(self, "pipeline_cooldown_s", 0))))
+        except Exception:
+            return 0
 
     def compile_all(self):
         if not self._check_hashes_before_build():
             return  # Abbruch
-        print("Start compilation...")
+
         stop_event = threading.Event()
         threading.Thread(target=self.run_status_animation, args=(stop_event,), daemon=True).start()
 
-        # Fortschrittsbalken im GUI-Thread erzeugen
         prog = tk.DoubleVar(value=0)
         self._apply_progressbar_style()
         pb = ttk.Progressbar(self.main_frame, variable=prog, maximum=100, style=self.pb_style_name)
         pb.pack(fill="x", pady=5)
 
-
         def do_compile():
+            
+            log_path = None  # wir arbeiten nur mit dem Pfad und öffnen bei Bedarf
             try:
-                mode = self.compile_mode_var.get()
+                def upd_status(msg: str):
+                    self.master.after(0, lambda: self.set_status(msg, hold_ms=2000))
+
+                def set_prog(val: float):
+                    self.master.after(0, lambda: prog.set(val))
+
+                # --- aktiven Modus lesen und Auswahl bilden ---
+                active_mode = self.compile_mode_var.get()
                 selected = [
                     p for p in self.projects
-                    if (mode == "A" and p.compile_a_selected)
-                    or (mode == "B" and p.compile_b_selected)
-                    or (mode == "C" and p.compile_c_selected)
+                    if not getattr(p, "is_divider", False) and (
+                        (active_mode == "A" and getattr(p, "compile_a_selected", False)) or
+                        (active_mode == "B" and getattr(p, "compile_b_selected", False)) or
+                        (active_mode == "C" and getattr(p, "compile_c_selected", False))
+                    )
                 ]
-                
                 if not selected:
                     self.master.after(0, lambda: self.set_status(self.texts["error_no_entry"], hold_ms=2500))
                     return
-                
-                if selected:
-                    proj_name = selected[0].name.replace(" ", "_")
-                    if len(selected) > 1:
-                        proj_name = f"{proj_name}_and_{len(selected)-1}_more"
+
+                first_name = selected[0].name.replace(" ", "_")
+                suffix = f"_and_{len(selected)-1}_more" if len(selected) > 1 else ""
+                log_path = Path(f"compile_{first_name}{suffix}_{datetime.now().strftime('%Y%m%d_%H%M')}.log")
+
+                def log(line: str):
+                    with open(log_path, "a", encoding="utf-8") as fh:
+                        fh.write(line)
+                        if not line.endswith("\n"):
+                            fh.write("\n")
+
+                sequential = bool(self.config.get("sequential_build", False))
+                if hasattr(self, "sequential_build_var"):
+                    try:
+                        sequential = bool(self.sequential_build_var.get())
+                    except Exception:
+                        pass
+
+                threads = 1 if sequential else self._get_thread_count()
+                cooldown_s = self._get_pipeline_cooldown_s() if sequential else 0
+
+
+                print(f"[DEBUG] Pipeline (Top/Down): {sequential} -> threads={threads}, cooldown={cooldown_s}s")
+                log(f"Starting compilation at {datetime.now()}")
+                log(f"Pipeline (Top/Down): {sequential} -> threads={threads}, cooldown={cooldown_s}s")
+
+                errors = []
+
+                # ================== SEQUENTIAL: nur aktiver Modus, in Listenreihenfolge ==================
+                if sequential:
+                    total = len(selected)
+                    done = 0
+
+                    for i, proj in enumerate(selected):
+                        # pro Projekt den gewünschten Compiler ableiten
+                        if getattr(proj, "use_pyarmor", False) and not getattr(proj, "use_nuitka", False) and not getattr(proj, "use_cython", False):
+                            per_compiler = "pyarmor"
+                        elif getattr(proj, "use_nuitka", False) and not getattr(proj, "use_pyarmor", False) and not getattr(proj, "use_cython", False):
+                            per_compiler = "nuitka"
+                        elif getattr(proj, "use_cython", False) and not getattr(proj, "use_pyarmor", False) and not getattr(proj, "use_nuitka", False):
+                            per_compiler = "cython"
+                        elif (not getattr(proj, "use_pyarmor", False)
+                              and not getattr(proj, "use_nuitka", False)
+                              and not getattr(proj, "use_cython", False)):
+                            per_compiler = "pyinstaller"
+                        else:
+                            per_compiler = "pyinstaller"
+
+                        log(f"[{i+1}/{total}] Start: {proj.name} (compiler={per_compiler}, mode={active_mode})")
+                        
+                        def overall_progress(cur, tot, _done=done, _total=total):
+                            portion = (_done + (cur / max(1, tot))) / max(1, _total)
+                            set_prog(portion * 100)
+
+                        with open(log_path, "a", encoding="utf-8") as job_log:
+                            err = compile_projects(
+                                [proj],
+                                thread_count=1,
+                                log_file=job_log,
+                                status_callback=lambda msg, _i=i: self.master.after(
+                                    0, lambda: upd_status(f"[{_i+1}/{total}] {msg}")
+                                ),
+                                progress_callback=lambda cur, tot: overall_progress(cur, tot),
+                                compiler=per_compiler,
+                                mode=active_mode,
+                            )
+                        if err:
+                            errors.extend(err)
+
+                        done += 1
+
+                        # Cooldown
+                        if i < total - 1 and cooldown_s > 0:
+                            for remaining in range(cooldown_s, 0, -1):
+                                self.master.after(0, lambda r=remaining: self.set_status(f"🕒 Cooldown {r}s …", hold_ms=900))
+                                time.sleep(1)
+
+                # ================== PARALLEL: wie gehabt, nur aktiver Modus ==================
                 else:
-                    proj_name = "no_project"
-
-                log_hdl = Path(f"compile_{proj_name}_{datetime.now().strftime('%Y%m%d_%H%M')}.log").open("a", encoding="utf-8")
-
-                log_hdl.write(f"Starting compilation at {datetime.now()}\n")
-                log_hdl.flush()
-
-                def upd_status(msg):
-                    self.master.after(0, lambda: self.set_status(msg, hold_ms=2000))
-
-                def upd_prog(cur, total):
-                    prog.set((cur / total) * 100)
-
-                
-                compiler_mode = "pyinstaller" 
-
-                if all(p.use_pyarmor and not p.use_nuitka and not p.use_cython for p in selected):
-                    compiler_mode = "pyarmor"
-                elif all(p.use_nuitka and not p.use_pyarmor and not p.use_cython for p in selected):
-                    compiler_mode = "nuitka"
-                elif all(p.use_cython and not p.use_pyarmor and not p.use_nuitka for p in selected):
-                    compiler_mode = "cython"
-                elif all(not p.use_pyarmor and not p.use_nuitka and not p.use_cython for p in selected):
+                    # einheitlichen Compiler nur dann erzwingen, wenn ALLE gleich konfiguriert sind
                     compiler_mode = "pyinstaller"
-                                    
-                    
-                print(f"[DEBUG] Selected compiler_mode: {compiler_mode}")
-                log_hdl.write(f"Selected compiler_mode: {compiler_mode}\n")
-                log_hdl.flush()
+                    if all(getattr(p, "use_pyarmor", False) and not getattr(p, "use_nuitka", False) and not getattr(p, "use_cython", False) for p in selected):
+                        compiler_mode = "pyarmor"
+                    elif all(getattr(p, "use_nuitka", False) and not getattr(p, "use_pyarmor", False) and not getattr(p, "use_cython", False) for p in selected):
+                        compiler_mode = "nuitka"
+                    elif all(getattr(p, "use_cython", False) and not getattr(p, "use_pyarmor", False) and not getattr(p, "use_nuitka", False) for p in selected):
+                        compiler_mode = "cython"
+                    elif all(not getattr(p, "use_pyarmor", False) and not getattr(p, "use_nuitka", False) and not getattr(p, "use_cython", False) for p in selected):
+                        compiler_mode = "pyinstaller"
 
-                errors = compile_projects(
-                    selected,
-                    thread_count=self.thread_count_var.get(),
-                    log_file=log_hdl,
-                    status_callback=lambda msg: self.master.after(0, lambda: upd_status(msg)),
-                    progress_callback=lambda cur, total: self.master.after(0, lambda: upd_prog(cur, total)),
-                    compiler=compiler_mode,
-                    mode=mode,
-                )
+                    print(f"[DEBUG] Compile Projects: {len(selected)} projects, thread_count={threads}, mode={active_mode}, compiler={compiler_mode}")
+                    log(f"Compile Projects: {len(selected)} projects, thread_count={threads}, mode={active_mode}, compiler={compiler_mode}")
+
+                    with open(log_path, "a", encoding="utf-8") as run_log:
+                        errors = compile_projects(
+                            selected,
+                            thread_count=threads,
+                            log_file=run_log,
+                            status_callback=lambda msg: self.master.after(0, lambda: upd_status(msg)),
+                            progress_callback=lambda cur, total: self.master.after(0, lambda: prog.set((cur / max(1, total)) * 100)),
+                            compiler=compiler_mode,
+                            mode=active_mode,
+                        )
 
                 if errors:
-                    def show_debuginspector_only():
-                        self.status_var.set("Kompilierung abgeschlossen (mit Fehlern).")
-                        debuginspector(self.master, log_hdl.name, selected, self.style, self.config)
+                    def show_debug():
+                        self.status_var.set("Successfully Finished (with Errors).")
+                        debuginspector(self.master, str(log_path), selected, self.style, self.config)
                         self._refresh_tree()
-                    self.master.after(0, show_debuginspector_only)
+                    self.master.after(0, show_debug)
                 else:
                     self.master.after(0, lambda: (
-                        self.status_var.set("Successfully Finished !!! 😊 "),
+                        self.status_var.set("Successfully Finished 😊 "),
                         self.master.after(2000, lambda: self.status_var.set(self.texts["status_ready"]))
                     ))
 
             except Exception as e:
-                def _on_fail():
-                    self.status_var.set("Kompilierung fehlgeschlagen.")
-                    # ins Log schreiben (falls vorhanden)
+                def _on_fail(err=e, lp=log_path):
                     try:
-                        with open(log_hdl.name, "a", encoding="utf-8") as _hdl:
-                            _hdl.write(f"Compilation failed: {e}\n")
+                        if lp:
+                            with open(lp, "a", encoding="utf-8") as fh:
+                                fh.write(f"Compilation failed: {err}\n")
                     except Exception:
                         pass
-                    # Popup ENTFERNT – direkt Inspector öffnen, wenn es ein Log gibt
-                    if 'log_hdl' in locals():
-                        debuginspector(self.master, log_hdl.name, [], self.style, self.config)
+                    if lp and Path(lp).exists():
+                        debuginspector(self.master, str(lp), [], self.style, self.config)
                 self.master.after(0, _on_fail)
-
-
             finally:
                 stop_event.set()
                 self.master.after(0, pb.destroy)
-                print(f"End compilation...")
-                
+
         threading.Thread(target=do_compile, daemon=True).start()
 
-    def _show_extensions_popup(self):
-        import configparser
-        from tkinter import messagebox, filedialog
-        import tkinter as tk
-        from tkinter import ttk
-        from pathlib import Path
 
+
+    def _show_extensions_popup(self):
         KNOWN_TOOLS = [
             "pyinstaller", "pyarmor", "nuitka", "cython",
             "cpp", "gcc", "msvc", "tcl_base", "pytest", "sphinx-quickstart", "sphinx-build", "pylint", "pyreverse"
@@ -1416,8 +1550,6 @@ class AutoPyPlusPlusGUI:
         popup.resizable(False, False)
         popup.geometry("+%d+%d" % (self.master.winfo_rootx() + 200, self.master.winfo_rooty() + 80))
         popup.configure(background="#222222")
-
-        # White-on-dark Theme für Labels und Buttons
 
         frame = ttk.Frame(popup, padding=12, style="White.TFrame")
         frame.pack(fill="both", expand=True)
@@ -1471,11 +1603,11 @@ class AutoPyPlusPlusGUI:
         def add_entry():
             used_keys = set(paths.keys())
             free_keys = [k for k in KNOWN_TOOLS if k not in used_keys]
+
             if not free_keys:
-                messagebox.showinfo("Toolset is full", "No more free tools.")
+                self.status_info("Toolset is full – no more free tools.")
                 return
 
-            # Auswahl per Combobox in eigenem Dialogfenster
             dialog = tk.Toplevel(popup)
             dialog.title("Tool auswählen")
             dialog.resizable(False, False)
@@ -1508,7 +1640,7 @@ class AutoPyPlusPlusGUI:
                 cfg["paths"][k] = val
             with open(ini_file, "w", encoding="utf-8") as f:
                 cfg.write(f)
-            self.status_var.set("INI gespeichert.")
+            self.status_ok("INI saved 💾.")
             popup.destroy()
 
         ttk.Button(frame, text="Save", command=save_and_close, style="White.TButton").pack(pady=(6, 0), fill="x")
@@ -1517,4 +1649,3 @@ class AutoPyPlusPlusGUI:
         popup.focus_set()
         popup.grab_set()
         popup.wait_window()
-
