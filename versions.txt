@@ -15,6 +15,7 @@
 - Better Log- Look&feel
 - Less messageboxes
 - Cleanup Gui code
+- new start mechanism
 
 ### Version 2.46
 - hashcheck.py for more security
