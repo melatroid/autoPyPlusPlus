@@ -5,14 +5,14 @@
 - autopy++ runs primary in venv envirnoment
 - Pyarmor Basic/Pro featueres
 
-### (preview) Version 2.47
+### (latest) Version 2.47
 - Top/Down Pipeline Mode (A/B/C)
 - Create and Edit Deviders
-- Better Log Look&feel
+- Better Log- Look&feel
 - Less messageboxes
 - Cleanup Gui code
 
-### (lastest) Version 2.46
+### Version 2.46
 - hashcheck.py for more security
 - update service for powershell and git
 - bugfix path in general settings editor
