@@ -21,14 +21,19 @@ class Project:
         use_nuitka:  bool = False,
         use_cython:  bool = False,
         use_cpp:     bool  = False,
-        use_msvc:	 bool = False,
-        
+        use_msvc:    bool = False,
+        is_divider:  bool = False,
+        divider_label: str = "",
     ) -> None:
         # -------- Basisdaten --------
         self.script: str = script
         self.display_script: str = ""  # für .spec
         self.name: str = name or (Path(script).stem if script else "")
         self.spec_file = spec_file
+
+        # -------- Divider-Persistenz --------
+        self.is_divider: bool = is_divider
+        self.divider_label: str = divider_label or self.name
 
         # -------- Auswahl-Flags --------
         self.compile_selected: bool = compile_selected
@@ -45,8 +50,7 @@ class Project:
         # -------- Compiler-Zustand setzen --------
         self._set_compiler(use_pyarmor, use_nuitka, use_cython, use_cpp)
 
-
-        # ── Pfad-Attribute für Tools (neu) ──────────────
+        # ── Pfad-Attribute für Tools ──────────────
         self.pyinstaller_path: str | None = None
         self.pyarmor_path: str     | None = None
         self.nuitka_path: str      | None = None
@@ -71,7 +75,6 @@ class Project:
         self.pyarmor_dist_dir: str = ""
         self.no_runtime_key: bool = True
         self.exclude_tcl: bool = False
-
 
         # ── PyArmor generisch ──────────────────────
         self.pyarmor_command: str = "gen"
@@ -155,50 +158,49 @@ class Project:
         self.cpp_target_platform: str = "Windows"
         
         # ---- Pytest-Optionen ----
-        self.use_pytest: bool = False           # Für Build/Run-Auswahl
+        self.use_pytest: bool = False
         self.use_pytest_standalone: bool = False
-        self.pytest_path: str | None = None     # Falls ein expliziter Pfad gewünscht ist
-        self.test_file: str = ""                # Einzelne Testdatei (z.B. "tests/test_modul.py")
-        self.test_dir: str = ""                 # Test-Ordner (z.B. "tests")
-        self.pytest_verbose: bool = False       # -v
-        self.pytest_quiet: bool = False         # -q
-        self.pytest_maxfail: int | None = None  # --maxfail=N
-        self.pytest_marker: str = ""            # -m MARKER
-        self.pytest_keyword: str = ""           # -k KEYWORD
-        self.pytest_disable_warnings: bool = False # --disable-warnings
-        self.pytest_tb: str = ""                # --tb=short|long|no
-        self.pytest_durations: int | None = None   # --durations=N
-        self.pytest_capture: str = ""           # --capture=NO|FD|SYS
-        self.pytest_html: str = ""              # --html=pfad/report.html
-        self.pytest_lf: bool = False            # --lf (last-failed)
-        self.pytest_ff: bool = False            # --ff (failed-first)
+        self.pytest_path: str | None = None
+        self.test_file: str = ""
+        self.test_dir: str = ""
+        self.pytest_verbose: bool = False
+        self.pytest_quiet: bool = False
+        self.pytest_maxfail: int | None = None
+        self.pytest_marker: str = ""
+        self.pytest_keyword: str = ""
+        self.pytest_disable_warnings: bool = False
+        self.pytest_tb: str = ""
+        self.pytest_durations: int | None = None
+        self.pytest_capture: str = ""
+        self.pytest_html: str = ""
+        self.pytest_lf: bool = False
+        self.pytest_ff: bool = False
         self.pytest_args: list[str] | str = []
         
         # ---- Sphinx-Optionen ----
-        self.use_sphinx: bool = False           		# Für Build/Run-Auswahl
+        self.use_sphinx: bool = False
         self.use_sphinx_standalone: bool = False
-        self.sphinx_source: str = "docs"                # Quellordner
-        self.sphinx_build: str = "_build/html"          # Zielordner
-        self.sphinx_build_path: str | None = None       # Pfad zu sphinx-build (optional)
-        self.sphinx_builder: str = "html"               # Builder, z.B. "html", "latex"
-        self.sphinx_conf_path: str = ""                 # conf.py-Pfad
-        self.sphinx_doctrees: str = ""                  # Doctree-Verz.
-        self.sphinx_parallel: int = 1                   # Jobs für -j
-        self.sphinx_warning_is_error: bool = False      # -W
-        self.sphinx_quiet: bool = False                 # -q
-        self.sphinx_verbose: bool = False               # -v
-        self.sphinx_very_verbose: bool = False          # -vv
-        self.sphinx_keep_going: bool = False            # --keep-going
-        self.sphinx_tags: list[str] = []                # -t
-        self.sphinx_define: list[str] = []              # -D
-        self.sphinx_new_build: bool = False             # -E
-        self.sphinx_all_files: bool = False             # -a
-        self.sphinx_logfile: str = ""                   # -w
-        self.sphinx_nitpicky: bool = False              # -n
-        self.sphinx_color: bool = False                 # --color
-        self.sphinx_no_color: bool = False              # --no-color
-        self.sphinx_args: list[str] = []                # weitere Argumente
-
+        self.sphinx_source: str = "docs"
+        self.sphinx_build: str = "_build/html"
+        self.sphinx_build_path: str | None = None
+        self.sphinx_builder: str = "html"
+        self.sphinx_conf_path: str = ""
+        self.sphinx_doctrees: str = ""
+        self.sphinx_parallel: int = 1
+        self.sphinx_warning_is_error: bool = False
+        self.sphinx_quiet: bool = False
+        self.sphinx_verbose: bool = False
+        self.sphinx_very_verbose: bool = False
+        self.sphinx_keep_going: bool = False
+        self.sphinx_tags: list[str] = []
+        self.sphinx_define: list[str] = []
+        self.sphinx_new_build: bool = False
+        self.sphinx_all_files: bool = False
+        self.sphinx_logfile: str = ""
+        self.sphinx_nitpicky: bool = False
+        self.sphinx_color: bool = False
+        self.sphinx_no_color: bool = False
+        self.sphinx_args: list[str] = []
 
     def _set_compiler(self, use_pyarmor=False, use_nuitka=False, use_cython=False, use_cpp=False):
         """Setzt den Compiler-Zustand, erlaubt Kombination von Cython und C++."""
@@ -217,8 +219,6 @@ class Project:
             self.use_nuitka = False
             self.use_cython = use_cython or use_cpp
             self.use_cpp = use_cpp
-
-            
 
     def to_dict(self) -> dict[str, Any]:
         data = {
@@ -252,6 +252,8 @@ class Project:
             "options": self.options,
             "use_pyarmor": self.use_pyarmor,
             "use_nuitka": self.use_nuitka,
+            "is_divider": self.is_divider,
+            "divider_label": self.divider_label,
             "no_runtime_key": self.no_runtime_key,
             "exclude_tcl": self.exclude_tcl,
             # ── PyArmor-Optionen ──────────────
@@ -371,7 +373,6 @@ class Project:
             "sphinx_color": self.sphinx_color,
             "sphinx_no_color": self.sphinx_no_color,
             "sphinx_args": self.sphinx_args,
-
         }
 
         # Nur wenn PyArmor aktiv, pyarmor_dist_dir auch speichern
@@ -383,19 +384,18 @@ class Project:
         p = cls(
             script=d.get("script", ""),
             name=d.get("name", ""),
-            
             compile_selected=d.get("compile_selected", False),
             compile_a_selected=d.get("compile_a_selected"),
             compile_b_selected=d.get("compile_b_selected"),
             compile_c_selected=d.get("compile_c_selected"),
-            
             spec_file=d.get("spec_file", ""),
-            
             use_pyarmor=d.get("use_pyarmor", False),
             use_nuitka=d.get("use_nuitka", False),
             use_cython=d.get("use_cython", False),
             use_cpp=d.get("use_cpp", False),
             use_msvc=d.get("use_msvc", True),
+            is_divider=bool(d.get("is_divider", False)),
+            divider_label=d.get("divider_label", d.get("name", "")),
         )
         p.additional_files = d.get("additional_files", [])  # außerhalb des Konstruktors
 
@@ -403,7 +403,7 @@ class Project:
         if p.use_pyarmor and p.use_nuitka:
             p.use_nuitka = False  # PyArmor hat Vorrang
 
-        # ── Pfad-Attribute aus dict laden (neu)
+        # ── Pfad-Attribute aus dict laden ──────────────
         p.pyinstaller_path = d.get("pyinstaller_path")
         p.pyarmor_path = d.get("pyarmor_path")
         p.nuitka_path = d.get("nuitka_path")
@@ -466,7 +466,6 @@ class Project:
         
         # ── Cython-Optionen laden ──────────────
         p.use_cython = d.get("use_cython", False)
-        
         p.cython_build_with_setup = d.get("cython_build_with_setup", True)
         p.cython_target_type = d.get("cython_target_type", "Python Extension") 
         p.cython_boundscheck = d.get("cython_boundscheck", False)
@@ -489,8 +488,8 @@ class Project:
         p.cython_include_dirs = d.get("cython_include_dirs", [])
         p.cython_compile_time_env = d.get("cython_compile_time_env", {}) if d.get("cython_compile_time_env") is not None else {}
 
-            # ── CPP-Optionen ──────────────
-        p.cpp_language = d.get("cpp_language", "cpp")    
+        # ── CPP-Optionen ──────────────
+        p.cpp_language = d.get("cpp_language", "cpp")
         p.use_msvc = d.get("use_msvc", True)
         p.cpp_output_file = d.get("cpp_output_file", "")
         p.cpp_windowed = d.get("cpp_windowed", False)
@@ -553,6 +552,9 @@ class Project:
         p.sphinx_no_color = d.get("sphinx_no_color", False)
         p.sphinx_args = d.get("sphinx_args", [])
 
+        # Fallback-Sanity
+        if p.is_divider and not p.divider_label:
+            p.divider_label = p.name
 
         p._set_compiler(
             use_pyarmor=p.use_pyarmor,
@@ -561,7 +563,6 @@ class Project:
             use_cpp=p.use_cpp,
         )
         return p
-
 
     @staticmethod
     def to_dict_list(projects: list["Project"]) -> str:
