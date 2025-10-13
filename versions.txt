@@ -3,7 +3,10 @@
 ### (preview) Version 2.5x
 - Inspector reads specific logs on top
 - autopy++ runs primary in venv envirnoment
-- Pyarmor Basic/Pro featueres
+- Better Pyarmor Basic/Pro featueres
+
+### (preview) Version 2.48
+- Update AutoPy++ from Menubar
 - Load last opened Apyscript
 
 ### (latest) Version 2.47
