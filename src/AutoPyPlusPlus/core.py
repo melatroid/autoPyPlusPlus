@@ -176,7 +176,7 @@ def fix_project_consistency(projects: List[Project]) -> None:
                 if hasattr(p, "use_cython"):
                     p.use_cython = False
 
-# === JSON Hilfsfunktionen (optional) ===
+# === JSON Hilfsfunktionen ===
 
 def save_json(obj, file_path):
     with open(file_path, "w", encoding="utf-8") as f:
