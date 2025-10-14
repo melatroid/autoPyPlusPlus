@@ -226,8 +226,8 @@ the system found nuitka in your python version
 
 To use PyArmor, include the following in your Python code:
 - Go to https://jondy.github.io/paypal/index.html
-- Buy Basic or Pro,  Wait for Mail (1 hour)
-- Download zip file to a create Folder like this.: C:\Users\YOURNAME\Documents\PyArmor
+- Buy Basic or Pro, Wait for Mail (1 hour)
+- Download zip file to a created folder like this.: C:\Users\YOURNAME\Documents\PyArmor
 ```bash
 1.) got to python terminal like thonny 
 2.) cd C:\Users\YOURNAME\Documents\PyArmor
@@ -299,6 +299,7 @@ gcc --version
 ```
 
 ---
+
 
 
 
