@@ -1039,23 +1039,15 @@ class AutoPyPlusPlusGUI:
             self.status_var.set("Project could not be added (parse_spec_file returned None)")
 
     def _edit(self) -> None:
-        stop_event = threading.Event()
-        threading.Thread(
-            target=self.run_status_animation,
-            args=(stop_event,),
-            daemon=True
-        ).start()
-
+        # --- IMPROVED: No thread for short operations like edit – use static status only ---
         sel = self.tree.selection()
         if not sel:
             self.status_warn(self.texts["error_no_entry"])
-            stop_event.set()
             return
 
         row_id = sel[0]
         if not row_id.startswith("proj_"):
             self.status_warn("Select a project row.")
-            stop_event.set()
             return
 
         try:
@@ -1063,17 +1055,20 @@ class AutoPyPlusPlusGUI:
             proj: Project = self.projects[proj_index]
         except (ValueError, IndexError):
             self.status_err("Invalid project ID.")
-            stop_event.set()
             return
+
+        # --- Set static status before blocking dialog (no animation/thread) ---
+        self.set_status("Editing project...", hold_ms=None)
 
         # --- SPEC-Projekt? ---
         if getattr(proj, "spec_file", None) and str(proj.spec_file).lower().endswith(".spec"):
-            if SpecEditor is None:
+            try:
+                from .speceditor import SpecEditor  # Ensure import succeeds
+            except ImportError as e:
                 messagebox.showerror(
                     "Import Error",
-                    f"SpecEditor module could not be loaded:\n{_SPECEDITOR_IMPORT_ERR}"
+                    f"SpecEditor module could not be loaded: {e}"
                 )
-                stop_event.set()
                 return
 
             editor = SpecEditor(self.master, proj, self.texts)
@@ -1081,8 +1076,7 @@ class AutoPyPlusPlusGUI:
                 self._refresh_tree()
                 self._save_current_file()
                 self.set_status(f'Spec project "{proj.name}" updated. 🔧', hold_ms=2000)
-            stop_event.set()
-            return
+            return  # Early return for spec
 
         # --- Normales Projekt ---
         editor = ProjectEditor(self.master, proj, self.texts, self)
@@ -1090,8 +1084,7 @@ class AutoPyPlusPlusGUI:
             self._refresh_tree()
             self._save_current_file()
             self.set_status(f'Project "{proj.name}" updated. ✅', hold_ms=2000)
-
-        stop_event.set()
+        # No thread to stop – clean and safe
         
     def _delete(self):
         sel = self.tree.selection()
