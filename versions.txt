@@ -6,7 +6,7 @@
 
 ### (preview) Version 2.48
 - Split Projecteditor and pyarmoreditor
-- Better Pyarmor Basic/Pro featueres
+- Better Pyarmor Basic/Pro building
 
 ### (latest) Version Version 2.47.2
 - Buggy Main Gui fix Part 1
