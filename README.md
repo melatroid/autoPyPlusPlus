@@ -224,7 +224,7 @@ the system found nuitka in your python version
 ---
 # PyArmor Usage
 
-To use PyArmor, include the following in your Python code:
+Pyarmor is not for Free, you could only create limited runs in test version
 - Go to https://jondy.github.io/paypal/index.html
 - Buy Basic or Pro, Wait for Mail (1 hour)
 - Download zip file to a created folder like this.: C:\Users\YOURNAME\Documents\PyArmor
@@ -299,6 +299,7 @@ gcc --version
 ```
 
 ---
+
 
 
 
