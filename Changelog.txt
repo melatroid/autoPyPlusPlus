@@ -1,5 +1,4 @@
 
-# Versions
 ### (preview) Version 2.5x
 - Inspector reads specific logs on top
 - autopy++ runs primary in venv envirnoment
