@@ -5,7 +5,10 @@
 - autopy++ runs primary in venv envirnoment
 - Better Pyarmor Basic/Pro featueres
 
-### (latest) Version 2.47
+### (latest) Version Version 2.47.2
+- Buggy Main Gui fix Part 1
+
+### (latest) Version 2.47.1
 - Top/Down Pipeline Mode (A/B/C)
 - Create and Edit Deviders
 - Better Log- Look&feel
