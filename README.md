@@ -229,7 +229,7 @@ Pyarmor is not for Free, you could only create limited runs in test version
 - Buy Basic or Pro, Wait for Mail (1 hour)
 - Download zip file to a created folder like this.: C:\Users\YOURNAME\Documents\PyArmor
 ```bash
-1.) got to python terminal like thonny 
+1.) pip install pyarmor
 2.) cd C:\Users\YOURNAME\Documents\PyArmor
 3.) pyarmor reg -p YOURPRODUCTNAMEHERE pyarmor-regcode-7959.txt  (Creates a Registerfile)
 4.) pyarmor reg pyarmor-regfile-7959.zip  (your local licence! dont disclose!)
@@ -299,6 +299,7 @@ gcc --version
 ```
 
 ---
+
 
 
 
