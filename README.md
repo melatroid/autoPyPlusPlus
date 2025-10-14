@@ -225,6 +225,17 @@ the system found nuitka in your python version
 # PyArmor Usage
 
 To use PyArmor, include the following in your Python code:
+- Go to https://jondy.github.io/paypal/index.html
+- Buy Basic or Pro,  Wait for Mail (1 hour)
+- Download zip file to a create Folder like this.: C:\Users\YOURNAME\Documents\PyArmor
+```bash
+1.) got to python terminal like thonny 
+2.) cd C:\Users\YOURNAME\Documents\PyArmor
+3.) pyarmor reg -p YOURPRODUCTNAMEHERE pyarmor-regcode-7959.txt  (Creates a Registerfile)
+4.) pyarmor reg pyarmor-regfile-7959.zip  (your local licence! dont disclose!)
+5.) pyarmor -v (check registration)
+6.) Copy the pyarmor runtime snippet to the header of your py files
+```
 
 ```python
 from pyarmor_runtime import __pyarmor__
@@ -288,6 +299,7 @@ gcc --version
 ```
 
 ---
+
 
 
 
