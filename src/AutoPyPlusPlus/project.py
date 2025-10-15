@@ -2,9 +2,14 @@ import json
 from pathlib import Path
 from typing import Any
 
+
 class Project:
     """
-    Project-Datencontainer.
+    Project data container.
+
+    This class centralizes build settings and tool configuration for your
+    pipeline (PyInstaller, PyArmor, Nuitka, Cython, and optional C++ toolchain).
+    All comments and docstrings are English-only.
     """
 
     def __init__(
@@ -13,29 +18,29 @@ class Project:
         name: str = "",
         *,
         spec_file: str = "",
-        compile_selected:   bool = False,
+        compile_selected: bool = False,
         compile_a_selected: bool | None = None,
         compile_b_selected: bool | None = None,
-        compile_c_selected: bool | None = None, 
+        compile_c_selected: bool | None = None,
         use_pyarmor: bool = False,
-        use_nuitka:  bool = False,
-        use_cython:  bool = False,
-        use_cpp:     bool  = False,
-        use_msvc:    bool = False,
-        is_divider:  bool = False,
+        use_nuitka: bool = False,
+        use_cython: bool = False,
+        use_cpp: bool = False,
+        use_msvc: bool = False,
+        is_divider: bool = False,
         divider_label: str = "",
     ) -> None:
-        # -------- Basisdaten --------
+        # -------- Basics --------
         self.script: str = script
-        self.display_script: str = ""  # für .spec
+        self.display_script: str = ""  # for .spec display
         self.name: str = name or (Path(script).stem if script else "")
         self.spec_file = spec_file
 
-        # -------- Divider-Persistenz --------
+        # -------- Divider persistence --------
         self.is_divider: bool = is_divider
         self.divider_label: str = divider_label or self.name
 
-        # -------- Auswahl-Flags --------
+        # -------- Selection flags (A/B/C buckets) --------
         self.compile_selected: bool = compile_selected
         self.compile_a_selected: bool = (
             compile_a_selected if compile_a_selected is not None else compile_selected
@@ -47,21 +52,23 @@ class Project:
             compile_c_selected if compile_c_selected is not None else False
         )
 
-        # -------- Compiler-Zustand setzen --------
+        # -------- Compiler state (mutually exclusive except Cython/C++) --------
         self._set_compiler(use_pyarmor, use_nuitka, use_cython, use_cpp)
 
-        # ── Pfad-Attribute für Tools ──────────────
+        # ── Tool paths ────────────────────────────────────────────────────────
         self.pyinstaller_path: str | None = None
-        self.pyarmor_path: str     | None = None
-        self.nuitka_path: str      | None = None
-        self.cython_path: str      | None = None
-        self.cpp_path: str         | None = None
-        
+        self.pyarmor_path: str | None = None
+        self.nuitka_path: str | None = None
+        self.cython_path: str | None = None
+        self.cpp_path: str | None = None
+
+        # ── Generic Build / PyInstaller options ──────────────────────────────
         self.icon: str = ""
         self.add_data: str = ""
         self.hidden_imports: str = ""
         self.version: str = ""
         self.output: str = ""
+
         self.onefile: bool = False
         self.console: bool = True
         self.upx: bool = False
@@ -75,26 +82,36 @@ class Project:
         self.pyarmor_dist_dir: str = ""
         self.no_runtime_key: bool = True
         self.exclude_tcl: bool = False
+        self.include_pyarmor_runtime = False
 
-        # ── PyArmor generisch ──────────────────────
+        # ── PyArmor generic ───────────────────────────────────────────────────
+        self.build_mode: str = "debug"  # "debug" | "release"
         self.pyarmor_command: str = "gen"
         self.pyarmor_options: str = ""
 
-        # ── PyArmor erweiterte Optionen ────────────
-        self.pyarmor_obf_code: str = "1"
+        # ── PyArmor Edition / Dist-Mode & Pro-Flags (persisted) ──────────────
+        self.pyarmor_edition: str = "basic"
+        self.pyarmor_dist_mode: str = "auto"
+        self.pyarmor_enable_rft: bool = False
+        self.pyarmor_enable_bcc: bool = False
+        self.pyarmor_enable_jit: bool = False
+        self.pyarmor_enable_themida: bool = False
+        self.pyarmor_enable_fly: bool = False
+
+        # ── PyArmor advanced options ─────────────────────────────────────────
+        self.pyarmor_obf_code: str = "0"
         self.pyarmor_mix_str: bool = False
         self.pyarmor_private: bool = False
         self.pyarmor_restrict: bool = False
         self.pyarmor_assert_import: bool = False
         self.pyarmor_assert_call: bool = False
         self.pyarmor_platform: str = ""
-        self.pyarmor_pack: str = ""
+        self.pyarmor_pack: str = ""  # "", "onefile", "onedir"
         self.pyarmor_expired: str = ""
         self.pyarmor_bind_device: str = ""
-        self.include_pyarmor_runtime = False
         self.pyarmor_runtime_dir = ""
 
-        # ── Nuitka-Build-Optionen ─────────
+        # ── Nuitka build options ─────────────────────────────────────────────
         self.nuitka_extra_opts: str = ""
         self.nuitka_standalone: bool = False
         self.nuitka_onefile: bool = False
@@ -104,16 +121,16 @@ class Project:
         self.nuitka_follow_stdlib: bool = False
         self.nuitka_plugins: str = ""
         self.nuitka_show_progress: bool = False
-        self.nuitka_lto: str = "auto"        # "auto", "yes", "no"
+        self.nuitka_lto: str = "auto"
         self.nuitka_jobs: int = 1
         self.nuitka_show_memory: bool = False
         self.nuitka_show_scons: bool = False
         self.nuitka_windows_uac_admin: bool = False
         self.nuitka_windows_icon: str = ""
         self.nuitka_windows_splash: str = ""
-        
-        # ── Cython-Optionen ───────────────────────────
-        self.use_cython: bool = use_cython 
+
+        # ── Cython options ───────────────────────────────────────────────────
+        self.use_cython: bool = use_cython
         self.cython_build_with_setup: bool = True
         self.cython_target_type: str = "Python Extension"
         self.cython_boundscheck: bool = False
@@ -136,28 +153,28 @@ class Project:
         self.cython_include_dirs: list[str] = []
         self.cython_compile_time_env: dict | None = None
         self.additional_files: list[str] = []
-        
-        # ── C++-Compiler Optionen ───────────────────────
-        self.use_cpp: bool  = use_cpp
+
+        # ── C++ compiler options ─────────────────────────────────────────────
+        self.use_cpp: bool = use_cpp
         self.use_msvc = use_msvc
         self.cpp_language: str = "cpp"
-        self.cpp_filename: str = "" 
+        self.cpp_filename: str = ""
         self.cpp_output_file: str = ""
         self.cpp_windowed: bool = False
         self.cpp_compiler_path: str = "g++"
-        self.cpp_compiler_flags: str = "" 
+        self.cpp_compiler_flags: str = ""
         self.cpp_linker_flags: str = ""
         self.cpp_include_dirs: list[str] = []
         self.cpp_lib_dirs: list[str] = []
         self.cpp_libraries: list[str] = []
         self.cpp_defines: list[str] = []
         self.cpp_output_dir: str = ""
-        self.cpp_build_type: str = "Release" 
+        self.cpp_build_type: str = "Release"
         self.cpp_compile_files: list[str] = []
         self.cpp_target_type: str = "Executable"
         self.cpp_target_platform: str = "Windows"
-        
-        # ---- Pytest-Optionen ----
+
+        # ---- Pytest options ----
         self.use_pytest: bool = False
         self.use_pytest_standalone: bool = False
         self.pytest_path: str | None = None
@@ -176,8 +193,8 @@ class Project:
         self.pytest_lf: bool = False
         self.pytest_ff: bool = False
         self.pytest_args: list[str] | str = []
-        
-        # ---- Sphinx-Optionen ----
+
+        # ---- Sphinx options ----
         self.use_sphinx: bool = False
         self.use_sphinx_standalone: bool = False
         self.sphinx_source: str = "docs"
@@ -203,7 +220,7 @@ class Project:
         self.sphinx_args: list[str] = []
 
     def _set_compiler(self, use_pyarmor=False, use_nuitka=False, use_cython=False, use_cpp=False):
-        """Setzt den Compiler-Zustand, erlaubt Kombination von Cython und C++."""
+        """Set compiler state; Cython/C++ can be combined, others are exclusive."""
         if use_pyarmor:
             self.use_pyarmor = True
             self.use_nuitka = False
@@ -221,6 +238,7 @@ class Project:
             self.use_cpp = use_cpp
 
     def to_dict(self) -> dict[str, Any]:
+        """Serialize the project to a JSON-ready dict."""
         data = {
             "script": self.script,
             "display_script": self.display_script,
@@ -233,7 +251,7 @@ class Project:
             "pyarmor_path": self.pyarmor_path,
             "nuitka_path": self.nuitka_path,
             "cython_path": self.cython_path,
-            # ── Pyinstaller-Optionen ──────────────
+            # ── PyInstaller options ──────────────
             "icon": self.icon,
             "add_data": self.add_data,
             "hidden_imports": self.hidden_imports,
@@ -256,10 +274,19 @@ class Project:
             "divider_label": self.divider_label,
             "no_runtime_key": self.no_runtime_key,
             "exclude_tcl": self.exclude_tcl,
-            # ── PyArmor-Optionen ──────────────
             "include_pyarmor_runtime": self.include_pyarmor_runtime,
+            "build_mode": self.build_mode,
+
+            # ── PyArmor options ──────────────
             "pyarmor_command": self.pyarmor_command,
             "pyarmor_options": self.pyarmor_options,
+            "pyarmor_edition": self.pyarmor_edition,
+            "pyarmor_dist_mode": self.pyarmor_dist_mode,
+            "pyarmor_enable_rft": self.pyarmor_enable_rft,
+            "pyarmor_enable_bcc": self.pyarmor_enable_bcc,
+            "pyarmor_enable_jit": self.pyarmor_enable_jit,
+            "pyarmor_enable_themida": self.pyarmor_enable_themida,
+            "pyarmor_enable_fly": self.pyarmor_enable_fly,
             "pyarmor_obf_code": self.pyarmor_obf_code,
             "pyarmor_mix_str": self.pyarmor_mix_str,
             "pyarmor_private": self.pyarmor_private,
@@ -271,8 +298,9 @@ class Project:
             "pyarmor_expired": self.pyarmor_expired,
             "pyarmor_bind_device": self.pyarmor_bind_device,
             "pyarmor_runtime_dir": self.pyarmor_runtime_dir,
-            # ── Nuitka-Optionen ──────────────
-            "nuitka_tkinter_plugin": self.nuitka_tkinter_plugin,  
+
+            # ── Nuitka options ──────────────
+            "nuitka_tkinter_plugin": self.nuitka_tkinter_plugin,
             "nuitka_extra_opts": self.nuitka_extra_opts,
             "nuitka_standalone": self.nuitka_standalone,
             "nuitka_onefile": self.nuitka_onefile,
@@ -288,7 +316,8 @@ class Project:
             "nuitka_windows_uac_admin": self.nuitka_windows_uac_admin,
             "nuitka_windows_icon": self.nuitka_windows_icon,
             "nuitka_windows_splash": self.nuitka_windows_splash,
-            # ── Cython-Optionen ──────────────
+
+            # ── Cython options ──────────────
             "use_cython": self.use_cython,
             "cython_build_with_setup": self.cython_build_with_setup,
             "cython_target_type": self.cython_target_type,
@@ -312,7 +341,8 @@ class Project:
             "cython_include_dirs": self.cython_include_dirs,
             "cython_compile_time_env": self.cython_compile_time_env if self.cython_compile_time_env is not None else {},
             "additional_files": self.additional_files,
-            # ── CPP-Optionen ──────────────
+
+            # ── C++ options ──────────────
             "use_cpp": self.use_cpp,
             "cpp_output_file": self.cpp_output_file,
             "use_msvc": self.use_msvc,
@@ -330,7 +360,8 @@ class Project:
             "cpp_compile_files": self.cpp_compile_files,
             "cpp_target_type": self.cpp_target_type,
             "cpp_target_platform": self.cpp_target_platform,
-            # ---- Pytest-Optionen ----
+
+            # ---- Pytest options ----
             "pytest_path": self.pytest_path,
             "use_pytest": self.use_pytest,
             "use_pytest_standalone": self.use_pytest_standalone,
@@ -349,38 +380,15 @@ class Project:
             "pytest_lf": self.pytest_lf,
             "pytest_ff": self.pytest_ff,
             "pytest_args": self.pytest_args,
-            # ---- Sphinx-Optionen ----
-            "use_sphinx": self.use_sphinx,
-            "use_sphinx_standalone": self.use_sphinx_standalone,
-            "sphinx_source": self.sphinx_source,
-            "sphinx_build": self.sphinx_build,
-            "sphinx_build_path": self.sphinx_build_path,
-            "sphinx_builder": self.sphinx_builder,
-            "sphinx_conf_path": self.sphinx_conf_path,
-            "sphinx_doctrees": self.sphinx_doctrees,
-            "sphinx_parallel": self.sphinx_parallel,
-            "sphinx_warning_is_error": self.sphinx_warning_is_error,
-            "sphinx_quiet": self.sphinx_quiet,
-            "sphinx_verbose": self.sphinx_verbose,
-            "sphinx_very_verbose": self.sphinx_very_verbose,
-            "sphinx_keep_going": self.sphinx_keep_going,
-            "sphinx_tags": self.sphinx_tags,
-            "sphinx_define": self.sphinx_define,
-            "sphinx_new_build": self.sphinx_new_build,
-            "sphinx_all_files": self.sphinx_all_files,
-            "sphinx_logfile": self.sphinx_logfile,
-            "sphinx_nitpicky": self.sphinx_nitpicky,
-            "sphinx_color": self.sphinx_color,
-            "sphinx_no_color": self.sphinx_no_color,
-            "sphinx_args": self.sphinx_args,
         }
 
-        # Nur wenn PyArmor aktiv, pyarmor_dist_dir auch speichern
+        # Only persist pyarmor_dist_dir when PyArmor is active
         data["pyarmor_dist_dir"] = self.pyarmor_dist_dir if self.use_pyarmor else ""
         return data
 
     @classmethod
     def from_dict(cls, d: dict[str, Any]) -> "Project":
+        """Create a Project from a dict (inverse of ``to_dict``)."""
         p = cls(
             script=d.get("script", ""),
             name=d.get("name", ""),
@@ -397,19 +405,19 @@ class Project:
             is_divider=bool(d.get("is_divider", False)),
             divider_label=d.get("divider_label", d.get("name", "")),
         )
-        p.additional_files = d.get("additional_files", [])  # außerhalb des Konstruktors
+        p.additional_files = d.get("additional_files", [])  # set outside constructor
 
-        # Korrigiere potenzielle inkonsistente Compiler-Zustände
+        # Correct potentially inconsistent compiler states
         if p.use_pyarmor and p.use_nuitka:
-            p.use_nuitka = False  # PyArmor hat Vorrang
+            p.use_nuitka = False  # PyArmor takes precedence
 
-        # ── Pfad-Attribute aus dict laden ──────────────
+        # ── Tool paths ───────────────────────────────────────────────────────
         p.pyinstaller_path = d.get("pyinstaller_path")
         p.pyarmor_path = d.get("pyarmor_path")
         p.nuitka_path = d.get("nuitka_path")
         p.cython_path = d.get("cython_path")
 
-        # ── Pyinstaller-Optionen laden ──────────────
+        # ── PyInstaller options ─────────────────────────────────────────────
         p.display_script = d.get("display_script", "")
         p.icon = d.get("icon", "")
         p.add_data = d.get("add_data", "")
@@ -428,11 +436,22 @@ class Project:
         p.options = d.get("options", "")
         p.no_runtime_key = d.get("no_runtime_key", False)
         p.exclude_tcl = d.get("exclude_tcl", False)
-
-        # ── PyArmor-Optionen laden ──────────────
         p.include_pyarmor_runtime = d.get("include_pyarmor_runtime", False)
+        p.build_mode = d.get(
+            "build_mode",
+            "release" if d.get("onefile", False) else "debug",
+        )
+
+        # ── PyArmor options ─────────────────────────────────────────────────
         p.pyarmor_command = d.get("pyarmor_command", "gen")
         p.pyarmor_options = d.get("pyarmor_options", "")
+        p.pyarmor_edition = d.get("pyarmor_edition", "basic")
+        p.pyarmor_dist_mode = d.get("pyarmor_dist_mode", "auto")
+        p.pyarmor_enable_rft = d.get("pyarmor_enable_rft", False)
+        p.pyarmor_enable_bcc = d.get("pyarmor_enable_bcc", False)
+        p.pyarmor_enable_jit = d.get("pyarmor_enable_jit", False)
+        p.pyarmor_enable_themida = d.get("pyarmor_enable_themida", False)
+        p.pyarmor_enable_fly = d.get("pyarmor_enable_fly", False)
         p.pyarmor_obf_code = d.get("pyarmor_obf_code", "1")
         p.pyarmor_mix_str = d.get("pyarmor_mix_str", False)
         p.pyarmor_private = d.get("pyarmor_private", False)
@@ -446,7 +465,7 @@ class Project:
         p.pyarmor_runtime_dir = d.get("pyarmor_runtime_dir", "")
         p.pyarmor_dist_dir = d.get("pyarmor_dist_dir", "") if p.use_pyarmor else ""
 
-        # ── Nuitka-Optionen laden ──────────────
+        # ── Nuitka options ──────────────────────────────────────────────────
         p.nuitka_tkinter_plugin = d.get("nuitka_tkinter_plugin", False)
         p.nuitka_extra_opts = d.get("nuitka_extra_opts", "")
         p.nuitka_standalone = d.get("nuitka_standalone", False)
@@ -463,11 +482,11 @@ class Project:
         p.nuitka_windows_uac_admin = d.get("nuitka_windows_uac_admin", False)
         p.nuitka_windows_icon = d.get("nuitka_windows_icon", "")
         p.nuitka_windows_splash = d.get("nuitka_windows_splash", "")
-        
-        # ── Cython-Optionen laden ──────────────
+
+        # ── Cython options ──────────────────────────────────────────────────
         p.use_cython = d.get("use_cython", False)
         p.cython_build_with_setup = d.get("cython_build_with_setup", True)
-        p.cython_target_type = d.get("cython_target_type", "Python Extension") 
+        p.cython_target_type = d.get("cython_target_type", "Python Extension")
         p.cython_boundscheck = d.get("cython_boundscheck", False)
         p.cython_wraparound = d.get("cython_wraparound", False)
         p.cython_nonecheck = d.get("cython_nonecheck", False)
@@ -488,7 +507,7 @@ class Project:
         p.cython_include_dirs = d.get("cython_include_dirs", [])
         p.cython_compile_time_env = d.get("cython_compile_time_env", {}) if d.get("cython_compile_time_env") is not None else {}
 
-        # ── CPP-Optionen ──────────────
+        # ── C++ options ─────────────────────────────────────────────────────
         p.cpp_language = d.get("cpp_language", "cpp")
         p.use_msvc = d.get("use_msvc", True)
         p.cpp_output_file = d.get("cpp_output_file", "")
@@ -506,8 +525,8 @@ class Project:
         p.cpp_target_type = d.get("cpp_target_type", "Executable")
         p.cpp_target_platform = d.get("cpp_target_platform", "Windows")
         p.cpp_filename = d.get("cpp_filename", "")
-        
-        # ---- Pytest-Optionen ----
+
+        # ---- Pytest options ----
         p.use_pytest = d.get("use_pytest", False)
         p.use_pytest_standalone = d.get("use_pytest_standalone", False)
         p.pytest_path = d.get("pytest_path")
@@ -526,8 +545,8 @@ class Project:
         p.pytest_lf = d.get("pytest_lf", False)
         p.pytest_ff = d.get("pytest_ff", False)
         p.pytest_args = d.get("pytest_args", [])
-        
-        # ---- Sphinx-Optionen ----
+
+        # ---- Sphinx options ----
         p.use_sphinx = d.get("use_sphinx", False)
         p.use_sphinx_standalone = d.get("use_sphinx_standalone", False)
         p.sphinx_source = d.get("sphinx_source", "docs")
@@ -552,7 +571,7 @@ class Project:
         p.sphinx_no_color = d.get("sphinx_no_color", False)
         p.sphinx_args = d.get("sphinx_args", [])
 
-        # Fallback-Sanity
+        # Fallback sanity
         if p.is_divider and not p.divider_label:
             p.divider_label = p.name
 
@@ -566,4 +585,5 @@ class Project:
 
     @staticmethod
     def to_dict_list(projects: list["Project"]) -> str:
+        """Serialize a list of Projects to a pretty JSON string."""
         return json.dumps([p.to_dict() for p in projects], indent=2, ensure_ascii=False)
