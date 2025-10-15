@@ -3,11 +3,11 @@
 - Inspector reads specific logs on top
 - autopy++ runs primary in venv envirnoment
 
-### (preview) Version 2.48
+### (latest) Version 2.48
 - Split Projecteditor and pyarmoreditor
-- Better Pyarmor Basic/Pro building
+- Better Pyarmor Basic/Pro building (Not Tested)
 
-### (latest) Version Version 2.47.2
+### Version Version 2.47.2
 - Buggy Main Gui fix Part 1
 
 ### Version 2.47.1
