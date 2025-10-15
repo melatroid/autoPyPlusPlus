@@ -63,7 +63,7 @@ class PyarmorEditor:
         self.var_dist_mode = tk.StringVar(value=getattr(project, 'pyarmor_dist_mode', 'auto'))
 
         # --- PyArmor state/flags ---
-        self.var_no_runtime_key = tk.BooleanVar(value=getattr(project, 'no_runtime_key', False))
+        self.var_use_outer_key = tk.BooleanVar(value=getattr(project, 'pyarmor_use_outer_key', False))
         self.var_obf_code = tk.StringVar(value=(getattr(project, 'pyarmor_obf_code', None) or '1'))
         self.var_mix_str = tk.BooleanVar(value=getattr(project, 'pyarmor_mix_str', False))
         self.var_private = tk.BooleanVar(value=getattr(project, 'pyarmor_private', False))
@@ -273,10 +273,10 @@ class PyarmorEditor:
         self.e_bind_device.bind('<KeyRelease>', lambda e: self._rebuild_preview())
         CreateToolTip(self.e_bind_device, 'Bind to device/disk serial. Reduces portability, increases protection.')
 
-        # "No runtime key" in Advanced options
-        self.ck_no_runtime = ttk.Checkbutton(self.adv, text='No runtime key', variable=self.var_no_runtime_key, command=self._rebuild_preview)
-        self.ck_no_runtime.grid(row=6, column=0, columnspan=2, sticky='w', padx=5, pady=(4, 0))
-        CreateToolTip(self.ck_no_runtime, 'Do not embed a runtime key. Only use if your licensing setup requires it.')
+        # "Use outer key" in Advanced options
+        self.ck_outer = ttk.Checkbutton(self.adv, text='Use outer key', variable=self.var_use_outer_key, command=self._rebuild_preview)
+        self.ck_outer.grid(row=6, column=0, columnspan=2, sticky='w', padx=5, pady=(4, 0))
+        CreateToolTip(self.ck_outer, 'Use external runtime key file (via --outer). Requires pyarmor gen key separately.')
 
         # ===== Pro features (Pro edition only) =====
         self.pro = ttk.LabelFrame(root, text='PyArmor Pro Features (irreversible)')
@@ -531,8 +531,8 @@ class PyarmorEditor:
             opts += ['--assert-import']
         if self.var_assert_call.get():
             opts += ['--assert-call']
-        if self.var_no_runtime_key.get():
-            opts += ['--no-runtime-key']
+        if self.var_use_outer_key.get():
+            opts += ['--outer']
 
         platform_txt = self._get_platform_text()
         if platform_txt:
@@ -703,9 +703,9 @@ class PyarmorEditor:
             if restrict_active and not assertions_active:
                 helps.append('[HELP] Assertions (import/call) complement Restrict; enable them for stricter checks.')
 
-            if self.var_no_runtime_key.get() and (restrict_active or assertions_active):
-                issues.append('[WARN] No runtime key + restrictive modes: may limit licensing flexibility.')
-                helps.append('[HELP] Ensure your setup handles keyless runtime; test thoroughly.')
+            if self.var_use_outer_key.get() and (restrict_active or assertions_active):
+                issues.append('[WARN] Outer key + restrictive modes: ensure key file is distributed and handled correctly.')
+                helps.append('[HELP] Generate key with pyarmor gen key; test runtime key loading.')
 
             if expired and bind_device:
                 helps.append('[HELP] Expiration + device binding: strong combo for time/device-limited apps.')
@@ -835,7 +835,7 @@ class PyarmorEditor:
 
         # PyArmor ON
         p.use_pyarmor = True
-        p.no_runtime_key = self.var_no_runtime_key.get()
+        p.pyarmor_use_outer_key = self.var_use_outer_key.get()
         p.pyarmor_command = (self.var_command.get() or '').strip()
 
         p.pyarmor_obf_code = self.var_obf_code.get()
