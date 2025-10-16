@@ -31,7 +31,8 @@ $art = @'
 Write-Host $art -ForegroundColor Blue
 
 # ============================ Configuration ============================
-$desiredPythonVersion  = '3.10.11
+# Voreinstellungen; können unten bei Bedarf überschrieben werden
+$desiredPythonVersion  = '3.10.11'            # "3.10" oder "3.10.11"
 $venvRoot              = "$env:LOCALAPPDATA\AutoPyPP\envs"
 $venvName              = "autopypp-$($desiredPythonVersion -replace '\.','_')"
 $defaultPythonPath     = 'C:\Users\melatroid\AppData\Local\Programs\Python\Python310\python.exe'
@@ -122,7 +123,7 @@ function Install-Python-WithWinget {
 }
 
 function Ensure-Python-Version {
-    param([string]$Desired)
+    param([string]$Desired) # "3.10.11" oder "3.10"
     if ($Desired -match '^\d+\.\d+\.\d+$') {
         if (Install-Python-WithPyenv -Version $Desired) {
             $pp = Find-PyenvPythonPath -Version $Desired
@@ -273,7 +274,6 @@ function Choose-Existing-Or-Venv {
 		if ([string]::IsNullOrWhiteSpace($verChoice)) { $verChoice = $desiredPythonVersion }
 		return [pscustomobject]@{ Mode='venv'; PythonPath=$null; DesiredVersion=$verChoice }
 	}
-
     $idx = 0
     if ([int]::TryParse($choice, [ref]$idx)) {
         if ($idx -ge 1 -and $idx -le $candidates.Count) {
