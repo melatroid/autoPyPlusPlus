@@ -1,9 +1,14 @@
 
 ### (preview) Version 2.5x
 - Inspector reads specific logs on top
-- autopy++ runs primary in venv envirnoment
 
-### (latest) Version 2.48
+### (latest) Version 2.49
+- New windows_start.ps1 with Py Version set thats needet for working Pyarmor builds
+- Start Autopy++ in new envirnoment
+- Big Bugfix Update
+- First working pipline build with Pyarmor & pyinstaller =)
+
+### Version 2.48
 - Split Projecteditor and pyarmoreditor
 - Better Pyarmor Basic/Pro building (Not Tested)
 
