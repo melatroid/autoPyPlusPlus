@@ -1,13 +1,5 @@
 # Run-AutoPyPlusPlus.ps1
-# -----------------------------------------------------------------------------
-# Optional venv:
-# - Erst werden (mit 5s Timeout) vorhandene Python-Installationen angezeigt.
-# - Taste [V] (oder [N]) = Neues, isoliertes Environment anlegen (pyenv-win/winget).
-# - Keine Eingabe -> nach 5s wird der Default (bestehende Installation) gewählt.
-# - Fehlende Build-/Tool-Pakete werden IMMER in das gewählte/erstellte Environment
-#   installiert (nie in den Skript-Ordner).
-# - Am Ende werden die Pfade ("where") der Tools (Modul/Exec) ausgegeben.
-# -----------------------------------------------------------------------------
+
 
 $art = @'
             /^\/^\                                   /^\/^\
@@ -33,7 +25,7 @@ Write-Host $art -ForegroundColor Blue
 # ============================ Configuration ============================
 #   EDIT THIS !!!!
 $defaultPythonPath     = 'C:\Users\melatroid\AppData\Local\Programs\Python\Python310\python.exe'    # default python version that is used
-$srcDir                = 'C:\Users\melatroid\Desktop\autoPy++\AutoPyPlusPlus\src'  # autopy++ src path
+$srcDir                = 'C:\Users\melatroid\Desktop\autoPy++\AutoPyPlusPlus\src'  					# autopy++ src path
 
 #========================================================
 #   EDIT THIS NOT!!!!
