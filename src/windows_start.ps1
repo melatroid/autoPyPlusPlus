@@ -44,7 +44,13 @@ Show-Check -Label "Working Folder ($srcDir)" -Ok (Test-Path $srcDir)
 Show-Check -Label "Extensions_path.ini ($extensionsPath)" -Ok (Test-Path $extensionsPath)
 
 $art = @'
-            /^\/^\                                   /^\/^\
+
+                  _         _        ____                    
+                 / \  _   _| |_ ___ |  _ \ _   _   _     _   
+                / _ \| | | | __/ _ \| |_) | | | |_| |_ _| |_ 
+               / ___ \ |_| | || (_) |  __/| |_| |_   _|_   _|
+              /_/   \_\__,_|\__\___/|_|    \__, | |_|   |_|                      
+            /^\/^\                         |___/     /^\/^\
          __|__|o |                                 _|_o|  o|
 \/     /~     \_/ \                              /~     \_/ \
  \____|__________/  \                           |__________/ \
