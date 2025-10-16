@@ -1,4 +1,6 @@
 from __future__ import annotations
+import os
+import re
 from pathlib import Path
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import time
@@ -10,21 +12,134 @@ from .CPA0000000 import CPA0000000  # PyInstaller
 from .CPB0000000 import CPB0000000  # PyArmor
 from .CPC0000000 import CPC0000000  # Nuitka
 from .CPD0000000 import CPD0000000  # Cython
-from .CPE0000000 import CPE0000000  # C++ Compiler (GCC)
+from .CPE0000000 import CPE0000000  # C++ Compiler
 from .CPF0000000 import CPF0000000  # Pytest
 from .CPG0000000 import CPG0000000  # Sphinx
 
+
+# =====================================================================
+#                         Add-Data: Helfer
+# =====================================================================
+
+def _sanitize_path(path: str) -> str:
+    """
+    Entfernt kaputte Präfixe wie 'C:\\C:\\...' und normalisiert Backslashes.
+    """
+    if not path:
+        return path
+    # doppelte Laufwerksbuchstaben wie C:\C:\xxx entfernen
+    m = re.match(r"^([A-Za-z]):[\\/]\1:[\\/](.*)$", path)
+    if m:
+        drive, rest = m.groups()
+        path = f"{drive}:\\" + rest
+    return os.path.normpath(path)
+
+
+def _parse_add_data_any(raw: str) -> list[tuple[str, str]]:
+    """
+    Akzeptiert sowohl 'src:dst' (unser internes Format) als auch 'src;dst' (Windows),
+    trennt Einträge über ';' ODER Zeilenumbrüche. Richtig robust dank rsplit(':', 1).
+    """
+    if not raw:
+        return []
+    pairs: list[tuple[str, str]] = []
+    # Einträge dürfen mit ; oder Zeilenumbruch getrennt sein
+    for token in re.split(r"[;\r\n]+", str(raw)):
+        t = token.strip().strip('"').strip("'")
+        if not t:
+            continue
+
+        if ";" in t and os.name == "nt" and ":" not in t:
+            # windows-Variante 'src;dst' → split am letzten ';' wäre falsch, da oft nur 1 ';'
+            parts = t.split(";")
+            if len(parts) == 2:
+                src, dst = parts[0].strip(), parts[1].strip()
+            else:
+                # notfall: wieder in die generische Logik
+                src, dst = parts[0].strip(), ";".join(parts[1:]).strip()
+        else:
+            # internes Format 'src:dst' oder generisch → am letzten ':' splitten (Drive-Letter bleibt heil)
+            if ":" not in t or t.endswith(":"):
+                # ungültig, überspringen
+                continue
+            src, dst = t.rsplit(":", 1)
+            src, dst = src.strip(), dst.strip()
+
+        if not src or not dst:
+            continue
+
+        src = _sanitize_path(src)
+        pairs.append((src, dst))
+    return pairs
+
+
+def _validate_pairs_exist(pairs: list[tuple[str, str]]) -> list[tuple[str, str]]:
+    """
+    Filtert Paare mit nicht existierendem src heraus (Datei/Ordner).
+    """
+    valid: list[tuple[str, str]] = []
+    for src, dst in pairs:
+        try:
+            if Path(src).exists():
+                valid.append((src, dst))
+        except Exception:
+            pass
+    return valid
+
+
+def _add_pyarmor_runtime_if_needed(project: Project, pairs: list[tuple[str, str]], log_write: Callable[[str], None]) -> None:
+    """
+    Hängt den PyArmor-Runtime-Ordner (pyarmor_runtime_*) als add-data an, wenn gewünscht.
+    """
+    if not getattr(project, "include_pyarmor_runtime", False):
+        return
+    runtime_dir = (getattr(project, "pyarmor_runtime_dir", "") or "").strip()
+    if not runtime_dir:
+        return
+    rd = Path(runtime_dir)
+    if rd.exists():
+        mapping = (str(rd), rd.name)
+        if mapping not in pairs:
+            pairs.append(mapping)
+            log_write(f"--- INFO: Added PyArmor runtime: {rd} -> {rd.name}\n")
+
+
+def _format_pairs_for_platform(pairs: list[tuple[str, str]]) -> list[str]:
+    """
+    Formatiert Paare für PyInstaller:
+      - Windows: 'src;dst'
+      - Unix   : 'src:dst'
+    Gibt eine Liste formatierter Strings zurück (je Eintrag ein String).
+    """
+    sep = ";" if os.name == "nt" else ":"
+    return [f"{src}{sep}{dst}" for src, dst in pairs]
+
+
+def _prepare_add_data_for_pyinstaller(project: Project, log_write: Callable[[str], None]) -> tuple[str | None, str]:
+    """
+    Liest project.add_data (gemischt 'src:dst' / 'src;dst'), ergänzt ggf. PyArmor-Runtime,
+    validiert Quellen und baut eine **zeilenweise** Darstellung auf:
+        Windows: jede Zeile 'src;dst'
+        Unix:    jede Zeile 'src:dst'
+    Gibt (backup_add_data, prepared_string) zurück.
+    """
+    original = getattr(project, "add_data", "") or ""
+    pairs = _parse_add_data_any(original)
+    _add_pyarmor_runtime_if_needed(project, pairs, log_write)
+    pairs = _validate_pairs_exist(pairs)
+    formatted = _format_pairs_for_platform(pairs)
+    # Zeilenweise speichern, damit äußere Trennung nicht mit innerem Separator kollidiert
+    prepared = "\n".join(formatted)
+    return original, prepared
+
+
+# =====================================================================
+#                         Build-Pipeline
+# =====================================================================
+
 def compile_single(project: Project, log_file, compiler: str = "both") -> str:
     try:
-        # Debug prints for console
-        # print(f"[DEBUG] compile_single START for {project.name or project.script}")
-        # print(f"[DEBUG] Compiler: {compiler}")
-        # print(f"[DEBUG] use_nuitka: {project.use_nuitka}, use_pyarmor: {project.use_pyarmor}")
-        # print(f"[DEBUG] use_cython: {project.use_cython}, use_cpp: {project.use_cpp}")
-        # print(f"[DEBUG] Project config: {project.to_dict()}")
-
         log_file.write(f"--- compile_single() START for {project.name or project.script} (compiler={compiler}) ---\n")
-        # log_file.write(f"Project config: {project.to_dict()}\n")
         log_file.flush()
 
         if getattr(project, "use_pytest_standalone", False) and getattr(project, "use_sphinx_standalone", False):
@@ -33,20 +148,19 @@ def compile_single(project: Project, log_file, compiler: str = "both") -> str:
             log_file.flush()
             return msg
 
-        # --- 1. Pytest before compilation ---
+        # --- 1. Pytest vor der Kompilation ---
         if getattr(project, "use_pytest", False):
             log_file.write("Running pytest before compilation...\n")
             log_file.flush()
-            # Check standalone mode
             if getattr(project, "use_pytest_standalone", False):
                 try:
                     result = CPF0000000.run_pytest(project, log_file)
-                    return f"Pytest Standalone: {result}"  # Immediate return
+                    return f"Pytest Standalone: {result}"
                 except Exception as e:
                     err = f"Pytest Standalone failed: {e}"
                     log_file.write(err + "\n")
                     log_file.flush()
-                    return err  # Abort build
+                    return err
             else:
                 try:
                     CPF0000000.run_pytest(project, log_file)
@@ -54,17 +168,16 @@ def compile_single(project: Project, log_file, compiler: str = "both") -> str:
                     err = f"Pytest failed for {project.name or project.script}: {e}"
                     log_file.write(err + "\n")
                     log_file.flush()
-                    return err  # Abort build
+                    return err
 
-        # --- 2. Sphinx before compilation ---
+        # --- 2. Sphinx vor der Kompilation ---
         if getattr(project, "use_sphinx", False):
             log_file.write("Running sphinx before compilation...\n")
             log_file.flush()
-            # Check standalone mode
             if getattr(project, "use_sphinx_standalone", False):
                 try:
                     result = CPG0000000.run_sphinx(project, log_file)
-                    return f"Sphinx Standalone: {result}"  # Immediate return
+                    return f"Sphinx Standalone: {result}"
                 except Exception as e:
                     err = f"Sphinx Standalone failed: {e}"
                     log_file.write(err + "\n")
@@ -77,48 +190,48 @@ def compile_single(project: Project, log_file, compiler: str = "both") -> str:
                     err = f"Sphinx build failed for {project.name or project.script}: {e}"
                     log_file.write(err + "\n")
                     log_file.flush()
+
         compiled = False
 
-        # PyArmor if enabled
+        # --- PyArmor ---
         if compiler in ("pyarmor", "both") and project.use_pyarmor:
-            print("[DEBUG] Running PyArmor")
             CPB0000000.run_pyarmor(project, log_file)
             compiled = True
 
-        # Nuitka if enabled
+        # --- Nuitka ---
         if compiler in ("nuitka", "both") and project.use_nuitka:
-            print("[DEBUG] Running Nuitka")
             CPC0000000.run_nuitka(project, log_file)
             compiled = True
         else:
-            print(f"[DEBUG] Nuitka NOT executed (compiler={compiler}, use_nuitka={project.use_nuitka})")
+            pass
 
-        # *** CYTHON if enabled ***
+        # --- Cython (+ optional C++) ---
         if compiler in ("cython", "both") and project.use_cython:
-            print("[DEBUG] Running Cython")
             CPD0000000.run_cython(project, log_file)
             compiled = True
 
             if project.use_cpp:
                 if not project.cpp_compiler_path or project.cpp_compiler_path.lower() == "g++":
                     msvc_path = shutil.which("cl.exe")
-                    if msvc_path:
-                        project.cpp_compiler_path = msvc_path
-                    else:
-                        project.cpp_compiler_path = "g++"  # fallback
-
-                print(f"[DEBUG] Using C++ compiler: {project.cpp_compiler_path}")
+                    project.cpp_compiler_path = msvc_path if msvc_path else "g++"
                 CPE0000000.run_cpp(project, log_file)
         else:
-            print(f"[DEBUG] Cython NOT executed (compiler={compiler}, use_cython={project.use_cython})")
+            pass
 
-        # PyInstaller if no other method is active or explicitly selected
+        # --- PyInstaller (nur wenn keine der obigen Routen aktiv ist oder explizit gewählt) ---
         if compiler in ("pyinstaller", "both") and not project.use_pyarmor and not project.use_nuitka and not project.use_cython:
-            print("[DEBUG] Running PyInstaller")
-            CPA0000000.run_pyinstaller(project, log_file)
+            # >>> Add-Data sicher und plattformrichtig aufbereiten
+            backup_add_data, prepared = _prepare_add_data_for_pyinstaller(project, lambda s: log_file.write(s))
+            try:
+                # Temporär ersetzen (zeilenweise, damit CPA sauber splitten kann)
+                project.add_data = prepared
+                CPA0000000.run_pyinstaller(project, log_file)
+            finally:
+                # Ursprungswert wiederherstellen
+                project.add_data = backup_add_data
             compiled = True
         else:
-            print(f"[DEBUG] PyInstaller NOT executed (compiler={compiler}, use_pyarmor={project.use_pyarmor}, use_nuitka={project.use_nuitka}, use_cython={project.use_cython})")
+            pass
 
         if not compiled:
             msg = (
@@ -126,23 +239,21 @@ def compile_single(project: Project, log_file, compiler: str = "both") -> str:
                 f"(use_nuitka={project.use_nuitka}, use_pyarmor={project.use_pyarmor}, "
                 f"use_cython={project.use_cython}, compiler={compiler})"
             )
-            print(f"[DEBUG] {msg}")
             log_file.write(f"{msg}\n")
             log_file.flush()
             return msg
 
-        print(f"[DEBUG] Completed {project.name or project.script}")
         log_file.write(f"Completed {project.name or project.script}\n")
         log_file.flush()
 
-        # --- Copy additional files into the output directory ---
+        # --- Zusatzdateien in Ausgabeverzeichnis kopieren ---
         try:
             out_dir = Path(
                 project.cython_output_dir
                 or project.cpp_output_dir
                 or Path(project.script).parent
             )
-            for src in project.additional_files:
+            for src in getattr(project, "additional_files", []):
                 src_path = Path(src)
                 if src_path.is_file() and out_dir.is_dir():
                     dst = out_dir / src_path.name
@@ -150,14 +261,13 @@ def compile_single(project: Project, log_file, compiler: str = "both") -> str:
                     log_file.write(f"Copied additional file {src_path} -> {dst}\n")
             log_file.flush()
         except Exception as e:
-            print(f"[DEBUG] Error while copying additional files: {e}")
             log_file.write(f"Error copying additional files: {e}\n")
             log_file.flush()
 
         return f"{project.name or Path(project.script).stem} done"
+
     except Exception as e:
         msg = f"Error with {project.name or project.script}: {e}"
-        print(f"[DEBUG] {msg}")
         log_file.write(f"{msg}\n")
         log_file.flush()
         return msg
@@ -177,7 +287,6 @@ def compile_projects(
     - mode: "A", "B" or "C" to select the projects.
     - compiler: "pyarmor", "nuitka", "cython", "pyinstaller" or "both".
     """
-    print(f"[DEBUG] compile_projects START: {len(projects)} projects, thread_count={thread_count}, mode={mode}, compiler={compiler}")
     selected_projects = [
         p for p in projects
         if (mode == "A" and p.compile_a_selected)
@@ -185,15 +294,12 @@ def compile_projects(
         or (mode == "C" and p.compile_c_selected)
     ]
     total = len(selected_projects)
-    print(f"[DEBUG] Selected projects: {[p.name or p.script for p in selected_projects]}")
-    print(f"[DEBUG] Total selected projects: {total}")
 
     log_file.write(f"--- compile_projects() START: {total} projects, thread_count={thread_count}, mode={mode}, compiler={compiler} ---\n")
     log_file.flush()
 
     errors: List[str] = []
     if total == 0:
-        print("[DEBUG] No projects selected for compilation")
         log_file.write("No projects selected for compilation.\n")
         log_file.flush()
         return []
@@ -203,7 +309,6 @@ def compile_projects(
         for i, future in enumerate(as_completed(futures), 1):
             try:
                 result = future.result()
-                print(f"[DEBUG] Project {i}/{total} completed: {result}")
                 log_file.write(f"Project {i}/{total} completed: {result}\n")
                 log_file.flush()
                 status_callback(result)
@@ -212,19 +317,22 @@ def compile_projects(
                 progress_callback(i, total)
             except Exception as e:
                 msg = f"Exception in future {i}: {e}"
-                print(f"[DEBUG] {msg}")
                 log_file.write(f"{msg}\n")
                 log_file.flush()
                 errors.append(msg)
             time.sleep(0.05)
 
-    print(f"[DEBUG] compile_projects END: {len(errors)} errors")
     log_file.write(f"--- compile_projects() END: {len(errors)} errors ---\n")
     log_file.flush()
+    keep_log = (len(errors) > 0) or any(p.debug for p in selected_projects)
 
-    if not any(p.debug for p in selected_projects):
+    try:
+        log_file.close()
+    except Exception:
+        pass
+
+    if not keep_log:
         try:
-            log_file.close()
             Path(log_file.name).unlink()
         except Exception as e:
             with open(log_file.name, 'a') as lf:

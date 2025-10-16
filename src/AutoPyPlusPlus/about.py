@@ -56,11 +56,11 @@ def show_about_dialog(master, style, theme_func):
 
 
     text = (
-        "Version 2.48 (Date: 16.10.2025)\n"
+        "Version 2.49 (Date: 17.10.2025)\n"
         "© 2025 by melatroid\n"
         "info@nexosoft-engineering.de\n"
         "License: MIT License\n\n"
-        "Buy me a coffee 😊☕\n"
+        "Spend me a coffee 😊☕\n"
         "Software is a lot of work\n please respect it.\n"
     )
     label = ttk.Label(main_frame, text=text, justify="center", font=("Segoe UI", 10))

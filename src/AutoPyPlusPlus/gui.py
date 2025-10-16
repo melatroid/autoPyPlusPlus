@@ -1432,6 +1432,7 @@ class AutoPyPlusPlusGUI:
 
 
     def compile_all(self):
+        self.status_var.set("Start Export 📦")
         if not self._check_hashes_before_build():
             return  # Abbruch
 

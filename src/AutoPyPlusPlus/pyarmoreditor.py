@@ -3,6 +3,7 @@ from tkinter import ttk, filedialog, messagebox, scrolledtext
 from pathlib import Path
 from datetime import datetime
 from typing import List
+import os
 
 # Optional tooltip import with safe fallback
 try:  # package/local import
@@ -88,15 +89,19 @@ class PyarmorEditor:
         # --- Platform selection state ---
         self.var_platform_choice = tk.StringVar(value='Current system (auto)')
 
+        # --- NEW: Python interpreter path (keeps backward compat with two possible attrs) ---
+        initial_py = getattr(project, 'pyarmor_python_exe', None) or getattr(project, 'python_exec_path', '')
+        self.var_python_exec = tk.StringVar(value=initial_py or '')
+
         # Widget references, set in show()
         self.cb_platform = None
         self.e_platform_custom = None
+        self.cb_pack = None  # will be set in show()
 
-    # -------------------- Public API --------------------
     def show(self):
         self.win = tk.Toplevel(self.master)
         self.win.title('PyArmor Editor')
-        self.win.geometry('840x800')
+        self.win.geometry('840x750')
         self.win.transient(self.master)
         self.win.grab_set()
         try:
@@ -162,6 +167,24 @@ class PyarmorEditor:
         CreateToolTip(self.e_output, 'Output folder for your build artifacts.')
         self.e_output.bind('<KeyRelease>', lambda e: (self._recompute_dist_from_output(), self._rebuild_preview()))
 
+        # --- NEW: Python interpreter picker ---
+        py_row = ttk.Frame(self.targets)
+        py_row.grid(row=2, column=0, columnspan=2, sticky='ew', pady=2)
+        ttk.Label(py_row, text='Python interpreter (python.exe):').grid(row=0, column=0, sticky='e', padx=5)
+        self.e_python = ttk.Entry(py_row, width=72, textvariable=self.var_python_exec)
+        self.e_python.grid(row=0, column=1, sticky='ew')
+        ttk.Button(
+            py_row,
+            text='...',
+            command=lambda: self._choose(
+                self.e_python,
+                directory=False,
+                filetypes=[('python.exe', 'python.exe'), ('Executables', '*.exe'), ('All Files', '*.*')]
+            )
+        ).grid(row=0, column=2, padx=5)
+        CreateToolTip(self.e_python, 'Interpreter used for running "python -m pyarmor". Example: C:\\Python310\\python.exe')
+        self.targets.grid_columnconfigure(1, weight=1)
+
         # ===== PyArmor Build (Dist & Command) =====
         self.build = ttk.LabelFrame(root, text='PyArmor Build (Dist & Command)')
         self.build.grid(row=2, column=0, columnspan=2, sticky='ew', pady=6)
@@ -196,7 +219,8 @@ class PyarmorEditor:
         self.var_cmd_desc = tk.StringVar()
         self.lbl_cmd_desc = ttk.Label(cmd_row, textvariable=self.var_cmd_desc)
         self.lbl_cmd_desc.grid(row=0, column=2, padx=(10, 0), sticky='w')
-        self.cb_command.bind('<<ComboboxSelected>>', lambda e: (self._update_cmd_desc(), self._rebuild_preview()))
+        # ⇨ Beim Wechsel: Beschreibung, Pack-UI syncen, Preview neu bauen
+        self.cb_command.bind('<<ComboboxSelected>>', lambda e: (self._update_cmd_desc(), self._sync_pack_enabled(), self._apply_build_mode(), self._rebuild_preview()))
         self._update_cmd_desc()
 
         # ===== Security Presets =====
@@ -302,8 +326,11 @@ class PyarmorEditor:
         self.preview = ttk.LabelFrame(root, text='Preview (read-only)')
         self.preview.grid(row=6, column=0, columnspan=2, sticky='nsew', pady=(6, 4))
         root.grid_rowconfigure(6, weight=1)
-        self.txt_preview = scrolledtext.ScrolledText(self.preview, width=80, height=3)
-        self.txt_preview.pack(fill='both', expand=True, padx=6, pady=6)
+        self.txt_preview = scrolledtext.ScrolledText(self.preview, width=80, height=4)
+        self.txt_preview.pack(fill='both', expand=True, padx=6, pady=(6, 2))
+        # NEW: small label to show chosen interpreter
+        self.lbl_interpreter = ttk.Label(self.preview, text='', foreground='#7a7a7a')
+        self.lbl_interpreter.pack(anchor='w', padx=8, pady=(0, 6))
         self._set_preview('(PyArmor disabled)' if not self.var_use_pyarmor.get() else '')
 
         # ===== Buttons =====
@@ -322,6 +349,7 @@ class PyarmorEditor:
         self._on_toggle_dist_mode()
         self._recompute_dist_from_output()
         self._init_platform_choice_from_project()
+        self._sync_pack_enabled()   # ⇦ Pack-UI an Command koppeln
         self._rebuild_preview()
 
         if self.win and self.win.winfo_exists():
@@ -403,6 +431,19 @@ class PyarmorEditor:
         else:
             self._rebuild_preview()
 
+    # --- NEW: Pack-UI an Command koppeln ---
+    def _sync_pack_enabled(self):
+        """Enable Pack selection only for command=pack; otherwise clear & disable."""
+        cmd = (self.var_command.get() or 'gen').strip()
+        try:
+            if cmd == 'pack':
+                self.cb_pack.configure(state='readonly')
+            else:
+                self.cb_pack.configure(state='disabled')
+                self.var_pack.set('')
+        except tk.TclError:
+            pass
+
     # --- Presets ---
     def _preset(self, level: str):
         self.var_obf_code.set('2')
@@ -447,22 +488,27 @@ class PyarmorEditor:
     # --- Build Mode handler (Debug/Release) ---
     def _apply_build_mode(self, init: bool = False):
         mode = (self.var_build_mode.get() or 'debug').lower()
-        cmd = (self.var_command.get() or '').strip()
+        cmd = (self.var_command.get() or 'gen').strip()
 
-        if mode == 'debug':
-            if not self.var_pack.get() or cmd == 'pack':
+        if cmd == 'pack':
+            # Nur beim echten Packen Voreinstellung für Pack-Modus setzen
+            if mode == 'debug':
                 self.var_pack.set('onedir')
-            if (self.var_obf_code.get() or '1') not in ('0', '1', '2'):
-                self.var_obf_code.set('1')
-        else:
-            if not self.var_pack.get() or cmd == 'pack':
+                if (self.var_obf_code.get() or '1') not in ('0', '1', '2'):
+                    self.var_obf_code.set('1')
+            else:
                 self.var_pack.set('onefile')
-            if self.var_obf_code.get() in ('0', '1'):
-                self.var_obf_code.set('2')
+                if self.var_obf_code.get() in ('0', '1'):
+                    self.var_obf_code.set('2')
+        else:
+            # Bei gen/obfuscate KEIN Packen
+            self.var_pack.set('')
 
         if not init:
             messagebox.showinfo('Build mode', f'Switched to {mode.capitalize()}.')
 
+        # Pack-UI-Zustand aktualisieren
+        self._sync_pack_enabled()
         self._rebuild_preview()
 
     def _set_preview(self, text: str):
@@ -497,20 +543,15 @@ class PyarmorEditor:
         return choice
 
     def _init_platform_choice_from_project(self):
-        """Restore platform UI from stored project value."""
-        existing = (getattr(self.project, 'pyarmor_platform', '') or '').strip()
-        if not existing:
-            self.var_platform_choice.set('Current system (auto)')
-            self._on_platform_selected()
-            return
-        if existing in PLATFORM_CHOICES:
-            self.var_platform_choice.set(existing)
-            self._on_platform_selected()
-            return
-        self.var_platform_choice.set('Custom...')
-        self.e_platform_custom.grid()
-        self.e_platform_custom.delete(0, 'end')
-        self.e_platform_custom.insert(0, existing)
+        """Force default to 'Current system (auto)' on every open."""
+        # UI: immer auf Auto
+        self.var_platform_choice.set('Current system (auto)')
+        self._on_platform_selected()  # versteckt das Custom-Feld
+        # Projektwert (falls vorhanden) neutralisieren, damit es auch beim Speichern leer bleibt
+        try:
+            setattr(self.project, 'pyarmor_platform', '')
+        except Exception:
+            pass
 
     def _build_options_from_ui(self) -> List[str]:
         """Build the PyArmor CLI options list based on the current UI state."""
@@ -518,6 +559,8 @@ class PyarmorEditor:
             return []
 
         opts: List[str] = []
+        cmd = (self.var_command.get() or '').strip()  # << Command berücksichtigen
+
         obf = (self.var_obf_code.get() or '').strip()
         if obf:
             opts += ['--obf-code', obf]
@@ -539,8 +582,12 @@ class PyarmorEditor:
             opts += ['--platform', platform_txt]
 
         pack_mode = (self.var_pack.get() or '').strip()
-        if pack_mode:
-            opts += ['--pack', pack_mode]
+        if cmd == 'pack' and pack_mode:   # << nur bei pack!
+            opts += ['--pack']
+            if pack_mode == 'onefile':
+                opts += ['-e', '--onefile']
+            elif pack_mode == 'onedir':
+                opts += ['-e', '--onedir']
 
         expired = (self.e_expired.get() or '').strip()
         if expired:
@@ -570,8 +617,8 @@ class PyarmorEditor:
         else:
             dist_dir = (self.e_dist_dir.get() or '').strip() or 'dist'
 
-        # Auto-stability guard: drop assertions for onefile
-        if pack_mode == 'onefile':
+        # Auto-stability guard: drop assertions for onefile (nur beim Packen)
+        if cmd == 'pack' and pack_mode == 'onefile':
             opts = [t for t in opts if t not in ('--assert-import', '--assert-call')]
 
         # Ensure output flag present
@@ -581,13 +628,20 @@ class PyarmorEditor:
         return opts
 
     def _rebuild_preview(self):
+        # Command line preview
         if not self.var_use_pyarmor.get():
             self._set_preview('(PyArmor disabled)')
+            self.lbl_interpreter.configure(text='')
             return
         opts = self._build_options_from_ui()
         cmd = (self.var_command.get() or '').strip()
         preview = ((cmd + ' ') if cmd else '') + ' '.join(opts).strip()
         self._set_preview(preview if preview else '(no options)')
+        # Interpreter hint
+        interp = (self.var_python_exec.get() or '').strip()
+        self.lbl_interpreter.configure(
+            text=(f'Interpreter: {interp}' if interp else 'Interpreter: (system default / PATH)')
+        )
 
     def _analyze(self):
         issues: List[str] = []
@@ -617,6 +671,28 @@ class PyarmorEditor:
         elif Path(output_path).exists() and not Path(output_path).is_dir():
             issues.append(f'[ERROR] Output folder is not a directory: {output_path}')
             helps.append("[HELP] Choose a valid directory using the '...' button.")
+
+        # NEW: Interpreter checks (Windows-focused but tolerant for other OS)
+        pyexec = (self.var_python_exec.get() or '').strip()
+        if pyexec:
+            p = Path(pyexec)
+            if not p.exists():
+                issues.append(f'[ERROR] Python interpreter not found: {pyexec}')
+                helps.append("[HELP] Pick a valid python.exe (e.g., C:\\Python310\\python.exe).")
+            else:
+                if os.name == 'nt':
+                    if p.name.lower() != 'python.exe':
+                        issues.append(f'[WARN] Interpreter does not look like python.exe: {pyexec}')
+                        helps.append('[HELP] Use the CPython executable, not a launcher or dll.')
+                    if 'WindowsApps' in pyexec:
+                        issues.append('[WARN] Microsoft Store alias selected (WindowsApps).')
+                        helps.append('[HELP] Choose the real CPython python.exe to avoid runtime mismatches.')
+                else:
+                    if p.name not in ('python', 'python3') and not p.name.startswith('python'):
+                        issues.append(f'[WARN] Interpreter may not be a CPython binary: {pyexec}')
+                        helps.append('[HELP] Use a CPython interpreter (e.g., /usr/bin/python3).')
+        else:
+            helps.append('[HELP] Set a specific interpreter to guarantee the same MAJOR.MINOR for build and runtime.')
 
         # Only check PyArmor if active
         if self.var_use_pyarmor.get():
@@ -730,40 +806,40 @@ class PyarmorEditor:
 
             if self.var_rft.get():
                 issues.append('[WARN] RFT enabled: may impact performance and complicate debugging.')
-                helps.append('[HELP] Test thoroughly, especially with JIT/BCC.')
+                helps.append('[HELP] Test thoroughly, especially with JIT/BCC.]')
             if self.var_bcc.get():
                 issues.append('[WARN] BCC enabled: heavy control-flow obfuscation may slow down or break in some environments.')
                 if pack_mode == 'onefile':
                     issues.append('[WARN] BCC + pack=onefile: higher risk of packing failures.')
-                    helps.append('[HELP] Prefer onedir for testing.')
+                    helps.append('[HELP] Prefer onedir for testing.]')
             if self.var_themida.get():
                 if not platform or 'windows' not in platform:
                     issues.append('[ERROR] Themida enabled but platform not set to Windows: Windows-only feature.')
                     helps.append('[HELP] Select a Windows platform or disable Themida.')
                 if pack_mode == 'onefile':
                     issues.append('[WARN] Themida + pack=onefile: potential AV/VM conflicts.')
-                    helps.append('[HELP] Test in target environment; monitor for false positives.')
+                    helps.append('[HELP] Test in target environment; monitor for false positives.]')
             if self.var_fly.get():
                 issues.append('[WARN] FLY enabled: higher RAM usage and possible AV false positives.')
-                helps.append('[HELP] Suitable for low-disk scenarios; often paired with Themida on Windows.')
+                helps.append('[HELP] Suitable for low-disk scenarios; often paired with Themida on Windows.]')
             if self.var_jit.get():
                 issues.append('[WARN] JIT enabled: may increase startup time and trigger EDR/AV alerts.')
-                helps.append('[HELP] Disable for sensitive environments; enable RFT for alternatives.')
+                helps.append('[HELP] Disable for sensitive environments; enable RFT for alternatives.]')
 
             if build_mode == 'debug' and pack_mode == 'onefile':
                 issues.append('[NOTE] Debug mode usually pairs better with Pack=onedir for faster iterations.')
-                helps.append('[HELP] Switch to onedir for quick testing.')
+                helps.append('[HELP] Switch to onedir for quick testing.]')
             if build_mode == 'release' and pack_mode == 'onedir':
                 issues.append('[NOTE] Release mode usually pairs better with Pack=onefile for single-file distribution.')
-                helps.append('[HELP] Use onefile for final releases.')
+                helps.append('[HELP] Use onefile for final releases.]')
 
             if obf_code == '0' and (restrict_active or assertions_active or pro_active):
                 issues.append('[WARN] Obf-code=0 (off) with advanced protections: minimal obfuscation reduces effectiveness.')
-                helps.append('[HELP] Increase to 1 or 2 for better synergy.')
+                helps.append('[HELP] Increase to 1 or 2 for better synergy.]')
             if pro_active and obf_code != '2':
-                helps.append('[HELP] Pro features are most effective with obf-code=2 (aggressive).')
+                helps.append('[HELP] Pro features are most effective with obf-code=2 (aggressive).]')
             if not any([self.var_mix_str.get(), self.var_private.get(), restrict_active, assertions_active, pro_active]) and obf_code in ['1', '2']:
-                helps.append('[HELP] Obfuscation active but no additional protections: consider Mix strings or Private for balance.')
+                helps.append('[HELP] Obfuscation active but no additional protections: consider Mix strings or Private for balance.]')
 
         # Combine issues and helps into a single dialog
         all_msgs = issues + helps
@@ -824,6 +900,11 @@ class PyarmorEditor:
         p.pyarmor_edition = self.var_edition.get()
         p.pyarmor_dist_mode = self.var_dist_mode.get()
         p.build_mode = self.var_build_mode.get()
+
+        # NEW: store interpreter path (both attrs for compatibility with runner)
+        interp = (self.var_python_exec.get() or '').strip()
+        p.python_exec_path = interp
+        p.pyarmor_python_exe = interp
 
         # If PyArmor OFF
         if not self.var_use_pyarmor.get():

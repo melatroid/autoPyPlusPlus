@@ -103,8 +103,8 @@ def find_cleanup_targets(work_dir: Path,
     """
     Findet zu löschende Dateien & Ordner im work_dir, klammert TESTFILES (oder weitere) aus.
 
-    Dateien (rekursiv): compile_*, *.spec, *.log, *.txt
-    Ordner (rekursiv): build, _build, dist, __pycache__, *egg-info
+    Dateien (rekursiv): compile_*, *.spec, *.log, *.txt, pyarmor.bug
+    Ordner (rekursiv): build, _build, dist, __pycache__, *egg-info, .pyarmor, .pyarmo
     """
     work_dir = work_dir.resolve()
     print("Working dir:", work_dir)
@@ -119,7 +119,7 @@ def find_cleanup_targets(work_dir: Path,
         return any(_is_under(p, ex) for ex in exclude_paths)
 
     # --- Dateien sammeln (rekursiv) ---
-    file_patterns = ["compile_*", "*.spec", "*.log", "*.txt"]
+    file_patterns = ["compile_*", "*.spec", "*.log", "*.txt", "pyarmor.bug"]
     files: List[Path] = []
     for pat in file_patterns:
         for p in work_dir.rglob(pat):
@@ -127,19 +127,17 @@ def find_cleanup_targets(work_dir: Path,
                 files.append(p)
 
     # --- Ordner sammeln (rekursiv) ---
-    folder_names = {"build", "_build", "dist", "__pycache__"}
+    folder_names = {"build", "_build", "dist", "__pycache__", ".pyarmor", ".pyarmo"}
     folders: List[Path] = []
-
     for p in work_dir.rglob("*"):
         if p.is_dir() and not _excluded(p):
             name = p.name
             if name in folder_names or name.endswith(".egg-info"):
                 folders.append(p)
 
-    # Deduplizieren + sortieren (optional nur für stabile Ausgabe)
-    files    = sorted(set(files))
-    folders  = sorted(set(folders))
-
+    # Deduplizieren + sortieren
+    files   = sorted(set(files))
+    folders = sorted(set(folders))
     return files, folders
 
 

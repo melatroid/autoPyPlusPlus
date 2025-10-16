@@ -62,6 +62,11 @@ class Project:
         self.cython_path: str | None = None
         self.cpp_path: str | None = None
 
+        # >>> NEW: selected Python interpreter (persisted)
+        # Keep two attribute names for backward/forward compatibility.
+        self.python_exec_path: str = ""       # preferred attribute
+        self.pyarmor_python_exe: str = ""     # legacy/alias attribute
+
         # ── Generic Build / PyInstaller options ──────────────────────────────
         self.icon: str = ""
         self.add_data: str = ""
@@ -237,6 +242,14 @@ class Project:
             self.use_cython = use_cython or use_cpp
             self.use_cpp = use_cpp
 
+    # >>> NEW: tiny helper to get the chosen interpreter (or "")
+    def get_python_executable(self) -> str:
+        """
+        Returns the explicitly selected Python interpreter if set,
+        otherwise an empty string (caller may fall back to sys.executable).
+        """
+        return (self.python_exec_path or self.pyarmor_python_exe or "").strip()
+
     def to_dict(self) -> dict[str, Any]:
         """Serialize the project to a JSON-ready dict."""
         data = {
@@ -251,6 +264,11 @@ class Project:
             "pyarmor_path": self.pyarmor_path,
             "nuitka_path": self.nuitka_path,
             "cython_path": self.cython_path,
+
+            # >>> NEW: persist interpreter path (both keys for compatibility)
+            "python_exec_path": self.python_exec_path,
+            "pyarmor_python_exe": self.pyarmor_python_exe,
+
             # ── PyInstaller options ──────────────
             "icon": self.icon,
             "add_data": self.add_data,
@@ -416,6 +434,11 @@ class Project:
         p.pyarmor_path = d.get("pyarmor_path")
         p.nuitka_path = d.get("nuitka_path")
         p.cython_path = d.get("cython_path")
+
+        # >>> NEW: restore chosen interpreter from either key
+        interp = d.get("python_exec_path", "") or d.get("pyarmor_python_exe", "")
+        p.python_exec_path = interp
+        p.pyarmor_python_exe = interp
 
         # ── PyInstaller options ─────────────────────────────────────────────
         p.display_script = d.get("display_script", "")
