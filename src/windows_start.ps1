@@ -1,5 +1,9 @@
 # ============================ Configuration ============================
-
+# Sry but this file is under heavy development, its an importend thing
+# You need often to edit defaultPythonPath, srcDir, extensionsPath
+# Version 1.01
+#
+#
 param(
     [switch]$UpdateIni = $true,   # if set, update values in AutoPyPlusPlus\extensions_path.ini
     [switch]$IniDryRun = $false   # if set, only show what would change (no write)
@@ -22,11 +26,12 @@ function Show-Item {
     Write-Host (" - {0}: " -f $Name) -NoNewline -ForegroundColor $Color
     Write-Host $Value -ForegroundColor DarkGray
 }
+#########################################################################################################################
 #   EDIT THIS !!!!
 $defaultPythonPath     = 'C:\Users\melatroid\AppData\Local\Programs\Python\Python310\python.exe'
 $srcDir                = 'C:\Users\melatroid\Desktop\autoPy++\AutoPyPlusPlus\src'
 $extensionsPath        = 'C:\Users\melatroid\Desktop\autoPy++\AutoPyPlusPlus\src\AutoPyPlusPlus\extensions_path.ini'
-
+#########################################################################################################################
 #   EDIT THIS NOT!!!!
 $desiredPythonVersion  = '3.10.11'
 $expectedMinor         = '3.10'
@@ -36,12 +41,6 @@ $allowInstallPython    = $true
 $autoInstallMissing    = $true
 $enforceToolPresence   = $false
 $enforceMinor          = $false
-
-# jetzt darfst du sie aufrufen:
-Say-Section "Preflight Checks"
-Show-Check -Label "Default Python found! ($defaultPythonPath)" -Ok (Test-Path $defaultPythonPath)
-Show-Check -Label "Working Folder ($srcDir)" -Ok (Test-Path $srcDir)
-Show-Check -Label "Extensions_path.ini ($extensionsPath)" -Ok (Test-Path $extensionsPath)
 
 $art = @'
 
@@ -55,25 +54,30 @@ $art = @'
 \/     /~     \_/ \                              /~     \_/ \
  \____|__________/  \                           |__________/ \
         \_______      \                         \_______      \
-                `\     \                 \               \     \                   \
-                  |     |                  \             |     |                     \
-                 /      /                    \\          /     /                      \\
-                /     /                       \\        /     /                        \ \
-              /      /                         \ \      /     /                         \  \
-             /     /                            \  \   /     /                           \  \
-           /     /             _----_            \   \ /     /             _----_         \   \
-          /     /           _-~      ~-_         |   |/     /           _-~      ~-_      |    |
-         (      (        _-~    _--_    ~-_     _/   (      (        _-~    _--_    ~-_ _/     |
-          \      ~-____-~    _-~    ~-_    ~-_-~    / \      ~-____-~    _-~    ~-_    ~-_-~   /
-            ~-_           _-~          ~-_       _-~   ~-_           _-~          ~-_       _-~
+                `\     \                   \             \     \                       
+                  |     |                   \            |     |                        
+                 /      /                    \\          /     /                         
+                /     /                       \\        /     /                           
+              /      /                         \ \      /     /                            
+             /     /                            \  \   /     /                              
+           /     /             _----_            \   \ /     /             _----_           
+          /     /           _-~      ~-_         |   |/     /           _-~      ~-_        
+         (     (         _-~    _--_    ~-_     _/   (     (         _-~    _--_    ~-_    
+          \      ~-____-~    _-~    ~-_    ~-_-~    / \      ~-____-~    _-~    ~-_    ~-_-~   
+            ~-_           _-~          ~-_       _-~   ~-_           _-~          ~-_       
                ~--______-~                ~-___-~         ~--______-~                ~-___-~
 '@
 Write-Host $art -ForegroundColor Blue
 
+Say-Section "####  Preflight Checks ####"
+Show-Check -Label "Default Python found! ($defaultPythonPath)" -Ok (Test-Path $defaultPythonPath)
+Show-Check -Label "Working Folder ($srcDir)" -Ok (Test-Path $srcDir)
+Show-Check -Label "Extensions_path.ini ($extensionsPath)" -Ok (Test-Path $extensionsPath)
+
 
 # ============================ Helpers: Console =========================
 function Read-LineWithTimeout {
-    param([int]$Seconds = 5)
+    param([int]$Seconds = 7)
     $deadline = (Get-Date).AddSeconds($Seconds)
     $sb = New-Object System.Text.StringBuilder
     while ((Get-Date) -lt $deadline) {
@@ -85,6 +89,24 @@ function Read-LineWithTimeout {
         } else { Start-Sleep -Milliseconds 50 }
     }
     return $sb.ToString()
+}
+
+# --- Name-Validation (nur A–Z, a–z, 0–9) ---
+function Read-EnvNameAlnum {
+    param(
+        [int]$Seconds = 15,
+        [string]$Prompt = 'Enter a unique environment name (letters/digits only, required): '
+    )
+    Write-Host $Prompt -ForegroundColor Yellow -NoNewline
+    $name = Read-LineWithTimeout -Seconds $Seconds
+    Write-Host ''
+    if ([string]::IsNullOrWhiteSpace($name)) { return $null }
+    $name = $name.Trim()
+    if ($name -notmatch '^[A-Za-z0-9]+$') {
+        Say-Err 'Invalid name. Allowed are letters and digits only (A-Z, a-z, 0-9).'
+        return $null
+    }
+    return $name
 }
 
 # ============================ Helpers: Python Install ==================
@@ -264,52 +286,223 @@ function Get-PythonCandidates {
     return $candidates
 }
 
+# ---- Liste vorhandener venvs finden ----
+function Get-ExistingVenvs {
+    param([string]$VenvRoot)
+
+    $venvs = @()
+    $root  = [System.Environment]::ExpandEnvironmentVariables($VenvRoot)
+
+    Say-Info ("Scanning for venvs in: {0}" -f $root)
+    if (-not (Test-Path $root)) {
+        Say-Info ("Venv root not found: {0}" -f $root)
+        return $venvs
+    }
+
+    $candidates = @()
+    try {
+        $candidates += Get-ChildItem -Path $root -Directory -Recurse -ErrorAction SilentlyContinue
+    } catch {}
+    $rootAsDir = Get-Item -Path $root -ErrorAction SilentlyContinue
+    if ($rootAsDir -and $rootAsDir.PSIsContainer) { $candidates += $rootAsDir }
+
+    foreach ($d in ($candidates | Sort-Object FullName -Unique)) {
+        $py = Join-Path $d.FullName "Scripts\python.exe"
+        if (-not (Test-Path $py)) {
+            $pyw = Join-Path $d.FullName "Scripts\pythonw.exe"
+            if (Test-Path $pyw) { $py = $pyw } else { continue }
+        }
+
+        $ver = ""
+        try { $ver = (& $py -c "import sys; print('%d.%d.%d' % sys.version_info[:3])") 2>$null } catch {}
+        $venvs += [pscustomobject]@{
+            Name    = (Split-Path $d.FullName -Leaf)
+            Path    = (Resolve-Path $py).Path
+            Version = $ver
+        }
+    }
+
+    $venvs = @($venvs | Sort-Object Path -Unique)
+    Say-Info ("Found {0} venv(s) under {1}" -f $venvs.Count, $root)
+    return $venvs
+}
+
+function Remove-Venv {
+    param([Parameter(Mandatory=$true)][string]$VenvRoot)
+
+    $venvs = Get-ExistingVenvs -VenvRoot $VenvRoot
+    $venvs = @($venvs)  # <- erzwinge Array, auch wenn nur 1 Element
+
+    if (-not $venvs -or $venvs.Count -eq 0) {
+        Say-Warn "No environments found under: $VenvRoot"
+        return
+    }
+
+    Say-Section "Delete environment"
+
+    # Index-Lookup aufbauen (stabiler als $venvs[$idx-1])
+    $indexMap = @{}
+    $i = 1
+    foreach ($v in $venvs) {
+        $venvDir = Split-Path -Parent (Split-Path -Parent $v.Path)
+        $verLabel = if ($v.Version) { $v.Version } else { '?' }
+        Write-Host ("[{0}] {1,-21} -> {2}  (Python {3})" -f $i, $v.Name, $venvDir, $verLabel)
+        $indexMap[$i] = [pscustomobject]@{
+            Name    = $v.Name
+            Path    = $v.Path
+            Dir     = $venvDir
+            Version = $v.Version
+        }
+        $i++
+    }
+    Write-Host "[X] Cancel`n"
+    Write-Host "Enter the number of the environment to delete (auto-cancel in 20s):" -ForegroundColor Yellow
+    Write-Host -NoNewline "> "
+    $choice = Read-LineWithTimeout -Seconds 20
+    Write-Host ""
+
+    # Eingabe normalisieren
+    $choice = ($choice -replace '[^\x20-\x7E]', '').Trim()
+
+    if ([string]::IsNullOrWhiteSpace($choice) -or $choice -match '^[Xx]$') {
+        Say-Info "Delete cancelled."
+        return
+    }
+
+    if ($choice -notmatch '^\d+$') {
+        Say-Warn "Invalid selection."
+        return
+    }
+
+    $idx = [int]$choice
+    if (-not $indexMap.ContainsKey($idx)) {
+        Say-Warn "Invalid selection."
+        return
+    }
+
+    $sel = $indexMap[$idx]
+    $venvDirFull  = (Resolve-Path $sel.Dir).Path
+
+    # Safety-Check: nur unter $VenvRoot löschen
+    $rootExpanded = [System.Environment]::ExpandEnvironmentVariables($VenvRoot)
+    $rootFull     = (Resolve-Path $rootExpanded).Path
+    if ($venvDirFull -notlike ($rootFull + "\*")) {
+        Say-Err "Safety check failed: Refusing to delete outside of $rootFull"
+        return
+    }
+
+    try {
+        Say-Info ("Deleting: {0}" -f $venvDirFull)
+        Remove-Item -LiteralPath $venvDirFull -Recurse -Force -ErrorAction Stop
+        Say-Ok ("Environment '{0}' deleted." -f $sel.Name)
+    } catch {
+        Say-Err ("Failed to delete environment: {0}" -f $_.Exception.Message)
+    }
+}
+
+# ---- UPDATED: Auswahl inkl. vorhandener venvs + Custom-Namen für neue venvs ----
 function Choose-Existing-Or-Venv {
-    param([array]$candidates, [string]$defaultPath)
-    if (-not $candidates -or $candidates.Count -eq 0) {
-        Say-Warn "No existing Pythons found. Press [Enter] to attempt venv creation..."
+    param(
+        [array]$candidates,
+        [string]$defaultPath,
+        [string]$venvRoot
+    )
+
+    $candidates = @($candidates)
+    $venvs      = @($(Get-ExistingVenvs -VenvRoot $venvRoot))
+
+    if (($candidates.Count -eq 0) -and ($venvs.Count -eq 0)) {
+        Say-Warn "No existing Pythons or venvs found. Press [Enter] to attempt venv creation..."
         return [pscustomobject]@{ Mode='venv'; PythonPath=$null; DesiredVersion=$null }
     }
 
     Write-Host ""
-    Say-Section "Available Python installations"
+    Say-Section "Available Python Versions"
+    $items = @()
     $i = 1
+
     foreach ($c in $candidates) {
         $tagDefault = if ($c.IsDefault) { " *" } else { "" }
         $bitsLabel  = if ($c.Bits) { " ($($c.Bits)-bit)" } else { "" }
         Write-Host ("[{0}] Python {1}{2}  -> {3}{4}" -f $i, $c.Version, $bitsLabel, $c.Path, $tagDefault)
+        $items += [pscustomobject]@{ Kind='sys'; Path=$c.Path }
         $i++
     }
-    Write-Host "[V] Create new isolated environment (Experminatal, Check Extensions in Gui -> pyinstaller path)"
+
+    Say-Section ("Virtual environments ({0})" -f $venvRoot)
+    if ($venvs.Count -gt 0) {
+        foreach ($v in $venvs) {
+            Write-Host ("[{0}] {1,-21} -> {2}  (Python {3})" -f $i, $v.Name, $v.Path, ($v.Version -or '?'))
+            $items += [pscustomobject]@{ Kind='venv'; Path=$v.Path }
+            $i++
+        }
+    } else {
+        Write-Host "  (none found here)" -ForegroundColor DarkGray
+    }
+    Say-Section ("More Options" -f $venvRoot)
+    Write-Host "[V] New environment (Experimental, check Extensions in GUI -> pyinstaller path)"
+	Write-Host "[D] Delete environment"
     Write-Host "[X] Cancel`n"
 
-    $defaultCandidatePath = if ($defaultPath -and (Test-Path $defaultPath)) { $defaultPath } else { $candidates[0].Path }
+    $defaultCandidatePath = $null
+    if ($defaultPath -and (Test-Path $defaultPath)) {
+        $defaultCandidatePath = $defaultPath
+    } elseif ($candidates.Count -gt 0) {
+        $defaultCandidatePath = $candidates[0].Path
+    } elseif ($venvs.Count -gt 0) {
+        $defaultCandidatePath = $venvs[0].Path
+    }
 
-    Write-Host ("Press a number, paste a full path to python.exe,")
+    Write-Host ("Press a number...")
     Write-Host ("or press [V] to create a new isolated venv.")
-    Write-Host ("Auto-select in 5s: {0}" -f $defaultCandidatePath) -ForegroundColor Yellow
+    if ($defaultCandidatePath) {
+        Write-Host ("Auto-Start in 10s: {0}" -f $defaultCandidatePath) -ForegroundColor Yellow
+    }
     Write-Host -NoNewline "> "
 
-    $choice = Read-LineWithTimeout -Seconds 5
-    Write-Host ""
+	$choice = Read-LineWithTimeout -Seconds 10
+	Write-Host ""
+	$choice = ($choice -replace '[^\x20-\x7E]', '').Trim()
 
     if ([string]::IsNullOrWhiteSpace($choice)) {
-        return [pscustomobject]@{ Mode='existing'; PythonPath=$defaultCandidatePath; DesiredVersion=$null }
+        if ($defaultCandidatePath) {
+            return [pscustomobject]@{ Mode='existing'; PythonPath=$defaultCandidatePath; DesiredVersion=$null }
+        } else {
+            return [pscustomobject]@{ Mode='venv'; PythonPath=$null; DesiredVersion=$null }
+        }
     }
 
     if ($choice -match '^[Xx]$') { return $null }
+	if ($choice -match '^[Dd]$') {
+        Remove-Venv -VenvRoot $venvRoot
+        return Choose-Existing-Or-Venv -candidates (Get-PythonCandidates -expectedMinor $expectedMinor) -defaultPath $defaultPythonPath -venvRoot $venvRoot
+    }
     if ($choice -match '^[VvNn]$') {
         Write-Host ("Enter desired Python version (e.g. 3.10 or 3.10.11). Default in 10s: {0}" -f $desiredPythonVersion) -ForegroundColor Yellow
         Write-Host -NoNewline "> "
         $verChoice = Read-LineWithTimeout -Seconds 10
         Write-Host ""
         if ([string]::IsNullOrWhiteSpace($verChoice)) { $verChoice = $desiredPythonVersion }
-        return [pscustomobject]@{ Mode='venv'; PythonPath=$null; DesiredVersion=$verChoice }
+
+        $envName = Read-EnvNameAlnum -Seconds 20 -Prompt 'Enter a unique environment name (letters/digits only, required): '
+        if (-not $envName) {
+            Say-Err 'No valid name provided. Cancelling.'
+            return $null
+        }
+
+        return [pscustomobject]@{
+            Mode='venv'
+            PythonPath=$null
+            DesiredVersion=$verChoice
+            CustomName=$envName
+        }
     }
+
     $idx = 0
     if ([int]::TryParse($choice, [ref]$idx)) {
-        if ($idx -ge 1 -and $idx -le $candidates.Count) {
-            return [pscustomobject]@{ Mode='existing'; PythonPath=$candidates[$idx-1].Path; DesiredVersion=$null }
+        if ($idx -ge 1 -and $idx -le $items.Count) {
+            $picked = $items[$idx-1]
+            return [pscustomobject]@{ Mode='existing'; PythonPath=$picked.Path; DesiredVersion=$null }
         } else {
             Say-Warn "Invalid selection."
             return $null
@@ -385,7 +578,6 @@ except Exception:
     return $null
 }
 
-
 function Get-PyModulePath { param([string]$PythonExe,[string]$Module)
 $py=@"
 import importlib, importlib.util, sys, os
@@ -413,21 +605,68 @@ except Exception:
     print('')
 "@; try {$out=& $PythonExe -c $py 2>$null; if($out){return $out.Trim()}} catch { } return $null }
 
-function Resolve-ExecPath { param([string]$PythonExe,[string]$ExecName)
-    try { $cmd = Get-Command $ExecName -ErrorAction SilentlyContinue } catch { $cmd=$null }
+# --- NEW: User-Scripts & Multi-Dirs
+function Get-PyUserScriptsDir {
+    param([string]$PythonExe)
+    $py=@"
+import sysconfig, site, os
+try:
+    p = sysconfig.get_paths('nt_user').get('scripts','')
+    if not p:
+        p = os.path.join(site.USER_BASE, 'Scripts')
+    print(p)
+except Exception:
+    try:
+        import site, os
+        print(os.path.join(site.USER_BASE, 'Scripts'))
+    except Exception:
+        print('')
+"@
+    try { $out = & $PythonExe -c $py 2>$null; if ($out) { return $out.Trim() } } catch {}
+    return $null
+}
+
+function Resolve-ToolPath-InDirs {
+    param([string[]]$Dirs,[string]$ExecName)
+    foreach ($d in $Dirs) {
+        if (-not $d) { continue }
+        $c1 = Join-Path $d ($ExecName + ".exe"); if (Test-Path $c1) { return (Resolve-Path $c1).Path }
+        $c2 = Join-Path $d ($ExecName + ".cmd"); if (Test-Path $c2) { return (Resolve-Path $c2).Path }
+        $c3 = Join-Path $d ($ExecName);          if (Test-Path $c3) { return (Resolve-Path $c3).Path }
+    }
+    return $null
+}
+
+function Resolve-ExecPath { param([string]$PythonExe,[string]$Name)
+    try { $cmd = Get-Command $Name -ErrorAction SilentlyContinue } catch { $cmd=$null }
     if ($cmd) { return $cmd.Path }
     $scripts = Get-PyScriptsDir -PythonExe $PythonExe
     if ($scripts) {
-        $c1 = Join-Path $scripts ($ExecName + '.exe'); if (Test-Path $c1) { return $c1 }
-        $c2 = Join-Path $scripts ($ExecName); if (Test-Path $c2) { return $c2 }
-        $c3 = Join-Path $scripts ($ExecName + '.cmd'); if (Test-Path $c3) { return $c3 }
+        $c1 = Join-Path $scripts ($Name + '.exe'); if (Test-Path $c1) { return $c1 }
+        $c2 = Join-Path $scripts ($Name); if (Test-Path $c2) { return $c2 }
+        $c3 = Join-Path $scripts ($Name + '.cmd'); if (Test-Path $c3) { return $c3 }
     }
+    return $null
+}
+
+function Resolve-ByWhere {
+    param([Parameter(Mandatory)][string]$ExecName)
+    try {
+        $out = & where.exe $ExecName 2>$null
+        if ($out) {
+            return ($out -split "(`r`n|`n|`r)")[0].Trim()
+        }
+    } catch {}
     return $null
 }
 
 $tools = @(
     @{ Name='PyArmor'; Dist='pyarmor'; Module='pyarmor'; AltModule='pyarmor.cli'; Pkg='pyarmor>=9.1.6'; Regex='(?i)(?<v>\d+(\.\d+){1,3})'; Exec='pyarmor' },
-    @{ Name='Nuitka';  Dist='nuitka';  Module='nuitka';  AltModule=$null;          Pkg='nuitka';         Regex='(?i)(?<v>\d+(\.\d+){1,3})'; Exec='nuitka' },
+    @{ Name='Nuitka';  Dist='nuitka';  Module='nuitka';  AltModule=$null;          Pkg='nuitka';         Regex='(?i)(?<v>\d+(\.\d+){1,3})'; Exec='nuitka' }
+)
+
+# zusätzliche Tools/Versionen
+$tools += @(
     @{ Name='Cython';  Dist='Cython';  Module='Cython';  AltModule=$null;          Pkg='cython';         Regex='(?i)(?<v>\d+(\.\d+){1,3})'; Exec='cython' },
     @{ Name='Pytest';  Dist='pytest';  Module='pytest';  AltModule=$null;          Pkg='pytest';         Regex='(?i)pytest\s+(?<v>\d+(\.\d+){1,3})'; Exec='pytest' },
     @{ Name='Sphinx';  Dist='Sphinx';  Module='sphinx';  AltModule=$null;          Pkg='sphinx';         Regex='(?i)(sphinx\s+)?(?<v>\d+(\.\d+){1,3})'; Exec='sphinx-build' }
@@ -458,7 +697,7 @@ function Show-ToolStatus {
 
 # ============================ Auswahl: bestehend ODER venv =============
 $candidates = Get-PythonCandidates -expectedMinor $expectedMinor
-$selection  = Choose-Existing-Or-Venv -candidates $candidates -defaultPath $defaultPythonPath
+$selection  = Choose-Existing-Or-Venv -candidates $candidates -defaultPath $defaultPythonPath -venvRoot $venvRoot
 if (-not $selection) { Say-Warn "Cancelled."; exit 1 }
 
 $pythonPath = $null
@@ -466,7 +705,8 @@ $usedVenv   = $false
 
 if ($selection.Mode -eq 'existing') {
     $pythonPath = $selection.PythonPath
-    Show-Check -Label ("Choosen Python-Exe: {0}" -f $pythonPath) -Ok (Test-Path $pythonPath)
+    Show-Check -Label ("Chosen Python-Exe: {0}" -f $pythonPath) -Ok (Test-Path $pythonPath)
+    $usedVenv = ($pythonPath -like "$venvRoot*")
     Ensure-Pip -PythonExe $pythonPath
 } elseif ($selection.Mode -eq 'venv') {
     $usedVenv = $true
@@ -474,7 +714,6 @@ if ($selection.Mode -eq 'existing') {
     if ([string]::IsNullOrWhiteSpace($want)) { $want = $desiredPythonVersion }
     $basePy = $null
 
-    # Pruefe, ob gewuenschte Version bereits vorhanden ist
     $already = Get-PythonCandidates -expectedMinor ''
     $basePy = ($already | Where-Object {
         if ($want -match '^\d+\.\d+\.\d+$') { $_.Path -and (& $_.Path -c "import sys; print('.'.join(map(str,sys.version_info[:3])))") -eq $want }
@@ -489,7 +728,12 @@ if ($selection.Mode -eq 'existing') {
         exit 10
     }
 
-    $venvName = "autopypp-$($want -replace '\.','_')"
+    $custom = $selection.CustomName
+    if (-not $custom) {
+        $custom = (Get-Date -Format 'yyyyMMddHHmmss')
+        Say-Warn ("Empty custom name; using timestamp: {0}" -f $custom)
+    }
+    $venvName = "autopypp-$($want -replace '\.','_')-$custom"
     $pythonPath = New-IsolatedVenv -BasePythonExe $basePy -VenvRoot $venvRoot -VenvName $venvName
     if (-not $pythonPath) { exit 11 }
     Ensure-Pip -PythonExe $pythonPath
@@ -611,11 +855,9 @@ if ($global:toolResults.Count -gt 0) {
 }
 
 # ============================ extensions_path.ini Support =====================
-
 function Get-ExtensionsIniPath {
     param([string]$ExplicitIniPath)
 
-    # 0) Explizit übergeben?
     if ($ExplicitIniPath) {
         $p = $ExplicitIniPath.Trim('"','''')
         $p = [System.Environment]::ExpandEnvironmentVariables($p)
@@ -623,7 +865,6 @@ function Get-ExtensionsIniPath {
         if ($rp) { return $rp.Path }
     }
 
-    # 1) Skriptbasis ermitteln (auch wenn per Auswahl ausgeführt wurde)
     $scriptDir = $PSScriptRoot
     if (-not $scriptDir -or $scriptDir.Trim().Length -eq 0) {
         $scriptPath = $MyInvocation.MyCommand.Path
@@ -631,7 +872,6 @@ function Get-ExtensionsIniPath {
     }
     if (-not $scriptDir) { $scriptDir = (Get-Location).Path }
 
-    # 2) Kandidatenlisten: gleicher Ordner, 1–4 Ebenen drüber
     $candidates = New-Object System.Collections.Generic.List[string]
     $candidates.Add( (Join-Path $scriptDir "extensions_path.ini") )
     $cur = $scriptDir
@@ -641,12 +881,10 @@ function Get-ExtensionsIniPath {
         $candidates.Add( (Join-Path $cur "extensions_path.ini") )
     }
 
-    # 3) Auch der Projektroot und Unterordner basierend auf $srcDir
     if ($script:srcDir -or $srcDir) {
         $base = if ($script:srcDir) { $script:srcDir } else { $srcDir }
         $projRoot = Split-Path -Parent $base
         if ($projRoot) { $candidates.Add( (Join-Path $projRoot "extensions_path.ini") ) }
-        # zusätzlich: im src/AutoPyPlusPlus Unterordner suchen
         $subCandidate = Join-Path $base "AutoPyPlusPlus\extensions_path.ini"
         $candidates.Add($subCandidate)
     }
@@ -658,9 +896,9 @@ function Get-ExtensionsIniPath {
     return $null
 }
 
+# (alter Single-Dir-Resolver bleibt für andere Call-Sites erhalten)
 function Resolve-ToolPath {
     param([string]$PythonExe,[string]$Name)
-    # 1) Python Scripts dir
     $scripts = Get-PyScriptsDir -PythonExe $PythonExe
     if ($scripts) {
         $cands = @(
@@ -670,7 +908,6 @@ function Resolve-ToolPath {
         )
         foreach ($c in $cands) { if (Test-Path $c) { return (Resolve-Path $c).Path } }
     }
-    # 2) PATH
     try { $cmd = Get-Command $Name -ErrorAction SilentlyContinue; if ($cmd) { return $cmd.Source } } catch {}
     return $null
 }
@@ -678,46 +915,78 @@ function Resolve-ToolPath {
 function Build-IniUpdatesFromEnv {
     param(
         [Parameter(Mandatory=$true)] [string]$PythonExe,
-        [Parameter(Mandatory=$false)] $ToolResults
+        [Parameter(Mandatory=$false)] $ToolResults,
+        [switch]$VenvOnly = $true,              # erzwinge venv-Scripts für Python-Tools
+        [switch]$IncludeEmptyForMissing = $true,# fehlende Tools => Key mit leerem Wert
+        [switch]$AllowGlobalFallback = $false   # falls venv-Tool fehlt: global erlauben?
     )
+
     $updates = @{}
 
-    # Map ToolName -> INI-Key for items we detected
-    $map = @{
-        "Cython"  = "cython"
-        "Nuitka"  = "nuitka"
-        "PyArmor" = "pyarmor"
-        "Pytest"  = "pytest"
-        "Sphinx"  = "sphinx-build"
-    }
-    foreach ($m in $map.GetEnumerator()) {
-        $tr = $ToolResults | Where-Object { $_.Name -eq $m.Key } | Select-Object -First 1
-        $path = $null
-        if ($tr -and $tr.ExecPath) { $path = $tr.ExecPath }
-        if (-not $path) { $path = Resolve-ToolPath -PythonExe $PythonExe -Name $m.Value }
-        if ($path) { $updates[$m.Value] = $path }
+    # Scripts-Verzeichnisse vorbereiten
+    $baseScripts = Get-PyScriptsDir -PythonExe $PythonExe
+    $userScripts = Get-PyUserScriptsDir -PythonExe $PythonExe
+    $venvDirs    = @(); if ($baseScripts) { $venvDirs += $baseScripts }
+    $allDirs     = @(); if ($baseScripts) { $allDirs += $baseScripts }
+    if (-not $VenvOnly -and $userScripts) { $allDirs += $userScripts }
+
+    # Python-Tool-Mapping (mit Alternativen)
+    $pyTools = @(
+        @{ key='cython';             execs=@('cython','cython3') },
+        @{ key='nuitka';             execs=@('nuitka','nuitka3') },
+        @{ key='pyarmor';            execs=@('pyarmor') },
+        @{ key='pyinstaller';        execs=@('pyinstaller') },
+        @{ key='pytest';             execs=@('pytest','py.test') },
+        @{ key='sphinx-build';       execs=@('sphinx-build') },
+        @{ key='sphinx-quickstart';  execs=@('sphinx-quickstart') }
+    )
+
+    foreach ($t in $pyTools) {
+        foreach ($exe in $t.execs) {
+            $path = $null
+
+            if ($VenvOnly) {
+                $path = Resolve-ToolPath-InDirs -Dirs $venvDirs -ExecName $exe
+            } else {
+                # 1) Basis + User-Scripts
+                $path = Resolve-ToolPath-InDirs -Dirs $allDirs -ExecName $exe
+                # 2) PATH
+                if (-not $path -and $AllowGlobalFallback) {
+                    try { $cmd = Get-Command $exe -ErrorAction SilentlyContinue; if ($cmd) { $path = $cmd.Path } } catch {}
+                }
+                # 3) where.exe
+                if (-not $path -and $AllowGlobalFallback) {
+                    $path = Resolve-ByWhere -ExecName $exe
+                }
+            }
+
+            if ($path) {
+                if (-not $updates.ContainsKey($t.key)) { $updates[$t.key] = $path }
+                break
+            }
+        }
+
+        if (-not $updates.ContainsKey($t.key) -and $IncludeEmptyForMissing) {
+            $updates[$t.key] = ''
+        }
     }
 
-    # Additional common tools
-    $extra = @("pyinstaller","pylint","pyreverse","sphinx-quickstart")
-    foreach ($n in $extra) {
-        $p = Resolve-ToolPath -PythonExe $PythonExe -Name $n
-        if ($p) { $updates[$n] = $p }
-    }
+    # --- Externe Tools, die NICHT an Python-venv gebunden sind ---
+    $cppPath = $null
+    try { $gppCmd = Get-Command g++ -ErrorAction SilentlyContinue; if ($gppCmd) { $cppPath = $gppCmd.Path } } catch {}
+    if (-not $cppPath) { try { $clangppCmd = Get-Command clang++ -ErrorAction SilentlyContinue; if ($clangppCmd) { $cppPath = $clangppCmd.Path } } catch {} }
+    if ($cppPath) { $updates['cpp'] = (Resolve-Path $cppPath).Path } elseif ($IncludeEmptyForMissing) { $updates['cpp'] = '' }
 
-    # C/C++ compilers (optional)
     try {
         $cl = Get-Command cl.exe -ErrorAction SilentlyContinue
-        if ($cl -and (Test-Path $cl.Source)) { $updates["msvc"] = $cl.Source }
-    } catch {}
-    $gpp = Resolve-ToolPath -PythonExe $PythonExe -Name "g++"
-    if ($gpp) { $updates["cpp"] = $gpp }
-    $clangpp = Resolve-ToolPath -PythonExe $PythonExe -Name "clang++"
-    if (-not $gpp -and $clangpp) { $updates["cpp"] = $clangpp }
+        if ($cl -and (Test-Path $cl.Source)) { $updates['msvc'] = $cl.Source }
+        elseif ($IncludeEmptyForMissing) { $updates['msvc'] = '' }
+    } catch { if ($IncludeEmptyForMissing) { $updates['msvc'] = '' } }
 
-    # tcl_base (nur wenn klar ermittelbar)
     if ($env:TCL_LIBRARY -and (Test-Path $env:TCL_LIBRARY)) {
-        $updates["tcl_base"] = (Resolve-Path $env:TCL_LIBRARY).Path
+        $updates['tcl_base'] = (Resolve-Path $env:TCL_LIBRARY).Path
+    } elseif ($IncludeEmptyForMissing) {
+        $updates['tcl_base'] = ''
     }
 
     return $updates
@@ -738,12 +1007,11 @@ function Update-ExtensionsIniValues {
     $nl = "`r`n"
     $text = Get-Content -LiteralPath $IniPath -Raw -Encoding UTF8
 
-    # --- vorhandene [paths]-Grenzen bestimmen (falls vorhanden)
     $rxHeader = [regex]'(?ms)^\s*\[\s*paths\s*\]\s*$'
     $m = $rxHeader.Matches($text)
     $hasPaths = $m.Count -gt 0
 
-    $existing = @{} # vorhandene k=v sammeln
+    $existing = @{}
     if ($hasPaths) {
         $startIdx = $m[0].Index + $m[0].Length
         $after = $text.Substring($startIdx)
@@ -754,7 +1022,6 @@ function Update-ExtensionsIniValues {
         $block  = $text.Substring($startIdx, $endIdx - $startIdx)
         $afterAll = $text.Substring($endIdx)
 
-        # vorhandene k=v aus dem Block lesen
         foreach ($line in ($block -split "(`r`n|`n|`r)")) {
             if ($line -match '^\s*([^#;][^=]+?)\s*=\s*(.*)$') {
                 $k = $matches[1].Trim()
@@ -763,22 +1030,20 @@ function Update-ExtensionsIniValues {
             }
         }
 
-        # Merge: NewValues überschreiben vorhandene
         foreach ($k in $NewValues.Keys) { $existing[$k] = [string]$NewValues[$k] }
 
-        # Neuaufbau des Blocks: exakt ein Eintrag je Zeile, keine Leerzeilen
-		$orderedKeys = ($existing.Keys | Sort-Object)
+        $orderedKeys = ($existing.Keys | Sort-Object)
 
-		$before   = $before.TrimEnd("`r","`n") + "`r`n"
-		$newBlock = ""   # <- KEIN führendes CRLF mehr
+        $before   = $before.TrimEnd("`r","`n") + "`r`n"
+        $newBlock = ""
 
-		foreach ($k in $orderedKeys) {
-			$val = $existing[$k]
-			$newBlock += ("{0} = {1}`r`n" -f $k, $val)
-		}
+        foreach ($k in $orderedKeys) {
+            $val = $existing[$k]
+            $newBlock += ("{0} = {1}`r`n" -f $k, $val)
+        }
 
         if ($DryRun) {
-            Say-Ok ("INI DryRun: {0} Keys würden geschrieben." -f $orderedKeys.Count)
+            Say-Ok ("INI DryRun: {0} keys would be written." -f $orderedKeys.Count)
             foreach ($k in $orderedKeys) { Say-Info (" - {0}" -f $k) }
             return $true
         }
@@ -793,7 +1058,6 @@ function Update-ExtensionsIniValues {
         return $true
     }
     else {
-        # Kein [paths]-Block vorhanden -> sauber anhängen
         $orderedKeys = ($NewValues.Keys | Sort-Object)
         $append = $nl + "[paths]" + $nl
         foreach ($k in $orderedKeys) {
@@ -801,7 +1065,7 @@ function Update-ExtensionsIniValues {
         }
 
         if ($DryRun) {
-            Say-Ok "[paths]-Block würde neu angelegt."
+            Say-Ok "[paths] section would be created."
             foreach ($k in $orderedKeys) { Say-Info (" - {0}" -f $k) }
             return $true
         }
@@ -817,16 +1081,22 @@ function Update-ExtensionsIniValues {
     }
 }
 
-
-# --- optionales INI-Update ausfuehren ---
 if ($UpdateIni) {
     $iniPath = Get-ExtensionsIniPath -ExplicitIniPath $extensionsPath
     if ($iniPath) {
-        Say-Section ("Update extensions_path.ini")
-        Show-Item -Name "INI" -Value $iniPath
-        $upd = Build-IniUpdatesFromEnv -PythonExe $pythonPath -ToolResults $global:toolResults
+        Say-Section 'Update extensions_path.ini'
+        Show-Item -Name 'INI' -Value $iniPath
+
+        $allowGlobal = -not $usedVenv
+        $upd = Build-IniUpdatesFromEnv `
+            -PythonExe $pythonPath `
+            -ToolResults $global:toolResults `
+            -VenvOnly:$usedVenv `
+            -AllowGlobalFallback:$allowGlobal `
+            -IncludeEmptyForMissing:$true
+
         if ($upd.Count -eq 0) {
-            Say-Warn "No new path founds"
+            Say-Warn 'No new paths found — check PATH and selected Python env.'
         } else {
             foreach ($kv in $upd.GetEnumerator()) {
                 Show-Item -Name $kv.Key -Value $kv.Value
@@ -834,7 +1104,7 @@ if ($UpdateIni) {
             [void](Update-ExtensionsIniValues -IniPath $iniPath -NewValues $upd -DryRun:$IniDryRun)
         }
     } else {
-        Say-Warn "extensions_path.ini not found"
+        Say-Warn 'extensions_path.ini not found'
     }
 }
 
@@ -846,8 +1116,8 @@ if ($usedVenv) {
 }
 
 # ============================ Launch AutoPy++ ==========================
-if (!(Test-Path $srcDir)) { Say-Err "Folder not found: $srcDir"; exit 1 }
-Say-Section ("Launching AutoPyPlusPlus with: {0}" -f $pythonPath)
+if (!(Test-Path $srcDir)) { Say-Err 'Folder not found: {0}' -f $srcDir; exit 1 }
+Say-Section ('Launching AutoPyPlusPlus with: {0}' -f $pythonPath)
 Set-Location -Path $srcDir
 & $pythonPath -m AutoPyPlusPlus
 exit $LASTEXITCODE
