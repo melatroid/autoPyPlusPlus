@@ -31,18 +31,20 @@ $art = @'
 Write-Host $art -ForegroundColor Blue
 
 # ============================ Configuration ============================
-# Voreinstellungen; können unten bei Bedarf überschrieben werden
-$desiredPythonVersion  = '3.10.11'            # "3.10" oder "3.10.11"
-$venvRoot              = "$env:LOCALAPPDATA\AutoPyPP\envs"
-$venvName              = "autopypp-$($desiredPythonVersion -replace '\.','_')"
-$defaultPythonPath     = 'C:\Users\melatroid\AppData\Local\Programs\Python\Python310\python.exe'
-$allowInstallPython    = $true                # pyenv-win (bevorzugt) oder winget als Fallback
-$autoInstallMissing    = $true
-$enforceToolPresence   = $false
-$srcDir                = 'C:\Users\melatroid\Desktop\autoPy++\AutoPyPlusPlus\src'
-$expectedMinor         = '3.10'
-$enforceMinor          = $false
+#   EDIT THIS !!!!
+$defaultPythonPath     = 'C:\Users\melatroid\AppData\Local\Programs\Python\Python310\python.exe'    # default python version that is used
+$srcDir                = 'C:\Users\melatroid\Desktop\autoPy++\AutoPyPlusPlus\src'  # autopy++ src path
 
+#========================================================
+#   EDIT THIS NOT!!!!
+$desiredPythonVersion  = '3.10.11'            # "3.10" oder "3.10.11"
+$expectedMinor         = '3.10' 			  # Needet Version
+$venvRoot              = "$env:LOCALAPPDATA\AutoPyPP\envs"											# default env folder
+$venvName              = "autopypp-Env-$($desiredPythonVersion -replace '\.','_')"					# default env name
+$allowInstallPython    = $true  #Install Python
+$autoInstallMissing    = $true  #Install missing Extensions
+$enforceToolPresence   = $false 
+$enforceMinor          = $false # Force Incompatibel
 # ============================ Helpers: Console =========================
 function Read-LineWithTimeout {
     param([int]$Seconds = 5)
