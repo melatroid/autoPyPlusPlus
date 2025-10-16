@@ -33,6 +33,7 @@ $srcDir                = 'C:\Users\melatroid\Desktop\autoPy++\AutoPyPlusPlus\src
 $extensionsPath        = 'C:\Users\melatroid\Desktop\autoPy++\AutoPyPlusPlus\src\AutoPyPlusPlus\extensions_path.ini'
 #########################################################################################################################
 #   EDIT THIS NOT!!!!
+$ProtectedKeys = @('tcl_base','msvc','cpp')
 $desiredPythonVersion  = '3.10.11'
 $expectedMinor         = '3.10'
 $venvRoot              = "$env:LOCALAPPDATA\AutoPyPP\envs"
@@ -178,7 +179,8 @@ function Install-Python-WithWinget {
 }
 
 function Ensure-Python-Version {
-    param([string]$Desired) # "3.10.11" oder "3.10"
+    param([string]$Desired)
+
     if ($Desired -match '^\d+\.\d+\.\d+$') {
         if (Install-Python-WithPyenv -Version $Desired) {
             $pp = Find-PyenvPythonPath -Version $Desired
@@ -187,10 +189,12 @@ function Ensure-Python-Version {
     } else {
         if (Install-Python-WithPyenv -Version $Desired) {
             try {
-                $vers = (pyenv versions) -join "`n"
-                $m = [regex]::Matches($vers, '(\d+\.\d+\.\d+)')
-                if ($m.Success) {
-                    $patch = ($m.Value | Where-Object { $_ -like "$Desired.*" } | Sort-Object {[version]$_} -Descending | Select-Object -First 1)
+                $vers = (& pyenv versions --bare) 2>$null
+                if ($vers) {
+                    $patch = ($vers -split "(`r`n|`n|`r)" |
+                              Where-Object { $_ -like "$Desired.*" } |
+                              Sort-Object { [version]$_ } -Descending |
+                              Select-Object -First 1)
                     if ($patch) {
                         $pp = Find-PyenvPythonPath -Version $patch
                         if ($pp) { return $pp }
@@ -208,6 +212,7 @@ function Ensure-Python-Version {
     }
     return $null
 }
+
 
 # ============================ Helpers: venv / pip ======================
 function Ensure-Pip {
@@ -953,7 +958,10 @@ function Build-IniUpdatesFromEnv {
                 $path = Resolve-ToolPath-InDirs -Dirs $allDirs -ExecName $exe
                 # 2) PATH
                 if (-not $path -and $AllowGlobalFallback) {
-                    try { $cmd = Get-Command $exe -ErrorAction SilentlyContinue; if ($cmd) { $path = $cmd.Path } } catch {}
+                    try {
+						$cmd = Get-Command $Name -ErrorAction SilentlyContinue
+						if ($cmd) { return $cmd.Path }   # statt $cmd.Source
+					} catch {}
                 }
                 # 3) where.exe
                 if (-not $path -and $AllowGlobalFallback) {
@@ -1109,7 +1117,6 @@ function Update-ExtensionsIniValues {
 }
 
 
-$ProtectedKeys = @('tcl_base','msvc','cpp')
 if ($UpdateIni) {
     $iniPath = Get-ExtensionsIniPath -ExplicitIniPath $extensionsPath
     if ($iniPath) {
