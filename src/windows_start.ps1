@@ -280,7 +280,7 @@ function Choose-Existing-Or-Venv {
         Write-Host ("[{0}] Python {1}{2}  -> {3}{4}" -f $i, $c.Version, $bitsLabel, $c.Path, $tagDefault)
         $i++
     }
-    Write-Host "[V] Create new isolated environment (pyenv/winget + venv)"
+    Write-Host "[V] Create new isolated environment (Experminatal, Check Extensions in Gui -> pyinstaller path)"
     Write-Host "[X] Cancel`n"
 
     $defaultCandidatePath = if ($defaultPath -and (Test-Path $defaultPath)) { $defaultPath } else { $candidates[0].Path }
