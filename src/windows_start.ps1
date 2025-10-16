@@ -1,5 +1,47 @@
-# Run-AutoPyPlusPlus.ps1
+# ============================ Configuration ============================
 
+param(
+    [switch]$UpdateIni = $true,   # if set, update values in AutoPyPlusPlus\extensions_path.ini
+    [switch]$IniDryRun = $false   # if set, only show what would change (no write)
+)
+
+# --- Color & UI Helpers müssen VOR der ersten Verwendung stehen ---
+function Say-Section([string]$Text) { Write-Host ""; Write-Host ("=== {0} ===" -f $Text) -ForegroundColor Cyan }
+function Say-Step([string]$Text)   { Write-Host ("[STEP] {0}" -f $Text) -ForegroundColor Cyan }
+function Say-Info([string]$Text)   { Write-Host ("[INFO] {0}" -f $Text) -ForegroundColor DarkCyan }
+function Say-Ok([string]$Text)     { Write-Host ("[OK]   {0}" -f $Text) -ForegroundColor Green }
+function Say-Warn([string]$Text)   { Write-Host ("[WARN] {0}" -f $Text) -ForegroundColor Yellow }
+function Say-Err([string]$Text)    { Write-Host ("[ERR]  {0}" -f $Text) -ForegroundColor Red }
+function Show-Check {
+    param([Parameter(Mandatory)][string]$Label,[Parameter(Mandatory)][bool]$Ok,[string]$Detail="")
+    if ($Ok) { Write-Host ("[OK]   {0}" -f $Label) -ForegroundColor Green; if ($Detail) { Write-Host ("       - {0}" -f $Detail) -ForegroundColor DarkGray } }
+    else { Write-Host ("[ERR]  {0}" -f $Label) -ForegroundColor Red; if ($Detail) { Write-Host ("       - {0}" -f $Detail) -ForegroundColor DarkGray } }
+}
+function Show-Item {
+    param([Parameter(Mandatory)][string]$Name,[string]$Value,[ConsoleColor]$Color=[ConsoleColor]::Gray)
+    Write-Host (" - {0}: " -f $Name) -NoNewline -ForegroundColor $Color
+    Write-Host $Value -ForegroundColor DarkGray
+}
+#   EDIT THIS !!!!
+$defaultPythonPath     = 'C:\Users\melatroid\AppData\Local\Programs\Python\Python310\python.exe'
+$srcDir                = 'C:\Users\melatroid\Desktop\autoPy++\AutoPyPlusPlus\src'
+$extensionsPath        = 'C:\Users\melatroid\Desktop\autoPy++\AutoPyPlusPlus\src\AutoPyPlusPlus\extensions_path.ini'
+
+#   EDIT THIS NOT!!!!
+$desiredPythonVersion  = '3.10.11'
+$expectedMinor         = '3.10'
+$venvRoot              = "$env:LOCALAPPDATA\AutoPyPP\envs"
+$venvName              = "autopypp-Env-$($desiredPythonVersion -replace '\.','_')"
+$allowInstallPython    = $true
+$autoInstallMissing    = $true
+$enforceToolPresence   = $false
+$enforceMinor          = $false
+
+# jetzt darfst du sie aufrufen:
+Say-Section "Preflight Checks"
+Show-Check -Label "Default Python found! ($defaultPythonPath)" -Ok (Test-Path $defaultPythonPath)
+Show-Check -Label "Working Folder ($srcDir)" -Ok (Test-Path $srcDir)
+Show-Check -Label "Extensions_path.ini ($extensionsPath)" -Ok (Test-Path $extensionsPath)
 
 $art = @'
             /^\/^\                                   /^\/^\
@@ -22,21 +64,7 @@ $art = @'
 '@
 Write-Host $art -ForegroundColor Blue
 
-# ============================ Configuration ============================
-#   EDIT THIS !!!!
-$defaultPythonPath     = 'C:\Users\melatroid\AppData\Local\Programs\Python\Python310\python.exe'    # default python version that is used
-$srcDir                = 'C:\Users\melatroid\Desktop\autoPy++\AutoPyPlusPlus\src'  					# autopy++ src path
 
-#========================================================
-#   EDIT THIS NOT!!!!
-$desiredPythonVersion  = '3.10.11'            # "3.10" oder "3.10.11"
-$expectedMinor         = '3.10' 			  # Needet Version
-$venvRoot              = "$env:LOCALAPPDATA\AutoPyPP\envs"											# default env folder
-$venvName              = "autopypp-Env-$($desiredPythonVersion -replace '\.','_')"					# default env name
-$allowInstallPython    = $true  #Install Python
-$autoInstallMissing    = $true  #Install missing Extensions
-$enforceToolPresence   = $false 
-$enforceMinor          = $false # Force Incompatibel
 # ============================ Helpers: Console =========================
 function Read-LineWithTimeout {
     param([int]$Seconds = 5)
@@ -54,20 +82,24 @@ function Read-LineWithTimeout {
 }
 
 # ============================ Helpers: Python Install ==================
-function Test-WingetAvailable { try { Get-Command winget -ErrorAction Stop | Out-Null; $true } catch { $false } }
+function Test-WingetAvailable {
+    try { Get-Command winget -ErrorAction Stop | Out-Null; $true }
+    catch { $false }
+}
 
 function Ensure-PyenvWin {
     $root = Join-Path $env:USERPROFILE ".pyenv\pyenv-win"
     if (Test-Path $root) { return $true }
-    Write-Host "Installing pyenv-win (per-user)..." -ForegroundColor Cyan
+    Say-Info "Installing pyenv-win (per-user)..."
     try {
         Invoke-Expression ((New-Object System.Net.WebClient).DownloadString('https://pyenv-win.github.io/pyenv-win/install.ps1'))
         $pyenvBin = Join-Path $env:USERPROFILE ".pyenv\pyenv-win\bin"
         $pyenvShm = Join-Path $env:USERPROFILE ".pyenv\pyenv-win\shims"
         $env:Path = "$pyenvBin;$pyenvShm;$env:Path"
+        Say-Ok "pyenv-win installiert."
         return $true
     } catch {
-        Write-Host "pyenv-win installation failed: $($_.Exception.Message)" -ForegroundColor Red
+        Say-Err ("pyenv-win installation failed: {0}" -f $_.Exception.Message)
         return $false
     }
 }
@@ -87,8 +119,9 @@ function Install-Python-WithPyenv {
         if (-not (Ensure-PyenvWin)) { return $false }
         if (-not (Test-PyenvAvailable)) { return $false }
     }
-    Write-Host "Installing Python $Version via pyenv-win..." -ForegroundColor Cyan
-    try { pyenv install -q $Version; return $true } catch { Write-Host "pyenv install failed: $($_.Exception.Message)" -ForegroundColor Red; return $false }
+    Say-Info ("Installing Python {0} via pyenv-win..." -f $Version)
+    try { pyenv install -q $Version; Say-Ok ("Python {0} install (pyenv)" -f $Version); return $true }
+    catch { Say-Err ("pyenv install failed: {0}" -f $_.Exception.Message); return $false }
 }
 
 function Find-PyenvPythonPath {
@@ -110,10 +143,10 @@ function Install-Python-WithWinget {
         '3.13'='Python.Python.3.13'; '3.14'='Python.Python.3.14'
     }
     $pkgId = $idMap[$Minor]
-    if (-not $pkgId) { Write-Host "winget: no mapping for Python $Minor" -ForegroundColor Yellow; return $false }
-    Write-Host "Installing Python $Minor via winget ($pkgId)..." -ForegroundColor Cyan
-    try { winget install --id $pkgId --silent --accept-source-agreements --accept-package-agreements; return $true }
-    catch { Write-Host "winget install failed." -ForegroundColor Red; return $false }
+    if (-not $pkgId) { Say-Warn ("winget: no mapping for Python {0}" -f $Minor); return $false }
+    Say-Info ("Installing Python {0} via winget ({1})..." -f $Minor, $pkgId)
+    try { winget install --id $pkgId --silent --accept-source-agreements --accept-package-agreements; Say-Ok ("Python {0} installiert (winget)" -f $Minor); return $true }
+    catch { Say-Err "winget install failed."; return $false }
 }
 
 function Ensure-Python-Version {
@@ -125,7 +158,6 @@ function Ensure-Python-Version {
         }
     } else {
         if (Install-Python-WithPyenv -Version $Desired) {
-            # pyenv installiert neueste Patch; suche Pfad
             try {
                 $vers = (pyenv versions) -join "`n"
                 $m = [regex]::Matches($vers, '(\d+\.\d+\.\d+)')
@@ -154,7 +186,7 @@ function Ensure-Pip {
     param([string]$PythonExe)
     try { & $PythonExe -m pip --version 2>$null | Out-Null; if ($LASTEXITCODE -ne 0) { throw "pip missing" } }
     catch {
-        Write-Host "pip not found - bootstrapping via ensurepip..." -ForegroundColor Yellow
+        Say-Warn "pip not found - bootstrapping via ensurepip..."
         try { & $PythonExe -m ensurepip --upgrade | Out-Null } catch {}
     }
     try { & $PythonExe -m pip install --upgrade --disable-pip-version-check pip | Out-Null } catch {}
@@ -166,9 +198,10 @@ function New-IsolatedVenv {
     $venvPath = Join-Path $VenvRoot $VenvName
     $venvPython = Join-Path $venvPath "Scripts\python.exe"
     if (Test-Path $venvPython) { return $venvPython }
-    Write-Host "Creating venv: $venvPath" -ForegroundColor Cyan
+    Say-Info ("Creating venv: {0}" -f $venvPath)
     & $BasePythonExe -m venv $venvPath
-    if ($LASTEXITCODE -ne 0 -or -not (Test-Path $venvPython)) { Write-Host "Failed to create venv." -ForegroundColor Red; return $null }
+    if ($LASTEXITCODE -ne 0 -or -not (Test-Path $venvPython)) { Say-Err "Failed to create venv."; return $null }
+    Say-Ok "venv erstellt."
     return $venvPython
 }
 
@@ -197,7 +230,6 @@ function Get-PythonCandidates {
             } catch {}
         }
     }
-    # auch pyenv-win-Installationen anzeigen
     $pyenvRoot = Join-Path $env:USERPROFILE ".pyenv\pyenv-win\versions"
     if (Test-Path $pyenvRoot) {
         $vers = Get-ChildItem -Path $pyenvRoot -Directory -ErrorAction SilentlyContinue
@@ -229,12 +261,12 @@ function Get-PythonCandidates {
 function Choose-Existing-Or-Venv {
     param([array]$candidates, [string]$defaultPath)
     if (-not $candidates -or $candidates.Count -eq 0) {
-        Write-Host "No existing Pythons found. Press [Enter] to attempt venv creation..." -ForegroundColor Yellow
+        Say-Warn "No existing Pythons found. Press [Enter] to attempt venv creation..."
         return [pscustomobject]@{ Mode='venv'; PythonPath=$null; DesiredVersion=$null }
     }
 
     Write-Host ""
-    Write-Host "=== Available Python installations ===" -ForegroundColor Cyan
+    Say-Section "Available Python installations"
     $i = 1
     foreach ($c in $candidates) {
         $tagDefault = if ($c.IsDefault) { " *" } else { "" }
@@ -260,20 +292,21 @@ function Choose-Existing-Or-Venv {
     }
 
     if ($choice -match '^[Xx]$') { return $null }
-	if ($choice -match '^[VvNn]$') {
-		Write-Host ("Enter desired Python version (e.g. 3.10 or 3.10.11). Default in 10s: {0}" -f $desiredPythonVersion) -ForegroundColor Yellow
-		Write-Host -NoNewline "> "
-		$verChoice = Read-LineWithTimeout -Seconds 10
-		Write-Host ""
-		if ([string]::IsNullOrWhiteSpace($verChoice)) { $verChoice = $desiredPythonVersion }
-		return [pscustomobject]@{ Mode='venv'; PythonPath=$null; DesiredVersion=$verChoice }
-	}
+    if ($choice -match '^[VvNn]$') {
+        Write-Host ("Enter desired Python version (e.g. 3.10 or 3.10.11). Default in 10s: {0}" -f $desiredPythonVersion) -ForegroundColor Yellow
+        Write-Host -NoNewline "> "
+        $verChoice = Read-LineWithTimeout -Seconds 10
+        Write-Host ""
+        if ([string]::IsNullOrWhiteSpace($verChoice)) { $verChoice = $desiredPythonVersion }
+        return [pscustomobject]@{ Mode='venv'; PythonPath=$null; DesiredVersion=$verChoice }
+    }
     $idx = 0
     if ([int]::TryParse($choice, [ref]$idx)) {
         if ($idx -ge 1 -and $idx -le $candidates.Count) {
             return [pscustomobject]@{ Mode='existing'; PythonPath=$candidates[$idx-1].Path; DesiredVersion=$null }
         } else {
-            Write-Warning "Invalid selection."; return $null
+            Say-Warn "Invalid selection."
+            return $null
         }
     }
 
@@ -282,7 +315,7 @@ function Choose-Existing-Or-Venv {
         return [pscustomobject]@{ Mode='existing'; PythonPath=$norm; DesiredVersion=$null }
     }
 
-    Write-Warning "Please enter a valid number, 'V' for venv, or an existing path to python.exe."
+    Say-Warn "Please enter a valid number, 'V' for venv, or an existing path to python.exe."
     return $null
 }
 
@@ -303,10 +336,28 @@ except Exception:
     print('')
 "@; try {$out=& $PythonExe -c $py 2>$null; if($out){$out.Trim()}} catch { $null } }
 
-function Get-PyModuleVersion { param([string]$PythonExe,[string]$Module,[string]$Regex,[string]$AltModule)
-    try { $raw=& $PythonExe -m $Module --version 2>$null; if($LASTEXITCODE -eq 0 -and $raw){$m=[regex]::Match($raw,$Regex); if($m.Success){return $m.Groups['v'].Value.Trim()}} } catch {}
-    if($AltModule){ try { $raw=& $PythonExe -m $AltModule --version 2>$null; if($LASTEXITCODE -eq 0 -and $raw){$m=[regex]::Match($raw,$Regex); if($m.Success){return $m.Groups['v'].Value.Trim()}} } catch {} }
-    try {$py=@"
+function Get-PyModuleVersion {
+    param([string]$PythonExe,[string]$Module,[string]$Regex,[string]$AltModule)
+    try {
+        $raw = & $PythonExe -m $Module --version 2>$null
+        if ($LASTEXITCODE -eq 0 -and $raw) {
+            $m = [regex]::Match($raw, $Regex)
+            if ($m.Success) { return $m.Groups['v'].Value.Trim() }
+        }
+    } catch {}
+
+    if ($AltModule) {
+        try {
+            $raw = & $PythonExe -m $AltModule --version 2>$null
+            if ($LASTEXITCODE -eq 0 -and $raw) {
+                $m = [regex]::Match($raw, $Regex)
+                if ($m.Success) { return $m.Groups['v'].Value.Trim() }
+            }
+        } catch {}
+    }
+
+    try {
+        $py = @"
 import importlib, sys
 try:
     m = importlib.import_module('$Module')
@@ -320,9 +371,14 @@ try:
     print(v or '')
 except Exception:
     print('')
-"@; $out=& $PythonExe -c $py 2>$null; if($out -and $out.Trim().Length -gt 0){return $out.Trim()} } catch {}
+"@
+        $out = & $PythonExe -c $py 2>$null
+        if ($out -and $out.Trim().Length -gt 0) { return $out.Trim() }
+    } catch {}
+
     return $null
 }
+
 
 function Get-PyModulePath { param([string]$PythonExe,[string]$Module)
 $py=@"
@@ -358,6 +414,7 @@ function Resolve-ExecPath { param([string]$PythonExe,[string]$ExecName)
     if ($scripts) {
         $c1 = Join-Path $scripts ($ExecName + '.exe'); if (Test-Path $c1) { return $c1 }
         $c2 = Join-Path $scripts ($ExecName); if (Test-Path $c2) { return $c2 }
+        $c3 = Join-Path $scripts ($ExecName + '.cmd'); if (Test-Path $c3) { return $c3 }
     }
     return $null
 }
@@ -374,18 +431,18 @@ $global:toolResults = @()
 
 function Show-ToolStatus {
     param([string]$Header, [string]$PythonExe)
-    Write-Host ("`n=== {0} ===" -f $Header) -ForegroundColor Cyan
+    Say-Section $Header
     $missing = @(); $results=@()
     foreach ($t in $tools) {
         $ver = Get-PyDistVersion -PythonExe $PythonExe -DistName $t.Dist
         if (-not $ver) { $ver = Get-PyModuleVersion -PythonExe $PythonExe -Module $t.Module -Regex $t.Regex -AltModule $t.AltModule }
         if ($ver) {
-            Write-Host ("{0,-8}: found  v{1}" -f $t.Name, $ver)
+            Write-Host ("[OK]   {0,-8}: v{1}" -f $t.Name, $ver) -ForegroundColor Green
             $modPath  = Get-PyModulePath -PythonExe $PythonExe -Module $t.Module
             $execPath = if ($t.Exec) { Resolve-ExecPath -PythonExe $PythonExe -ExecName $t.Exec } else { $null }
             $results += [pscustomobject]@{ Name=$t.Name; Version=$ver; ModulePath=$modPath; ExecPath=$execPath }
         } else {
-            Write-Host ("{0,-8}: NOT FOUND" -f $t.Name) -ForegroundColor Yellow
+            Write-Host ("[ERR]  {0,-8}: NOT FOUND" -f $t.Name) -ForegroundColor Red
             $missing += $t
         }
     }
@@ -396,13 +453,14 @@ function Show-ToolStatus {
 # ============================ Auswahl: bestehend ODER venv =============
 $candidates = Get-PythonCandidates -expectedMinor $expectedMinor
 $selection  = Choose-Existing-Or-Venv -candidates $candidates -defaultPath $defaultPythonPath
-if (-not $selection) { Write-Host "Cancelled." -ForegroundColor Yellow; exit 1 }
+if (-not $selection) { Say-Warn "Cancelled."; exit 1 }
 
 $pythonPath = $null
 $usedVenv   = $false
 
 if ($selection.Mode -eq 'existing') {
     $pythonPath = $selection.PythonPath
+    Show-Check -Label ("Choosen Python-Exe: {0}" -f $pythonPath) -Ok (Test-Path $pythonPath)
     Ensure-Pip -PythonExe $pythonPath
 } elseif ($selection.Mode -eq 'venv') {
     $usedVenv = $true
@@ -410,7 +468,7 @@ if ($selection.Mode -eq 'existing') {
     if ([string]::IsNullOrWhiteSpace($want)) { $want = $desiredPythonVersion }
     $basePy = $null
 
-    # Prüfe, ob gewünschte Version bereits vorhanden ist
+    # Pruefe, ob gewuenschte Version bereits vorhanden ist
     $already = Get-PythonCandidates -expectedMinor ''
     $basePy = ($already | Where-Object {
         if ($want -match '^\d+\.\d+\.\d+$') { $_.Path -and (& $_.Path -c "import sys; print('.'.join(map(str,sys.version_info[:3])))") -eq $want }
@@ -421,7 +479,7 @@ if ($selection.Mode -eq 'existing') {
         $basePy = Ensure-Python-Version -Desired $want
     }
     if (-not $basePy) {
-        Write-Host "Could not find or install Python $want." -ForegroundColor Red
+        Say-Err ("Could not find or install Python {0}." -f $want)
         exit 10
     }
 
@@ -431,18 +489,20 @@ if ($selection.Mode -eq 'existing') {
     Ensure-Pip -PythonExe $pythonPath
 }
 
-if (!(Test-Path $srcDir)) { Write-Error "Folder not found: $srcDir"; exit 1 }
+if (!(Test-Path $srcDir)) { Say-Err "Folder not found: $srcDir"; exit 1 }
 
 # ============================ Diagnostics ==============================
-Write-Host "`n=== Python/AutoPy++ Diagnostic ===" -ForegroundColor Cyan
+Say-Section "Python/AutoPy++ Diagnostic"
 & $pythonPath --version
 $pyMajMin  = & $pythonPath -c "import sys; print('%d.%d' % (sys.version_info[0], sys.version_info[1]))"
 $pyPatch   = & $pythonPath -c "import sys; print(sys.version_info[2])"
 $pyverFull = & $pythonPath -c "import sys; print(sys.version.replace('\n',' '))"
-Write-Host ("Selected Python: {0}.{1}  (full: {2})" -f $pyMajMin, $pyPatch, $pyverFull)
+Show-Item -Name "Selected Python" -Value ("{0}.{1}  (full: {2})" -f $pyMajMin, $pyPatch, $pyverFull)
 
 if ($expectedMinor -and ($pyMajMin -ne $expectedMinor)) {
-    Write-Warning ("Preferred minor is {0}, but you selected {1}.{2}. Continuing..." -f $expectedMinor, $pyMajMin, $pyPatch)
+    Say-Warn ("Preferred minor is {0}, but you selected {1}.{2}. Continuing..." -f $expectedMinor, $pyMajMin, $pyPatch)
+} else {
+    Say-Ok ("Minor-Version passt: {0}" -f $pyMajMin)
 }
 
 & $pythonPath -c "import sys,platform,struct; 
@@ -468,7 +528,7 @@ except Exception:
 & $pythonPath -m pip --version
 
 # ============================ PyArmor Suitability ======================
-Write-Host "`n=== PyArmor Compatibility Recommendation ===" -ForegroundColor Cyan
+Say-Section "PyArmor Compatibility Recommendation"
 $pyMajor     = [int]($pyMajMin.Split('.')[0])
 $pyMinorNum  = [int]($pyMajMin.Split('.')[1])
 $pyVersion   = [version]("$pyMajor.$pyMinorNum")
@@ -492,12 +552,12 @@ else {
 }
 
 if (-not $pyarmorSupported) {
-    Write-Host "Supported by PyArmor: NO" -ForegroundColor Red
+    Say-Err "Supported by PyArmor: NO"
     Write-Host ("Recommendation: {0}" -f $pyarmorRecommendation)
-    Write-Host "Aborting due to missing PyArmor support." -ForegroundColor Red
+    Say-Err "Aborting due to missing PyArmor support."
     exit 2
 } else {
-    Write-Host "Supported by PyArmor: YES" -ForegroundColor Green
+    Say-Ok "Supported by PyArmor: YES"
     Write-Host ("Recommendation: {0}" -f $pyarmorRecommendation)
 }
 
@@ -509,13 +569,13 @@ Write-Host " - Other versions     -> Not supported by PyArmor"
 # ============================ Tools: install & where ===================
 $missing = Show-ToolStatus -Header "Tool Presence (selected Python env)" -PythonExe $pythonPath
 if ($missing.Count -gt 0 -and $autoInstallMissing) {
-    Write-Host "`nInstalling missing tools into the selected Python environment..." -ForegroundColor Cyan
+    Say-Section "Installing missing tools into the selected Python environment..."
     foreach ($t in $missing) {
         try {
-            Write-Host ("pip install {0}" -f $t.Pkg)
+            Say-Info ("pip install {0}" -f $t.Pkg)
             & $pythonPath -m pip install --disable-pip-version-check $t.Pkg
         } catch {
-            Write-Host ("Install failed for {0}" -f $t.Name) -ForegroundColor Red
+            Say-Err ("Install failed for {0}" -f $t.Name)
         }
     }
     $missing = Show-ToolStatus -Header "Tool Presence (re-check)" -PythonExe $pythonPath
@@ -523,36 +583,265 @@ if ($missing.Count -gt 0 -and $autoInstallMissing) {
 
 if ($missing.Count -gt 0) {
     $names = ($missing | ForEach-Object { $_.Name }) -join ', '
-    Write-Host ("Missing: {0}" -f $names) -ForegroundColor Yellow
+    Say-Warn ("Missing: {0}" -f $names)
     if ($enforceToolPresence) {
-        Write-Host "Aborting because required tools are missing." -ForegroundColor Red
+        Say-Err "Aborting because required tools are missing."
         exit 3
     } else {
         Write-Host "Note: continuing despite missing tools (set `$enforceToolPresence = `$true to abort)." -ForegroundColor DarkYellow
     }
 } else {
-    Write-Host "All tools present." -ForegroundColor Green
+    Say-Ok "All tools present."
 }
 
 # Ausgabe der Ablageorte ("where")
 if ($global:toolResults.Count -gt 0) {
-    Write-Host "`n=== Tool Locations (selected Python env) ===" -ForegroundColor Cyan
+    Say-Section "Tool Locations (selected Python env)"
     foreach ($r in $global:toolResults) {
-        Write-Host ("{0,-8}: v{1}" -f $r.Name, $r.Version)
-        if ($r.ModulePath) { Write-Host ("  module: {0}" -f $r.ModulePath) }
-        if ($r.ExecPath)   { Write-Host ("  exec  : {0}" -f $r.ExecPath) }
+        Write-Host ("{0,-8}: v{1}" -f $r.Name, $r.Version) -ForegroundColor Green
+        if ($r.ModulePath) { Write-Host ("  module: {0}" -f $r.ModulePath) -ForegroundColor DarkGray }
+        if ($r.ExecPath)   { Write-Host ("  exec  : {0}" -f $r.ExecPath)   -ForegroundColor DarkGray }
     }
 }
 
+# ============================ extensions_path.ini Support =====================
+
+function Get-ExtensionsIniPath {
+    param([string]$ExplicitIniPath)
+
+    # 0) Explizit übergeben?
+    if ($ExplicitIniPath) {
+        $p = $ExplicitIniPath.Trim('"','''')
+        $p = [System.Environment]::ExpandEnvironmentVariables($p)
+        $rp = Resolve-Path -Path $p -ErrorAction SilentlyContinue
+        if ($rp) { return $rp.Path }
+    }
+
+    # 1) Skriptbasis ermitteln (auch wenn per Auswahl ausgeführt wurde)
+    $scriptDir = $PSScriptRoot
+    if (-not $scriptDir -or $scriptDir.Trim().Length -eq 0) {
+        $scriptPath = $MyInvocation.MyCommand.Path
+        if ($scriptPath) { $scriptDir = Split-Path -Parent $scriptPath }
+    }
+    if (-not $scriptDir) { $scriptDir = (Get-Location).Path }
+
+    # 2) Kandidatenlisten: gleicher Ordner, 1–4 Ebenen drüber
+    $candidates = New-Object System.Collections.Generic.List[string]
+    $candidates.Add( (Join-Path $scriptDir "extensions_path.ini") )
+    $cur = $scriptDir
+    for ($i=0; $i -lt 4; $i++) {
+        $cur = Split-Path -Parent $cur
+        if (-not $cur) { break }
+        $candidates.Add( (Join-Path $cur "extensions_path.ini") )
+    }
+
+    # 3) Auch der Projektroot und Unterordner basierend auf $srcDir
+    if ($script:srcDir -or $srcDir) {
+        $base = if ($script:srcDir) { $script:srcDir } else { $srcDir }
+        $projRoot = Split-Path -Parent $base
+        if ($projRoot) { $candidates.Add( (Join-Path $projRoot "extensions_path.ini") ) }
+        # zusätzlich: im src/AutoPyPlusPlus Unterordner suchen
+        $subCandidate = Join-Path $base "AutoPyPlusPlus\extensions_path.ini"
+        $candidates.Add($subCandidate)
+    }
+
+    foreach ($c in $candidates) {
+        $rp = Resolve-Path -Path $c -ErrorAction SilentlyContinue
+        if ($rp -and (Test-Path $rp.Path)) { return $rp.Path }
+    }
+    return $null
+}
+
+function Resolve-ToolPath {
+    param([string]$PythonExe,[string]$Name)
+    # 1) Python Scripts dir
+    $scripts = Get-PyScriptsDir -PythonExe $PythonExe
+    if ($scripts) {
+        $cands = @(
+            (Join-Path $scripts ($Name + ".exe")),
+            (Join-Path $scripts ($Name + ".cmd")),
+            (Join-Path $scripts $Name)
+        )
+        foreach ($c in $cands) { if (Test-Path $c) { return (Resolve-Path $c).Path } }
+    }
+    # 2) PATH
+    try { $cmd = Get-Command $Name -ErrorAction SilentlyContinue; if ($cmd) { return $cmd.Source } } catch {}
+    return $null
+}
+
+function Build-IniUpdatesFromEnv {
+    param(
+        [Parameter(Mandatory=$true)] [string]$PythonExe,
+        [Parameter(Mandatory=$false)] $ToolResults
+    )
+    $updates = @{}
+
+    # Map ToolName -> INI-Key for items we detected
+    $map = @{
+        "Cython"  = "cython"
+        "Nuitka"  = "nuitka"
+        "PyArmor" = "pyarmor"
+        "Pytest"  = "pytest"
+        "Sphinx"  = "sphinx-build"
+    }
+    foreach ($m in $map.GetEnumerator()) {
+        $tr = $ToolResults | Where-Object { $_.Name -eq $m.Key } | Select-Object -First 1
+        $path = $null
+        if ($tr -and $tr.ExecPath) { $path = $tr.ExecPath }
+        if (-not $path) { $path = Resolve-ToolPath -PythonExe $PythonExe -Name $m.Value }
+        if ($path) { $updates[$m.Value] = $path }
+    }
+
+    # Additional common tools
+    $extra = @("pyinstaller","pylint","pyreverse","sphinx-quickstart")
+    foreach ($n in $extra) {
+        $p = Resolve-ToolPath -PythonExe $PythonExe -Name $n
+        if ($p) { $updates[$n] = $p }
+    }
+
+    # C/C++ compilers (optional)
+    try {
+        $cl = Get-Command cl.exe -ErrorAction SilentlyContinue
+        if ($cl -and (Test-Path $cl.Source)) { $updates["msvc"] = $cl.Source }
+    } catch {}
+    $gpp = Resolve-ToolPath -PythonExe $PythonExe -Name "g++"
+    if ($gpp) { $updates["cpp"] = $gpp }
+    $clangpp = Resolve-ToolPath -PythonExe $PythonExe -Name "clang++"
+    if (-not $gpp -and $clangpp) { $updates["cpp"] = $clangpp }
+
+    # tcl_base (nur wenn klar ermittelbar)
+    if ($env:TCL_LIBRARY -and (Test-Path $env:TCL_LIBRARY)) {
+        $updates["tcl_base"] = (Resolve-Path $env:TCL_LIBRARY).Path
+    }
+
+    return $updates
+}
+
+function Update-ExtensionsIniValues {
+    param(
+        [Parameter(Mandatory=$true)] [string]$IniPath,
+        [Parameter(Mandatory=$true)] [hashtable]$NewValues,
+        [switch]$DryRun = $false
+    )
+
+    if (!(Test-Path $IniPath)) {
+        Say-Err ("INI not found: {0}" -f $IniPath)
+        return $false
+    }
+
+    $nl = "`r`n"
+    $text = Get-Content -LiteralPath $IniPath -Raw -Encoding UTF8
+
+    # --- vorhandene [paths]-Grenzen bestimmen (falls vorhanden)
+    $rxHeader = [regex]'(?ms)^\s*\[\s*paths\s*\]\s*$'
+    $m = $rxHeader.Matches($text)
+    $hasPaths = $m.Count -gt 0
+
+    $existing = @{} # vorhandene k=v sammeln
+    if ($hasPaths) {
+        $startIdx = $m[0].Index + $m[0].Length
+        $after = $text.Substring($startIdx)
+        $m2 = [regex]::Match($after, '^\s*\[.+?\]\s*$', [System.Text.RegularExpressions.RegexOptions]::Multiline)
+        $endIdx = if ($m2.Success) { $startIdx + $m2.Index } else { $text.Length }
+
+        $before = $text.Substring(0, $startIdx)
+        $block  = $text.Substring($startIdx, $endIdx - $startIdx)
+        $afterAll = $text.Substring($endIdx)
+
+        # vorhandene k=v aus dem Block lesen
+        foreach ($line in ($block -split "(`r`n|`n|`r)")) {
+            if ($line -match '^\s*([^#;][^=]+?)\s*=\s*(.*)$') {
+                $k = $matches[1].Trim()
+                $v = $matches[2].Trim()
+                $existing[$k] = $v
+            }
+        }
+
+        # Merge: NewValues überschreiben vorhandene
+        foreach ($k in $NewValues.Keys) { $existing[$k] = [string]$NewValues[$k] }
+
+        # Neuaufbau des Blocks: exakt ein Eintrag je Zeile, keine Leerzeilen
+		$orderedKeys = ($existing.Keys | Sort-Object)
+
+		$before   = $before.TrimEnd("`r","`n") + "`r`n"
+		$newBlock = ""   # <- KEIN führendes CRLF mehr
+
+		foreach ($k in $orderedKeys) {
+			$val = $existing[$k]
+			$newBlock += ("{0} = {1}`r`n" -f $k, $val)
+		}
+
+        if ($DryRun) {
+            Say-Ok ("INI DryRun: {0} Keys würden geschrieben." -f $orderedKeys.Count)
+            foreach ($k in $orderedKeys) { Say-Info (" - {0}" -f $k) }
+            return $true
+        }
+
+        try { Copy-Item -LiteralPath $IniPath -Destination ($IniPath + ".bak") -Force -ErrorAction Stop; Say-Info ("Backup created: {0}" -f ($IniPath + ".bak")) } catch {}
+
+        $final = $before + $newBlock + $afterAll
+        $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
+        [System.IO.File]::WriteAllText($IniPath, $final, $utf8NoBom)
+
+        Say-Ok ("Update extensions_path.ini: {0} (Keys: {1})" -f $IniPath, $orderedKeys.Count)
+        return $true
+    }
+    else {
+        # Kein [paths]-Block vorhanden -> sauber anhängen
+        $orderedKeys = ($NewValues.Keys | Sort-Object)
+        $append = $nl + "[paths]" + $nl
+        foreach ($k in $orderedKeys) {
+            $append += ("{0} = {1}{2}" -f $k, $NewValues[$k], $nl)
+        }
+
+        if ($DryRun) {
+            Say-Ok "[paths]-Block würde neu angelegt."
+            foreach ($k in $orderedKeys) { Say-Info (" - {0}" -f $k) }
+            return $true
+        }
+
+        try { Copy-Item -LiteralPath $IniPath -Destination ($IniPath + ".bak") -Force -ErrorAction Stop; Say-Info ("Backup created: {0}" -f ($IniPath + ".bak")) } catch {}
+
+        $final = $text.TrimEnd() + $nl + $append
+        $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
+        [System.IO.File]::WriteAllText($IniPath, $final, $utf8NoBom)
+
+        Say-Ok ("Create [paths] in extensions_path.ini: {0} (Keys: {1})" -f $IniPath, $orderedKeys.Count)
+        return $true
+    }
+}
+
+
+# --- optionales INI-Update ausfuehren ---
+if ($UpdateIni) {
+    $iniPath = Get-ExtensionsIniPath -ExplicitIniPath $extensionsPath
+    if ($iniPath) {
+        Say-Section ("Update extensions_path.ini")
+        Show-Item -Name "INI" -Value $iniPath
+        $upd = Build-IniUpdatesFromEnv -PythonExe $pythonPath -ToolResults $global:toolResults
+        if ($upd.Count -eq 0) {
+            Say-Warn "No new path founds"
+        } else {
+            foreach ($kv in $upd.GetEnumerator()) {
+                Show-Item -Name $kv.Key -Value $kv.Value
+            }
+            [void](Update-ExtensionsIniValues -IniPath $iniPath -NewValues $upd -DryRun:$IniDryRun)
+        }
+    } else {
+        Say-Warn "extensions_path.ini not found"
+    }
+}
+
+# ============================ venv Info ================================
 if ($usedVenv) {
-    Write-Host "`n=== Isolated Environment Info ===" -ForegroundColor Cyan
+    Say-Section "Isolated Environment Info"
     Write-Host ("venv python : {0}" -f $pythonPath)
     Write-Host ("venv scripts: {0}" -f (Get-PyScriptsDir -PythonExe $pythonPath))
 }
 
 # ============================ Launch AutoPy++ ==========================
-if (!(Test-Path $srcDir)) { Write-Error "Folder not found: $srcDir"; exit 1 }
-Write-Host ("`n=== Launching AutoPyPlusPlus with: {0} ===" -f $pythonPath) -ForegroundColor Cyan
+if (!(Test-Path $srcDir)) { Say-Err "Folder not found: $srcDir"; exit 1 }
+Say-Section ("Launching AutoPyPlusPlus with: {0}" -f $pythonPath)
 Set-Location -Path $srcDir
 & $pythonPath -m AutoPyPlusPlus
 exit $LASTEXITCODE
