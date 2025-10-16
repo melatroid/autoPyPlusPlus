@@ -1,7 +1,7 @@
 # ============================ Configuration ============================
 # Sry but this file is under heavy development, its an importend thing
 # You need often to edit defaultPythonPath, srcDir, extensionsPath
-# Version 1.01
+# Version 1.02
 #
 #
 param(
@@ -916,9 +916,10 @@ function Build-IniUpdatesFromEnv {
     param(
         [Parameter(Mandatory=$true)] [string]$PythonExe,
         [Parameter(Mandatory=$false)] $ToolResults,
-        [switch]$VenvOnly = $true,              # erzwinge venv-Scripts für Python-Tools
-        [switch]$IncludeEmptyForMissing = $true,# fehlende Tools => Key mit leerem Wert
-        [switch]$AllowGlobalFallback = $false   # falls venv-Tool fehlt: global erlauben?
+        [switch]$VenvOnly = $true,               # erzwinge venv-Scripts für Python-Tools
+        [switch]$IncludeEmptyForMissing = $false,# Standard: KEINE leeren Platzhalter schreiben
+        [switch]$AllowGlobalFallback = $false,   # falls venv-Tool fehlt: global erlauben?
+        [string[]]$ExcludeKeys = @('tcl_base','msvc','cpp')  # niemals anfassen
     )
 
     $updates = @{}
@@ -961,7 +962,7 @@ function Build-IniUpdatesFromEnv {
             }
 
             if ($path) {
-                if (-not $updates.ContainsKey($t.key)) { $updates[$t.key] = $path }
+                if (-not $updates.ContainsKey($t.key)) { $updates[$t.key] = (Resolve-Path $path).Path }
                 break
             }
         }
@@ -972,31 +973,44 @@ function Build-IniUpdatesFromEnv {
     }
 
     # --- Externe Tools, die NICHT an Python-venv gebunden sind ---
-    $cppPath = $null
-    try { $gppCmd = Get-Command g++ -ErrorAction SilentlyContinue; if ($gppCmd) { $cppPath = $gppCmd.Path } } catch {}
-    if (-not $cppPath) { try { $clangppCmd = Get-Command clang++ -ErrorAction SilentlyContinue; if ($clangppCmd) { $cppPath = $clangppCmd.Path } } catch {} }
-    if ($cppPath) { $updates['cpp'] = (Resolve-Path $cppPath).Path } elseif ($IncludeEmptyForMissing) { $updates['cpp'] = '' }
+    if (-not ($ExcludeKeys -contains 'cpp')) {
+        $cppPath = $null
+        try { $gppCmd = Get-Command g++ -ErrorAction SilentlyContinue; if ($gppCmd) { $cppPath = $gppCmd.Path } } catch {}
+        if (-not $cppPath) { try { $clangppCmd = Get-Command clang++ -ErrorAction SilentlyContinue; if ($clangppCmd) { $cppPath = $clangppCmd.Path } } catch {} }
+        if ($cppPath) { $updates['cpp'] = (Resolve-Path $cppPath).Path } elseif ($IncludeEmptyForMissing) { $updates['cpp'] = '' }
+    }
 
-    try {
-        $cl = Get-Command cl.exe -ErrorAction SilentlyContinue
-        if ($cl -and (Test-Path $cl.Source)) { $updates['msvc'] = $cl.Source }
-        elseif ($IncludeEmptyForMissing) { $updates['msvc'] = '' }
-    } catch { if ($IncludeEmptyForMissing) { $updates['msvc'] = '' } }
+    if (-not ($ExcludeKeys -contains 'msvc')) {
+        try {
+            $cl = Get-Command cl.exe -ErrorAction SilentlyContinue
+            if ($cl -and (Test-Path $cl.Source)) { $updates['msvc'] = $cl.Source }
+            elseif ($IncludeEmptyForMissing) { $updates['msvc'] = '' }
+        } catch { if ($IncludeEmptyForMissing) { $updates['msvc'] = '' } }
+    }
 
-    if ($env:TCL_LIBRARY -and (Test-Path $env:TCL_LIBRARY)) {
-        $updates['tcl_base'] = (Resolve-Path $env:TCL_LIBRARY).Path
-    } elseif ($IncludeEmptyForMissing) {
-        $updates['tcl_base'] = ''
+    if (-not ($ExcludeKeys -contains 'tcl_base')) {
+        if ($env:TCL_LIBRARY -and (Test-Path $env:TCL_LIBRARY)) {
+            $updates['tcl_base'] = (Resolve-Path $env:TCL_LIBRARY).Path
+        } elseif ($IncludeEmptyForMissing) {
+            $updates['tcl_base'] = ''
+        }
+    }
+
+    # Finale Schutzmaßnahme: ausgeschlossenes entfernen
+    foreach ($k in $ExcludeKeys) {
+        if ($updates.ContainsKey($k)) { [void]$updates.Remove($k) }
     }
 
     return $updates
 }
 
+
 function Update-ExtensionsIniValues {
     param(
         [Parameter(Mandatory=$true)] [string]$IniPath,
         [Parameter(Mandatory=$true)] [hashtable]$NewValues,
-        [switch]$DryRun = $false
+        [switch]$DryRun = $false,
+        [string[]]$ProtectedKeys = @('tcl_base','msvc','cpp')  # werden niemals geschrieben/überschrieben
     )
 
     if (!(Test-Path $IniPath)) {
@@ -1004,39 +1018,50 @@ function Update-ExtensionsIniValues {
         return $false
     }
 
-    $nl = "`r`n"
+    # Schreib-Set vorab filtern: geschützte Keys gar nicht erst zulassen
+    $writeSet = @{}
+    foreach ($k in $NewValues.Keys) {
+        if ($ProtectedKeys -and ($ProtectedKeys -contains $k)) { continue }
+        $writeSet[$k] = [string]$NewValues[$k]
+    }
+
+    $nl   = "`r`n"
     $text = Get-Content -LiteralPath $IniPath -Raw -Encoding UTF8
 
     $rxHeader = [regex]'(?ms)^\s*\[\s*paths\s*\]\s*$'
     $m = $rxHeader.Matches($text)
     $hasPaths = $m.Count -gt 0
 
-    $existing = @{}
     if ($hasPaths) {
+        # --- bestehenden [paths]-Block parsen ---
         $startIdx = $m[0].Index + $m[0].Length
-        $after = $text.Substring($startIdx)
-        $m2 = [regex]::Match($after, '^\s*\[.+?\]\s*$', [System.Text.RegularExpressions.RegexOptions]::Multiline)
-        $endIdx = if ($m2.Success) { $startIdx + $m2.Index } else { $text.Length }
+        $after    = $text.Substring($startIdx)
+        $m2       = [regex]::Match($after, '^\s*\[.+?\]\s*$', [System.Text.RegularExpressions.RegexOptions]::Multiline)
+        $endIdx   = if ($m2.Success) { $startIdx + $m2.Index } else { $text.Length }
 
-        $before = $text.Substring(0, $startIdx)
-        $block  = $text.Substring($startIdx, $endIdx - $startIdx)
+        $before   = $text.Substring(0, $startIdx)
+        $block    = $text.Substring($startIdx, $endIdx - $startIdx)
         $afterAll = $text.Substring($endIdx)
 
+        $existing = @{}
         foreach ($line in ($block -split "(`r`n|`n|`r)")) {
             if ($line -match '^\s*([^#;][^=]+?)\s*=\s*(.*)$') {
-                $k = $matches[1].Trim()
-                $v = $matches[2].Trim()
-                $existing[$k] = $v
+                $kk = $matches[1].Trim()
+                $vv = $matches[2].Trim()
+                $existing[$kk] = $vv
             }
         }
 
-        foreach ($k in $NewValues.Keys) { $existing[$k] = [string]$NewValues[$k] }
+        # Merge OHNE geschützte Keys zu überschreiben
+        foreach ($k in $writeSet.Keys) {
+            if ($ProtectedKeys -and ($ProtectedKeys -contains $k)) { continue }  # doppelt sicher
+            $existing[$k] = [string]$writeSet[$k]
+        }
 
         $orderedKeys = ($existing.Keys | Sort-Object)
 
         $before   = $before.TrimEnd("`r","`n") + "`r`n"
         $newBlock = ""
-
         foreach ($k in $orderedKeys) {
             $val = $existing[$k]
             $newBlock += ("{0} = {1}`r`n" -f $k, $val)
@@ -1058,11 +1083,8 @@ function Update-ExtensionsIniValues {
         return $true
     }
     else {
-        $orderedKeys = ($NewValues.Keys | Sort-Object)
-        $append = $nl + "[paths]" + $nl
-        foreach ($k in $orderedKeys) {
-            $append += ("{0} = {1}{2}" -f $k, $NewValues[$k], $nl)
-        }
+        # Kein [paths]-Block vorhanden -> nur NICHT-geschützte Keys schreiben
+        $orderedKeys = ($writeSet.Keys | Sort-Object)
 
         if ($DryRun) {
             Say-Ok "[paths] section would be created."
@@ -1071,6 +1093,11 @@ function Update-ExtensionsIniValues {
         }
 
         try { Copy-Item -LiteralPath $IniPath -Destination ($IniPath + ".bak") -Force -ErrorAction Stop; Say-Info ("Backup created: {0}" -f ($IniPath + ".bak")) } catch {}
+
+        $append = $nl + "[paths]" + $nl
+        foreach ($k in $orderedKeys) {
+            $append += ("{0} = {1}{2}" -f $k, $writeSet[$k], $nl)
+        }
 
         $final = $text.TrimEnd() + $nl + $append
         $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
@@ -1081,28 +1108,32 @@ function Update-ExtensionsIniValues {
     }
 }
 
+
+$ProtectedKeys = @('tcl_base','msvc','cpp')
 if ($UpdateIni) {
     $iniPath = Get-ExtensionsIniPath -ExplicitIniPath $extensionsPath
     if ($iniPath) {
         Say-Section 'Update extensions_path.ini'
         Show-Item -Name 'INI' -Value $iniPath
 
-        $allowGlobal = -not $usedVenv
-        $upd = Build-IniUpdatesFromEnv `
-            -PythonExe $pythonPath `
-            -ToolResults $global:toolResults `
-            -VenvOnly:$usedVenv `
-            -AllowGlobalFallback:$allowGlobal `
-            -IncludeEmptyForMissing:$true
+		$allowGlobal = -not $usedVenv
+		$upd = Build-IniUpdatesFromEnv `
+			-PythonExe $pythonPath `
+			-ToolResults $global:toolResults `
+			-VenvOnly:$usedVenv `
+			-AllowGlobalFallback:$allowGlobal `
+			-IncludeEmptyForMissing:$false `
+			-ExcludeKeys $ProtectedKeys 
 
-        if ($upd.Count -eq 0) {
-            Say-Warn 'No new paths found — check PATH and selected Python env.'
-        } else {
-            foreach ($kv in $upd.GetEnumerator()) {
-                Show-Item -Name $kv.Key -Value $kv.Value
-            }
-            [void](Update-ExtensionsIniValues -IniPath $iniPath -NewValues $upd -DryRun:$IniDryRun)
-        }
+		if ($upd.Count -eq 0) {
+			Say-Warn 'No new paths found — check PATH and selected Python env.'
+		} else {
+			foreach ($kv in $upd.GetEnumerator()) {
+				Show-Item -Name $kv.Key -Value $kv.Value
+			}
+			[void](Update-ExtensionsIniValues -IniPath $iniPath -NewValues $upd -DryRun:$IniDryRun -ProtectedKeys $ProtectedKeys)  # <-- Guard aktiv
+		}
+
     } else {
         Say-Warn 'extensions_path.ini not found'
     }
