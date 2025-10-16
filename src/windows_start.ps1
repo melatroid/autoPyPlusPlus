@@ -1,7 +1,7 @@
 # ============================ Configuration ============================
 # Sry but this file is under heavy development, its an importend thing
 # You need often to edit defaultPythonPath, srcDir, extensionsPath
-# Version 1.03
+# Version 1.04
 #
 #
 param(
@@ -9,23 +9,113 @@ param(
     [switch]$IniDryRun = $false   # if set, only show what would change (no write)
 )
 
-# --- Color & UI Helpers müssen VOR der ersten Verwendung stehen ---
-function Say-Section([string]$Text) { Write-Host ""; Write-Host ("=== {0} ===" -f $Text) -ForegroundColor Cyan }
-function Say-Step([string]$Text)   { Write-Host ("[STEP] {0}" -f $Text) -ForegroundColor Cyan }
-function Say-Info([string]$Text)   { Write-Host ("[INFO] {0}" -f $Text) -ForegroundColor DarkCyan }
-function Say-Ok([string]$Text)     { Write-Host ("[OK]   {0}" -f $Text) -ForegroundColor Green }
-function Say-Warn([string]$Text)   { Write-Host ("[WARN] {0}" -f $Text) -ForegroundColor Yellow }
-function Say-Err([string]$Text)    { Write-Host ("[ERR]  {0}" -f $Text) -ForegroundColor Red }
+
+$UI = @{
+  HeaderBg = 'DarkBlue'; HeaderFg = 'White'
+  Border   = 'Cyan'
+  Text     = 'Gray'
+  Muted    = 'DarkGray'
+  Ok       = 'Green'
+  Warn     = 'Yellow'
+  Err      = 'Red'
+  Info     = 'DarkCyan'
+}
+
+function Out-Rule([string]$ch='-', [int]$width=0){
+    if($width -le 0){
+        try { $width = [Math]::Max(40, [Console]::WindowWidth - 2) } catch { $width = 78 }
+    }
+    Write-Host ($ch * $width) -ForegroundColor $UI.Border
+}
+function Out-Title([string]$text){
+    Out-Rule '='
+    Write-Host (" " + $text) -ForegroundColor $UI.HeaderFg -BackgroundColor $UI.HeaderBg
+    Out-Rule '='
+}
+
+function Out-Panel([string]$Title, [string[]]$Lines=@(), [int]$Width=0){
+    if($Width -le 0){
+        try { $Width = [Math]::Max(40, [Console]::WindowWidth - 2) } catch { $Width = 78 }
+    }
+    $inner = $Width - 4
+    $top = "+{0}+" -f ('-' * ($Width-2))
+    $sep = $top
+    $bot = $top
+    Write-Host $top -ForegroundColor $UI.Border
+    if($Title){
+        $t = if($Title.Length -gt $inner){ $Title.Substring(0,$inner) } else { $Title }
+        $pad = ' ' * ($inner - $t.Length)
+        Write-Host ("| " + $t + $pad + " |")
+        Write-Host $sep -ForegroundColor $UI.Border
+    }
+    foreach($ln in $Lines){
+        $line = "$ln"
+        while($line.Length -gt $inner){
+            $chunk = $line.Substring(0,$inner)
+            Write-Host ("| " + $chunk + " |")
+            $line = $line.Substring($inner)
+        }
+        $pad = ' ' * ($inner - $line.Length)
+        Write-Host ("| " + $line + $pad + " |")
+    }
+    Write-Host $bot -ForegroundColor $UI.Border
+}
+
+# Streaming-Panel (optional)
+$script:__panel = @{ open=$false; width=0; inner=0 }
+function Panel-Begin([string]$Title, [int]$Width=0){
+    if($Width -le 0){
+        try { $Width = [Math]::Max(40, [Console]::WindowWidth - 2) } catch { $Width = 78 }
+    }
+    $script:__panel.open=$true; $script:__panel.width=$Width; $script:__panel.inner=$Width-4
+    $top = "+{0}+" -f ('-' * ($Width-2))
+    Write-Host $top -ForegroundColor $UI.Border
+    if($Title){
+        $t = if($Title.Length -gt $script:__panel.inner){ $Title.Substring(0,$script:__panel.inner) } else { $Title }
+        $pad = ' ' * ($script:__panel.inner - $t.Length)
+        Write-Host ("| " + $t + $pad + " |")
+        Write-Host $top -ForegroundColor $UI.Border
+    }
+}
+function Panel-Line([string]$Text){
+    if(-not $script:__panel.open){ return }
+    $inner = $script:__panel.inner
+    $line = "$Text"
+    while($line.Length -gt $inner){
+        $chunk = $line.Substring(0,$inner)
+        Write-Host ("| " + $chunk + " |")
+        $line = $line.Substring($inner)
+    }
+    $pad = ' ' * ($inner - $line.Length)
+    Write-Host ("| " + $line + $pad + " |")
+}
+function Panel-End(){
+    if(-not $script:__panel.open){ return }
+    $bot = "+{0}+" -f ('-' * ($script:__panel.width-2))
+    Write-Host $bot -ForegroundColor $UI.Border
+    $script:__panel.open=$false
+}
+
+# ===== Re-mapped Say-* & Helpers (ASCII, farbig, konsistent) =====
+function Say-Section([string]$Text){ Out-Title $Text }
+function Say-Step   ([string]$Text){ Write-Host ("[STEP] " + $Text) -ForegroundColor $UI.Border }
+function Say-Info   ([string]$Text){ Write-Host ("[INFO] " + $Text) -ForegroundColor $UI.Info }
+function Say-Ok     ([string]$Text){ Write-Host ("[OK]   " + $Text) -ForegroundColor $UI.Ok }
+function Say-Warn   ([string]$Text){ Write-Host ("[WARN] " + $Text) -ForegroundColor $UI.Warn }
+function Say-Err    ([string]$Text){ Write-Host ("[ERR]  " + $Text) -ForegroundColor $UI.Err }
+
 function Show-Check {
     param([Parameter(Mandatory)][string]$Label,[Parameter(Mandatory)][bool]$Ok,[string]$Detail="")
-    if ($Ok) { Write-Host ("[OK]   {0}" -f $Label) -ForegroundColor Green; if ($Detail) { Write-Host ("       - {0}" -f $Detail) -ForegroundColor DarkGray } }
-    else { Write-Host ("[ERR]  {0}" -f $Label) -ForegroundColor Red; if ($Detail) { Write-Host ("       - {0}" -f $Detail) -ForegroundColor DarkGray } }
+    if ($Ok) { Write-Host ("[OK]   {0}" -f $Label) -ForegroundColor $UI.Ok }
+    else     { Write-Host ("[ERR]  {0}" -f $Label) -ForegroundColor $UI.Err }
+    if ($Detail) { Write-Host ("       - {0}" -f $Detail) -ForegroundColor $UI.Muted }
 }
 function Show-Item {
     param([Parameter(Mandatory)][string]$Name,[string]$Value,[ConsoleColor]$Color=[ConsoleColor]::Gray)
     Write-Host (" - {0}: " -f $Name) -NoNewline -ForegroundColor $Color
-    Write-Host $Value -ForegroundColor DarkGray
+    Write-Host $Value -ForegroundColor $UI.Muted
 }
+
 #########################################################################################################################
 #   EDIT THIS !!!!
 $defaultPythonPath     = 'C:\Users\melatroid\AppData\Local\Programs\Python\Python310\python.exe'
@@ -446,7 +536,7 @@ function Choose-Existing-Or-Venv {
     }
     Say-Section ("More Options" -f $venvRoot)
     Write-Host "[V] New environment (Experimental, check Extensions in GUI -> pyinstaller path)"
-	Write-Host "[D] Delete environment"
+    Write-Host "[D] Delete environment"
     Write-Host "[X] Cancel`n"
 
     $defaultCandidatePath = $null
@@ -465,9 +555,9 @@ function Choose-Existing-Or-Venv {
     }
     Write-Host -NoNewline "> "
 
-	$choice = Read-LineWithTimeout -Seconds 10
-	Write-Host ""
-	$choice = ($choice -replace '[^\x20-\x7E]', '').Trim()
+    $choice = Read-LineWithTimeout -Seconds 10
+    Write-Host ""
+    $choice = ($choice -replace '[^\x20-\x7E]', '').Trim()
 
     if ([string]::IsNullOrWhiteSpace($choice)) {
         if ($defaultCandidatePath) {
@@ -478,7 +568,7 @@ function Choose-Existing-Or-Venv {
     }
 
     if ($choice -match '^[Xx]$') { return $null }
-	if ($choice -match '^[Dd]$') {
+    if ($choice -match '^[Dd]$') {
         Remove-Venv -VenvRoot $venvRoot
         return Choose-Existing-Or-Venv -candidates (Get-PythonCandidates -expectedMinor $expectedMinor) -defaultPath $defaultPythonPath -venvRoot $venvRoot
     }
@@ -959,9 +1049,9 @@ function Build-IniUpdatesFromEnv {
                 # 2) PATH
                 if (-not $path -and $AllowGlobalFallback) {
                     try {
-						$cmd = Get-Command $Name -ErrorAction SilentlyContinue
-						if ($cmd) { return $cmd.Path }   # statt $cmd.Source
-					} catch {}
+                        $cmd = Get-Command $Name -ErrorAction SilentlyContinue
+                        if ($cmd) { return $cmd.Path }   # statt $cmd.Source
+                    } catch {}
                 }
                 # 3) where.exe
                 if (-not $path -and $AllowGlobalFallback) {
@@ -1123,23 +1213,23 @@ if ($UpdateIni) {
         Say-Section 'Update extensions_path.ini'
         Show-Item -Name 'INI' -Value $iniPath
 
-		$allowGlobal = -not $usedVenv
-		$upd = Build-IniUpdatesFromEnv `
-			-PythonExe $pythonPath `
-			-ToolResults $global:toolResults `
-			-VenvOnly:$usedVenv `
-			-AllowGlobalFallback:$allowGlobal `
-			-IncludeEmptyForMissing:$false `
-			-ExcludeKeys $ProtectedKeys 
+        $allowGlobal = -not $usedVenv
+        $upd = Build-IniUpdatesFromEnv `
+            -PythonExe $pythonPath `
+            -ToolResults $global:toolResults `
+            -VenvOnly:$usedVenv `
+            -AllowGlobalFallback:$allowGlobal `
+            -IncludeEmptyForMissing:$false `
+            -ExcludeKeys $ProtectedKeys 
 
-		if ($upd.Count -eq 0) {
-			Say-Warn 'No new paths found — check PATH and selected Python env.'
-		} else {
-			foreach ($kv in $upd.GetEnumerator()) {
-				Show-Item -Name $kv.Key -Value $kv.Value
-			}
-			[void](Update-ExtensionsIniValues -IniPath $iniPath -NewValues $upd -DryRun:$IniDryRun -ProtectedKeys $ProtectedKeys)  # <-- Guard aktiv
-		}
+        if ($upd.Count -eq 0) {
+            Say-Warn 'No new paths found — check PATH and selected Python env.'
+        } else {
+            foreach ($kv in $upd.GetEnumerator()) {
+                Show-Item -Name $kv.Key -Value $kv.Value
+            }
+            [void](Update-ExtensionsIniValues -IniPath $iniPath -NewValues $upd -DryRun:$IniDryRun -ProtectedKeys $ProtectedKeys)  # <-- Guard aktiv
+        }
 
     } else {
         Say-Warn 'extensions_path.ini not found'
