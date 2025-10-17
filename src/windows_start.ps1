@@ -5,8 +5,9 @@
 #
 #
 param(
-    [switch]$UpdateIni = $true,   # if set, update values in AutoPyPlusPlus\extensions_path.ini
-    [switch]$IniDryRun = $false   # if set, only show what would change (no write)
+    [switch]$UpdateIni = $true,       # if set, update values in AutoPyPlusPlus\extensions_path.ini
+    [switch]$IniDryRun = $false,       # if set, only show what would change (no write)
+	[string]$ToolsConfig  = 'env_setup.psd1'    # reads env_setup.psd1, you can set here basic installation for you environments
 )
 
 
@@ -1028,15 +1029,91 @@ function Resolve-ByWhere {
     return $null
 }
 
-$tools = @(
-	@{ Name='PyInstaller'; Dist='pyinstaller'; Module='PyInstaller'; AltModule=$null; Pkg='pyinstaller'; Regex='(?i)(?<v>\d+(\.\d+){1,3})'; Exec='pyinstaller' },
-	@{ Name='PyArmor'; Dist='pyarmor'; Module='pyarmor'; AltModule='pyarmor.cli'; Pkg='pyarmor>=9.1.6'; Regex='(?i)(?<v>\d+(\.\d+){1,3})'; Exec='pyarmor' },
-    @{ Name='Nuitka';  Dist='nuitka';  Module='nuitka';  AltModule=$null;          Pkg='nuitka';         Regex='(?i)(?<v>\d+(\.\d+){1,3})'; Exec='nuitka' },
-	@{ Name='Cython';  Dist='Cython';  Module='Cython';  AltModule=$null;          Pkg='cython';         Regex='(?i)(?<v>\d+(\.\d+){1,3})'; Exec='cython' },
-    @{ Name='Pytest';  Dist='pytest';  Module='pytest';  AltModule=$null;          Pkg='pytest';         Regex='(?i)pytest\s+(?<v>\d+(\.\d+){1,3})'; Exec='pytest' },
-    @{ Name='Sphinx';  Dist='Sphinx';  Module='sphinx';  AltModule=$null;          Pkg='sphinx';         Regex='(?i)(sphinx\s+)?(?<v>\d+(\.\d+){1,3})'; Exec='sphinx-build' }
-	
-)
+function Load-Tools-NoFallback {
+    $path = Join-Path $PSScriptRoot 'env_setup.psd1'
+    if (-not (Test-Path $path)) {
+        Say-Err ("env_setup.psd1 nicht gefunden: {0}" -f $path)
+        exit 120
+    }
+    try {
+        $data = Import-PowerShellDataFile -Path $path
+    } catch {
+        Say-Err ("Konnte env_setup.psd1 nicht laden: {0}" -f $_.Exception.Message)
+        exit 121
+    }
+    if (-not $data.ContainsKey('Tools')) {
+        Say-Err ("In env_setup.psd1 fehlt der Key 'Tools'.")
+        exit 122
+    }
+    $arr = @($data.Tools)
+    if ($arr.Count -eq 0) {
+        Say-Err ("'Tools' in env_setup.psd1 ist leer.")
+        exit 123
+    }
+    return $arr
+}
+
+
+function Load-Tools-FromIni {
+    $path = Join-Path $PSScriptRoot 'env_setup.ini'
+    if (-not (Test-Path $path)) {
+        Say-Err ("env_setup.ini nicht gefunden: {0}" -f $path)
+        exit 120
+    }
+
+    $required = 'Dist','Module','Pkg','Regex','Exec'
+    $list = @()
+    $cur  = $null
+
+    foreach ($raw in Get-Content -LiteralPath $path) {
+        $line = $raw.Trim()
+        if ($line -eq '' -or $line -match '^\s*[#;]') { continue }
+
+        if ($line -match '^\[(?<name>[^\]]+)\]\s*$') {
+            if ($cur) { $list += $cur }
+            $cur = [ordered]@{
+                Name      = $matches['name'].Trim()
+                Dist      = $null
+                Module    = $null
+                AltModule = $null
+                Pkg       = $null
+                Regex     = $null
+                Exec      = $null
+            }
+            continue
+        }
+
+        if ($line -match '^(?<k>[^=]+)=(?<v>.*)$') {
+            $k = $matches['k'].Trim()
+            $v = $matches['v'].Trim()
+            if ($v -eq '') { $v = $null }
+            if ($cur -and $cur.Contains($k)) { $cur[$k] = $v }
+            continue
+        }
+    }
+    if ($cur) { $list += $cur }
+
+    if ($list.Count -eq 0) {
+        Say-Err "env_setup.ini enthält keine gültigen Sektionen."
+        exit 121
+    }
+
+    # Validierung
+    $i = 0
+    foreach ($t in $list) {
+        foreach ($k in $required) {
+            if (-not $t[$k]) {
+                Say-Err ("Sektion '{0}': Pflichtfeld '{1}' fehlt/leer." -f $t.Name,$k)
+                exit 122
+            }
+        }
+        $i++
+    }
+
+    return @($list)
+}
+
+$tools = Load-Tools-FromIni
 
 $global:toolResults = @()
 
