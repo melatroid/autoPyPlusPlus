@@ -1,15 +1,14 @@
 # ============================ Configuration ============================
 # Sry but this file is under heavy development, its an importend thing
 # You need often to edit defaultPythonPath, srcDir, extensionsPath
-# Version 1.07
+# Version 1.08
 #
 #
 param(
-    [switch]$UpdateIni = $true,       # if set, update values in AutoPyPlusPlus\extensions_path.ini
-    [switch]$IniDryRun = $false,       # if set, only show what would change (no write)
+    [switch]$UpdateIni = $true,                 # if set, update values in AutoPyPlusPlus\extensions_path.ini
+    [switch]$IniDryRun = $false,                # if set, only show what would change (no write)
 	[string]$ToolsConfig  = 'env_setup.psd1'    # reads env_setup.psd1, you can set here basic installation for you environments
 )
-
 
 $UI = @{
   HeaderBg = 'DarkBlue'; HeaderFg = 'White'
@@ -160,13 +159,9 @@ $art = @'
                ~--______-~                ~-___-~         ~--______-~                ~-___-~
 '@
 Write-Host $art -ForegroundColor Blue
-
-Say-Section "####  Preflight Checks ####"
 Show-Check -Label "Default Python found! ($defaultPythonPath)" -Ok (Test-Path $defaultPythonPath)
 Show-Check -Label "Working Folder ($srcDir)" -Ok (Test-Path $srcDir)
 Show-Check -Label "Extensions_path.ini ($extensionsPath)" -Ok (Test-Path $extensionsPath)
-
-
 # ============================ Helpers: Console =========================
 function Read-LineWithTimeout {
     param(
@@ -523,7 +518,7 @@ function Remove-Venv {
 
     Say-Section "Delete environment"
 
-    # Index-Lookup aufbauen (stabiler als $venvs[$idx-1])
+    # Index-Lookup aufbauen 
     $indexMap = @{}
     $i = 1
     foreach ($v in $venvs) {
@@ -765,29 +760,29 @@ function Choose-Existing-Or-Venv {
     }
 
     Write-Host ""
-    Say-Section "System installed Python Versions"
+	Say-Section ("                                      System installed Python Versions                                               " -f $venvRoot)
     $items = @()
     $i = 1
 
     foreach ($c in $candidates) {
-        $tagDefault = if ($c.IsDefault) { " *" } else { "" }
+        $tagDefault = if ($c.IsDefault) { "<-" } else { "" }
         $bitsLabel  = if ($c.Bits) { " ($($c.Bits)-bit)" } else { "" }
         Write-Host ("[{0}] Python {1}{2}  -> {3}{4}" -f $i, $c.Version, $bitsLabel, $c.Path, $tagDefault)
         $items += [pscustomobject]@{ Kind='sys'; Path=$c.Path }
         $i++
     }
 
-    Say-Section ("Virtual environments ({0})" -f $venvRoot)
+    Say-Section ("                                           Virtual environments                                                      " -f $venvRoot)
     if ($venvs.Count -gt 0) {
         foreach ($v in $venvs) {
-            Write-Host ("[{0}] {1,-21} -> {2}" -f $i, $v.Name, $v.Path, ($v.Version -or '?'))
+            Write-Host ("{0}] {1,-21} -> {2}" -f $i, $v.Name, $v.Path, ($v.Version -or '?'))
             $items += [pscustomobject]@{ Kind='venv'; Path=$v.Path }
             $i++
         }
     } else {
         Write-Host "  (none found here)" -ForegroundColor DarkGray
     }
-    Say-Section ("More Options" -f $venvRoot)
+	Say-Section ("                                               More Options                                                          " -f $venvRoot)
     Write-Host "[V] New virtual environment "
     Write-Host "[D] Delete virtual environment"
 	Write-Host "[P] Delete pyenv-win version" 
@@ -806,11 +801,11 @@ function Choose-Existing-Or-Venv {
     Write-Host ("Press a number...")
     Write-Host ("or press [V] to create a new isolated venv.")
     if ($defaultCandidatePath) {
-        Write-Host ("Auto-Start in 10s: {0}" -f $defaultCandidatePath) -ForegroundColor Yellow
+        Write-Host ("Auto-Start in 30s: {0}" -f $defaultCandidatePath) -ForegroundColor Yellow
     }
 	
     Write-Host -NoNewline "> "
-    $choice = Read-LineWithTimeout -Seconds 10 -SkipKey S
+    $choice = Read-LineWithTimeout -Seconds 30 -SkipKey S
     Write-Host ""
 
     # Sofort-Skip per [S]
@@ -1576,9 +1571,8 @@ if ($usedVenv) {
     Write-Host ("venv scripts: {0}" -f (Get-PyScriptsDir -PythonExe $pythonPath))
 }
 
-# ============================ Launch AutoPy++ ==========================
-if (!(Test-Path $srcDir)) { Say-Err 'Folder not found: {0}' -f $srcDir; exit 1 }
-Say-Section ('Launching AutoPyPlusPlus with: {0}' -f $pythonPath)
-Set-Location -Path $srcDir
-& $pythonPath -m AutoPyPlusPlus
-exit $LASTEXITCODE
+# ============================ Launch AutoPy++ (background job) ============================
+Say-Section ('Launching AutoPyPlusPlus (background job): {0}' -f $pythonPath)
+$job = Start-Job -Name 'AutoPyPP' -ScriptBlock { & $using:pythonPath -m AutoPyPlusPlus } -WorkingDirectory $srcDir
+Say-Ok "AutoPyPlusPlus läuft als Job: $($job.Id). Mit 'Receive-Job -Id $($job.Id) -Keep' siehst du Output, 'Stop-Job -Id $($job.Id)' beendet ihn."
+# Kein exit
