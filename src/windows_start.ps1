@@ -209,19 +209,65 @@ function Test-WingetAvailable {
 function Ensure-PyenvWin {
     $root = Join-Path $env:USERPROFILE ".pyenv\pyenv-win"
     if (Test-Path $root) { return $true }
-    Say-Info "Installing pyenv-win (per-user)..."
-    try {
-        Invoke-Expression ((New-Object System.Net.WebClient).DownloadString('https://pyenv-win.github.io/pyenv-win/install.ps1'))
-        $pyenvBin = Join-Path $env:USERPROFILE ".pyenv\pyenv-win\bin"
-        $pyenvShm = Join-Path $env:USERPROFILE ".pyenv\pyenv-win\shims"
+
+    # TLS 1.2 sicherstellen 
+    try { [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12 } catch {}
+
+    # 1) Versuche GitHub RAW
+    $urls = @(
+        'https://raw.githubusercontent.com/pyenv-win/pyenv-win/master/pyenv-win/install-pyenv-win.ps1',
+        'https://raw.githubusercontent.com/pyenv-win/pyenv-win/master/pyenv-win/install-pyenv-win.ps1?raw=1'
+    )
+    foreach ($u in $urls) {
+        try {
+            Say-Info "Downloading pyenv-win installer: $u"
+            $tmp = Join-Path $env:TEMP "install-pyenv-win.ps1"
+            Invoke-WebRequest -UseBasicParsing -Uri $u -OutFile $tmp
+            & $tmp
+            Remove-Item $tmp -Force -ErrorAction SilentlyContinue
+            break
+        } catch {
+            Say-Warn ("pyenv-win RAW download failed: {0}" -f $_.Exception.Message)
+        }
+    }
+
+    # 2) winget Fallback
+    if (-not (Test-Path $root)) {
+        try {
+            if (Get-Command winget -ErrorAction SilentlyContinue) {
+                Say-Info "Installing pyenv-win via winget..."
+                winget install --id pyenv-win.pyenv-win -e --accept-source-agreements --accept-package-agreements
+            }
+        } catch {
+            Say-Warn ("winget install failed: {0}" -f $_.Exception.Message)
+        }
+    }
+
+    # 3) Git Fallback
+    if (-not (Test-Path $root)) {
+        try {
+            if (Get-Command git -ErrorAction SilentlyContinue) {
+                Say-Info "Cloning pyenv-win via git..."
+                git clone https://github.com/pyenv-win/pyenv-win.git $root
+            }
+        } catch {
+            Say-Warn ("git clone failed: {0}" -f $_.Exception.Message)
+        }
+    }
+
+    # PATH ergänzen
+    $pyenvBin = Join-Path $env:USERPROFILE ".pyenv\pyenv-win\bin"
+    $pyenvShm = Join-Path $env:USERPROFILE ".pyenv\pyenv-win\shims"
+    if (Test-Path $pyenvBin) {
         $env:Path = "$pyenvBin;$pyenvShm;$env:Path"
         Say-Ok "pyenv-win installiert."
         return $true
-    } catch {
-        Say-Err ("pyenv-win installation failed: {0}" -f $_.Exception.Message)
-        return $false
     }
+
+    Say-Err "pyenv-win installation failed (all methods)."
+    return $false
 }
+
 
 function Test-PyenvAvailable {
     try { Get-Command pyenv -ErrorAction Stop | Out-Null; $true } catch {
@@ -494,6 +540,88 @@ function Remove-Venv {
         Say-Err ("Failed to delete environment: {0}" -f $_.Exception.Message)
     }
 }
+function Get-PyenvInstallableVersions {
+    # Liefert alle von pyenv installierbaren CPython-Versionen als Liste (z.B. 3.10.11, 3.11.9, 3.12.6 ...)
+    if (-not (Test-PyenvAvailable)) {
+        if (-not (Ensure-PyenvWin)) { return @() }
+    }
+    try {
+        $out = (& pyenv install -l) 2>$null
+        if (-not $out) { return @() }
+        # nur "3.x.y", keine dev/stackless/micro etc.
+        $list = @()
+        foreach ($line in $out) {
+            $t = $line.Trim()
+            if ($t -match '^(?<maj>\d+)\.(?<min>\d+)\.(?<pat>\d+)$') {
+                $list += $t
+            }
+        }
+        return $list
+    } catch { return @() }
+}
+
+function Pick-PythonVersionFromList {
+    param(
+        [string]$preferredMinor = '3.10', 
+        [string]$pyarmorMin = '3.7',
+        [string]$pyarmorMax1 = '3.11',
+        [string]$pyarmorMax2 = '3.13'     
+    )
+
+    $all = Get-PyenvInstallableVersions
+    if ($all.Count -eq 0) {
+        Say-Warn "pyenv liefert keine installierbaren Versionen. Fallback: manuelle Eingabe."
+        return $null
+    }
+
+    # Nur 3.x anzeigen, und visuell kennzeichnen ob PyArmor kompatibel
+    $candidates = $all | Where-Object { $_ -match '^3\.\d+\.\d+$' }
+
+    # sortieren: bevorzugtes Minor nach oben, dann neueste zuerst
+    $candidates = $candidates | Sort-Object {
+        $m = [version]($_)
+        $bias = if ($_.StartsWith($preferredMinor + '.')) { 0 } else { 1 }
+        "{0}-{1:0000000000}" -f $bias, ([int64]$m.Build + 1000*[int64]$m.Revision + 100000*[int64]$m.Minor + 10000000*[int64]$m.Major)
+    }
+
+    # Liste rendern (max. 30 Items, sonst zu lang)
+    $show = $candidates | Select-Object -First 30
+    Say-Section "Installable Python-Versions (pyenv)"
+    $i = 1
+    foreach ($v in $show) {
+        $majmin = [version]$v
+        $minor  = "{0}.{1}" -f $majmin.Major, $majmin.Minor
+        $ok =
+            (($majmin -ge [version]$pyarmorMin) -and ($majmin -le [version]$pyarmorMax1)) -or
+            (($majmin -ge [version]'3.12') -and ($majmin -le [version]$pyarmorMax2))
+        $tag = if ($ok) { "[PyArmor - OK]" } else { "[No PyArmor!]" }
+        $fc = if ($ok) { 'Green' } else { 'Yellow' }
+		Write-Host ("[{0}] {1}  {2}" -f $i, $v, $tag) -ForegroundColor $fc
+
+        $i++
+    }
+    Write-Host "[M] Type Value"
+    Write-Host "[X] Cancel"
+    Write-Host -NoNewline "> "
+    $choice = Read-LineWithTimeout -Seconds 20
+    Write-Host ""
+
+    if ([string]::IsNullOrWhiteSpace($choice)) { return $null }
+    if ($choice -match '^[Xx]$') { return $null }
+    if ($choice -match '^[Mm]$') {
+        Write-Host "Set Version:" -ForegroundColor Yellow
+        Write-Host -NoNewline "> "
+        $manual = Read-LineWithTimeout -Seconds 20
+        return ($manual.Trim())
+    }
+
+    $idx = 0
+    if ([int]::TryParse($choice, [ref]$idx)) {
+        if ($idx -ge 1 -and $idx -le $show.Count) { return $show[$idx-1] }
+    }
+    Say-Warn "Ungültige Auswahl."
+    return $null
+}
 
 # ---- UPDATED: Auswahl inkl. vorhandener venvs + Custom-Namen für neue venvs ----
 function Choose-Existing-Or-Venv {
@@ -573,12 +701,12 @@ function Choose-Existing-Or-Venv {
         return Choose-Existing-Or-Venv -candidates (Get-PythonCandidates -expectedMinor $expectedMinor) -defaultPath $defaultPythonPath -venvRoot $venvRoot
     }
     if ($choice -match '^[VvNn]$') {
-        Write-Host ("Enter desired Python version (e.g. 3.10 or 3.10.11). Default in 10s: {0}" -f $desiredPythonVersion) -ForegroundColor Yellow
-        Write-Host -NoNewline "> "
-        $verChoice = Read-LineWithTimeout -Seconds 10
-        Write-Host ""
-        if ([string]::IsNullOrWhiteSpace($verChoice)) { $verChoice = $desiredPythonVersion }
+		$verChoice = Pick-PythonVersionFromList -preferredMinor $expectedMinor
+		if ([string]::IsNullOrWhiteSpace($verChoice)) {
+			Say-Info ("Keine Auswahl getroffen - nehme Default {0}" -f $desiredPythonVersion)
 
+			$verChoice = $desiredPythonVersion
+		}
         $envName = Read-EnvNameAlnum -Seconds 20 -Prompt 'Enter a unique environment name (letters/digits only, required): '
         if (-not $envName) {
             Say-Err 'No valid name provided. Cancelling.'
