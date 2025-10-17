@@ -5,6 +5,7 @@
 
 | Component   | Status                        |
 |-------------|-------------------------------|
+| Virtual Env | works (not fully tested)      |
 | Sphinx      | works (not fully tested)      |
 | Pytest      | works (not fully tested)      |
 | PyInstaller | works well (not fully tested) |
@@ -187,6 +188,16 @@ echo $MSYSTEM
 
 ---
 
+# Virtual Environments
+
+- Start windows_start.bat
+- Wait and press the -V-
+- Choose a Python Version for you build
+- AutoPy++ installs now reqiuremnts
+- Autopy++ starts with python version
+
+---
+
 # Simplex-API Usage
 
 - Set a flag to ON (or any truthy value listed below) to trigger the action.
@@ -236,6 +247,7 @@ Pyarmor is not for Free, you could only create limited runs in test version
 5.) pyarmor -v (check registration)
 6.) Copy the pyarmor runtime snippet to the header of your py files
 7.) For BCC Builds you need the c-compiler clang.exe
+8.) Create a Virtual Environment!
 ```
 
 ```python
@@ -300,6 +312,7 @@ gcc --version
 ```
 
 ---
+
 
 
 
