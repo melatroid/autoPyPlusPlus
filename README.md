@@ -1,6 +1,6 @@
 <img src="https://nexosoft-engineering.de/autopyplusplus/git_new.png" alt="Alt-Text" width="250" />
 
-# Version 2.49      
+# Version 2.50     
 # 🎉100 Active Cloners🎂
 
 | Component   | Status                        |
@@ -300,6 +300,7 @@ gcc --version
 ```
 
 ---
+
 
 
 
