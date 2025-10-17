@@ -24,6 +24,7 @@ DEFAULT_ALLOWED_STEMS = {
     "core",
     "compiler",
     "hashcheck",
+    #"pyarmoreditor",
     #"projecteditor",
     #"pytesteditor",
     #"sphinxeditor",
