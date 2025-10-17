@@ -1,7 +1,7 @@
 # ============================ Configuration ============================
 # Sry but this file is under heavy development, its an importend thing
 # You need often to edit defaultPythonPath, srcDir, extensionsPath
-# Version 1.04
+# Version 1.06
 #
 #
 param(
@@ -168,19 +168,35 @@ Show-Check -Label "Extensions_path.ini ($extensionsPath)" -Ok (Test-Path $extens
 
 # ============================ Helpers: Console =========================
 function Read-LineWithTimeout {
-    param([int]$Seconds = 7)
+    param(
+        [int]$Seconds = 7,
+        [Nullable[ConsoleKey]]$SkipKey = $null   # <-- jetzt nullbar!
+    )
     $deadline = (Get-Date).AddSeconds($Seconds)
     $sb = New-Object System.Text.StringBuilder
     while ((Get-Date) -lt $deadline) {
         if ([Console]::KeyAvailable) {
             $key = [Console]::ReadKey($true)
+
+            if ($SkipKey -ne $null -and $key.Key -eq $SkipKey) {
+                return '__SKIP__'
+            }
+
             if ($key.Key -eq 'Enter') { break }
-            elseif ($key.Key -eq 'Backspace') { if ($sb.Length -gt 0) { $sb.Length--; Write-Host "`b `b" -NoNewline } }
-            else { [void]$sb.Append($key.KeyChar); Write-Host $key.KeyChar -NoNewline }
-        } else { Start-Sleep -Milliseconds 50 }
+            elseif ($key.Key -eq 'Backspace') {
+                if ($sb.Length -gt 0) { $sb.Length--; Write-Host "`b `b" -NoNewline }
+            } else {
+                [void]$sb.Append($key.KeyChar)
+                Write-Host $key.KeyChar -NoNewline
+            }
+        } else {
+            Start-Sleep -Milliseconds 50
+        }
     }
     return $sb.ToString()
 }
+
+
 
 # --- Name-Validation (nur A–Z, a–z, 0–9) ---
 function Read-EnvNameAlnum {
@@ -619,7 +635,7 @@ function Pick-PythonVersionFromList {
     if ([int]::TryParse($choice, [ref]$idx)) {
         if ($idx -ge 1 -and $idx -le $show.Count) { return $show[$idx-1] }
     }
-    Say-Warn "Ungültige Auswahl."
+    Say-Warn "Bad Input..."
     return $null
 }
 
@@ -640,7 +656,7 @@ function Choose-Existing-Or-Venv {
     }
 
     Write-Host ""
-    Say-Section "Available Python Versions"
+    Say-Section "System installed Python Versions"
     $items = @()
     $i = 1
 
@@ -655,7 +671,7 @@ function Choose-Existing-Or-Venv {
     Say-Section ("Virtual environments ({0})" -f $venvRoot)
     if ($venvs.Count -gt 0) {
         foreach ($v in $venvs) {
-            Write-Host ("[{0}] {1,-21} -> {2}  (Python {3})" -f $i, $v.Name, $v.Path, ($v.Version -or '?'))
+            Write-Host ("[{0}] {1,-21} -> {2}" -f $i, $v.Name, $v.Path, ($v.Version -or '?'))
             $items += [pscustomobject]@{ Kind='venv'; Path=$v.Path }
             $i++
         }
@@ -663,9 +679,10 @@ function Choose-Existing-Or-Venv {
         Write-Host "  (none found here)" -ForegroundColor DarkGray
     }
     Say-Section ("More Options" -f $venvRoot)
-    Write-Host "[V] New environment (Experimental, check Extensions in GUI -> pyinstaller path)"
+    Write-Host "[V] New virtual environment "
     Write-Host "[D] Delete environment"
-    Write-Host "[X] Cancel`n"
+	Write-Host "[S] Skip to default"
+    Write-Host "[X] Exit`n"
 
     $defaultCandidatePath = $null
     if ($defaultPath -and (Test-Path $defaultPath)) {
@@ -681,12 +698,30 @@ function Choose-Existing-Or-Venv {
     if ($defaultCandidatePath) {
         Write-Host ("Auto-Start in 10s: {0}" -f $defaultCandidatePath) -ForegroundColor Yellow
     }
-    Write-Host -NoNewline "> "
+	
+	# === HARDCANCEL: [X] ===
+	if ($choice -match '^[Xx]$') {
+		Say-Warn "User cancelled from menu. Exiting..."
+		exit 1 
+	}
+		
+	Write-Host -NoNewline "> "
+	$choice = Read-LineWithTimeout -Seconds 10 -SkipKey S   # <<< S skippt die Wartezeit
+	Write-Host ""
 
-    $choice = Read-LineWithTimeout -Seconds 10
-    Write-Host ""
-    $choice = ($choice -replace '[^\x20-\x7E]', '').Trim()
+	# Sofort-Skip? -> direkt Default nehmen
+	if ($choice -eq '__SKIP__') {
+		Say-Info "Skip per [S]: wähle Default sofort."
+		if ($defaultCandidatePath) {
+			return [pscustomobject]@{ Mode='existing'; PythonPath=$defaultCandidatePath; DesiredVersion=$null }
+		} else {
+			return [pscustomobject]@{ Mode='venv'; PythonPath=$null; DesiredVersion=$null }
+		}
+	}
 
+	$choice = ($choice -replace '[^\x20-\x7E]', '').Trim()
+		
+		
     if ([string]::IsNullOrWhiteSpace($choice)) {
         if ($defaultCandidatePath) {
             return [pscustomobject]@{ Mode='existing'; PythonPath=$defaultCandidatePath; DesiredVersion=$null }
