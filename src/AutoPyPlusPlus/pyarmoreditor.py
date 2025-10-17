@@ -187,7 +187,7 @@ class PyarmorEditor:
         # --- Python interpreter picker ---
         py_row = ttk.Frame(self.targets)
         py_row.grid(row=2, column=0, columnspan=2, sticky='ew', pady=2)
-        ttk.Label(py_row, text='Python interpreter (python executable):').grid(row=0, column=0, sticky='e', padx=5)
+        ttk.Label(py_row, text='Other python.exe ?:').grid(row=0, column=0, sticky='e', padx=5)
         self.e_python = ttk.Entry(py_row, width=72, textvariable=self.var_python_exec)
         self.e_python.grid(row=0, column=1, sticky='ew')
         ttk.Button(
@@ -199,7 +199,7 @@ class PyarmorEditor:
                 filetypes=[('python.exe', 'python.exe'), ('Executables', '*.exe'), ('All Files', '*.*')]
             )
         ).grid(row=0, column=2, padx=5)
-        CreateToolTip(self.e_python, 'Interpreter used for running "python -m pyarmor". Example: C:\\Python310\\python.exe')
+        CreateToolTip(self.e_python, 'Use this Python Interpreter Version (Experminental)')
         self.targets.grid_columnconfigure(1, weight=1)
 
         self.build = ttk.LabelFrame(root, text='PyArmor Build (Dist & Command)')
