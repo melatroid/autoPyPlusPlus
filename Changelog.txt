@@ -1,4 +1,7 @@
 
+### (preview) Version 2.51
+- Python Terminal in AutoPy++
+
 ### (latest) Version 2.50
 - Bugfixes in windows_update
 - Enable/Disable Simplex-Api in Advanced Options
