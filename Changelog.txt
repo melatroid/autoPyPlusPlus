@@ -4,6 +4,7 @@
 - Enable/Disable Simplex-Api in Advanced Options
 - PyArmor works now with -gen and -pack (Pyarmoreditor the Python Path is now fallback)
 - Install more Python Versions in Virtual Environment
+- env_setup.ini is new, you easly can setup here your packets for any environment
 
 ### Version 2.49
 - New windows_start.ps1 with Py Version set thats needet for working Pyarmor builds
