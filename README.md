@@ -189,14 +189,18 @@ echo $MSYSTEM
 ---
 
 # Virtual Environments
+```python
+- Open File env_setup.ini, here is the basic installation for each virtual environment
+  You easly can copy and create a new startup installation setting
+- Each virtual environment is a copy of the new system-version.
+  If you want to delete a system-version, first delete all linked virtual environments!
 
+```
 - Start windows_start.bat
 - Wait and press the -V-
 - Choose a Python Version for you build
 - AutoPy++ installs now reqiuremnts
 - Autopy++ starts with python version
-- Each virtual environment is a copy of the new system-version.
-- If you want to delete a system-version, first delete all linked virtual environments!
 
 ---
 
@@ -314,6 +318,7 @@ gcc --version
 ```
 
 ---
+
 
 
 
