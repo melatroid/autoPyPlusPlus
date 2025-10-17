@@ -756,15 +756,13 @@ function Resolve-ByWhere {
 }
 
 $tools = @(
-    @{ Name='PyArmor'; Dist='pyarmor'; Module='pyarmor'; AltModule='pyarmor.cli'; Pkg='pyarmor>=9.1.6'; Regex='(?i)(?<v>\d+(\.\d+){1,3})'; Exec='pyarmor' },
-    @{ Name='Nuitka';  Dist='nuitka';  Module='nuitka';  AltModule=$null;          Pkg='nuitka';         Regex='(?i)(?<v>\d+(\.\d+){1,3})'; Exec='nuitka' }
-)
-
-# zusätzliche Tools/Versionen
-$tools += @(
-    @{ Name='Cython';  Dist='Cython';  Module='Cython';  AltModule=$null;          Pkg='cython';         Regex='(?i)(?<v>\d+(\.\d+){1,3})'; Exec='cython' },
+	@{ Name='PyInstaller'; Dist='pyinstaller'; Module='PyInstaller'; AltModule=$null; Pkg='pyinstaller'; Regex='(?i)(?<v>\d+(\.\d+){1,3})'; Exec='pyinstaller' },
+	@{ Name='PyArmor'; Dist='pyarmor'; Module='pyarmor'; AltModule='pyarmor.cli'; Pkg='pyarmor>=9.1.6'; Regex='(?i)(?<v>\d+(\.\d+){1,3})'; Exec='pyarmor' },
+    @{ Name='Nuitka';  Dist='nuitka';  Module='nuitka';  AltModule=$null;          Pkg='nuitka';         Regex='(?i)(?<v>\d+(\.\d+){1,3})'; Exec='nuitka' },
+	@{ Name='Cython';  Dist='Cython';  Module='Cython';  AltModule=$null;          Pkg='cython';         Regex='(?i)(?<v>\d+(\.\d+){1,3})'; Exec='cython' },
     @{ Name='Pytest';  Dist='pytest';  Module='pytest';  AltModule=$null;          Pkg='pytest';         Regex='(?i)pytest\s+(?<v>\d+(\.\d+){1,3})'; Exec='pytest' },
     @{ Name='Sphinx';  Dist='Sphinx';  Module='sphinx';  AltModule=$null;          Pkg='sphinx';         Regex='(?i)(sphinx\s+)?(?<v>\d+(\.\d+){1,3})'; Exec='sphinx-build' }
+	
 )
 
 $global:toolResults = @()
@@ -1026,12 +1024,11 @@ function Build-IniUpdatesFromEnv {
     $allDirs     = @(); if ($baseScripts) { $allDirs += $baseScripts }
     if (-not $VenvOnly -and $userScripts) { $allDirs += $userScripts }
 
-    # Python-Tool-Mapping (mit Alternativen)
     $pyTools = @(
+	    @{ key='pyinstaller';        execs=@('pyinstaller','pyinstaller3') }
         @{ key='cython';             execs=@('cython','cython3') },
         @{ key='nuitka';             execs=@('nuitka','nuitka3') },
         @{ key='pyarmor';            execs=@('pyarmor') },
-        @{ key='pyinstaller';        execs=@('pyinstaller') },
         @{ key='pytest';             execs=@('pytest','py.test') },
         @{ key='sphinx-build';       execs=@('sphinx-build') },
         @{ key='sphinx-quickstart';  execs=@('sphinx-quickstart') }
@@ -1046,17 +1043,17 @@ function Build-IniUpdatesFromEnv {
             } else {
                 # 1) Basis + User-Scripts
                 $path = Resolve-ToolPath-InDirs -Dirs $allDirs -ExecName $exe
-                # 2) PATH
-                if (-not $path -and $AllowGlobalFallback) {
-                    try {
-                        $cmd = Get-Command $Name -ErrorAction SilentlyContinue
-                        if ($cmd) { return $cmd.Path }   # statt $cmd.Source
-                    } catch {}
-                }
-                # 3) where.exe
-                if (-not $path -and $AllowGlobalFallback) {
-                    $path = Resolve-ByWhere -ExecName $exe
-                }
+				# 2) PATH
+				if (-not $path -and $AllowGlobalFallback) {
+					try {
+						$cmd = Get-Command $exe -ErrorAction SilentlyContinue
+						if ($cmd) { $path = $cmd.Path }
+					} catch {}
+				}
+				# 3) where.exe
+				if (-not $path -and $AllowGlobalFallback) {
+					$path = Resolve-ByWhere -ExecName $exe
+				}
             }
 
             if ($path) {
@@ -1108,7 +1105,7 @@ function Update-ExtensionsIniValues {
         [Parameter(Mandatory=$true)] [string]$IniPath,
         [Parameter(Mandatory=$true)] [hashtable]$NewValues,
         [switch]$DryRun = $false,
-        [string[]]$ProtectedKeys = @('tcl_base','msvc','cpp')  # werden niemals geschrieben/überschrieben
+        [string[]]$ProtectedKeys = @('tcl_base','msvc','cpp','gcc') 
     )
 
     if (!(Test-Path $IniPath)) {
