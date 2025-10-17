@@ -195,6 +195,8 @@ echo $MSYSTEM
 - Choose a Python Version for you build
 - AutoPy++ installs now reqiuremnts
 - Autopy++ starts with python version
+- Each virtual environment is a copy of the new system-version.
+- If you want to delete a system-version, first delete all linked virtual environments!
 
 ---
 
@@ -312,6 +314,7 @@ gcc --version
 ```
 
 ---
+
 
 
 
