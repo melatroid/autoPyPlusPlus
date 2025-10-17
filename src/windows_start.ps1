@@ -1,7 +1,7 @@
 # ============================ Configuration ============================
 # Sry but this file is under heavy development, its an importend thing
 # You need often to edit defaultPythonPath, srcDir, extensionsPath
-# Version 1.06
+# Version 1.07
 #
 #
 param(
@@ -391,6 +391,31 @@ function New-IsolatedVenv {
 }
 
 # ============================ Helpers: Detection =======================
+
+function Get-PyenvVersions {
+    $root = Join-Path $env:USERPROFILE ".pyenv\pyenv-win\versions"
+    $list = @()
+    if (-not (Test-Path $root)) { return $list }
+    $dirs = Get-ChildItem -Path $root -Directory -ErrorAction SilentlyContinue
+    foreach ($d in $dirs) {
+        $exe = Get-ChildItem -Path $d.FullName -Recurse -Filter python.exe -ErrorAction SilentlyContinue | Select-Object -First 1
+        $ver = $d.Name
+        if ($exe) {
+            try {
+                $out = & $exe.FullName --version 2>$null
+                if ($out -match 'Python\s+(?<v>\d+\.\d+\.\d+)') { $ver = $Matches['v'] }
+            } catch {}
+        }
+        $list += [pscustomobject]@{
+            Version  = $ver             # z.B. 3.10.11
+            Folder   = $d.FullName      # ...\.pyenv\pyenv-win\versions\3.10.11
+            Python   = $exe?.FullName
+        }
+    }
+    return ($list | Sort-Object Folder -Unique)
+}
+
+
 function Get-PythonCandidates {
     param([string]$expectedMinor)
     $candidates = @()
@@ -556,6 +581,82 @@ function Remove-Venv {
         Say-Err ("Failed to delete environment: {0}" -f $_.Exception.Message)
     }
 }
+
+function Remove-PyenvVersion {
+    $versions = Get-PyenvVersions
+    if (-not $versions -or $versions.Count -eq 0) {
+        Say-Warn "No pyenv-win versions found under: $env:USERPROFILE\.pyenv\pyenv-win\versions"
+        return
+    }
+
+    Say-Section "Delete pyenv-win Python Version"
+    $indexMap = @{}
+    $i = 1
+    foreach ($v in $versions) {
+        Write-Host ("[{0}] {1,-10} -> {2}" -f $i, $v.Version, $v.Folder)
+        $indexMap[$i] = $v
+        $i++
+    }
+    Write-Host "[X] Cancel`n"
+    Write-Host "Enter the number of the pyenv version to delete (auto-cancel in 20s):" -ForegroundColor Yellow
+    Write-Host -NoNewline "> "
+    $choice = Read-LineWithTimeout -Seconds 20
+    Write-Host ""
+
+    $choice = ($choice -replace '[^\x20-\x7E]', '').Trim()
+    if ([string]::IsNullOrWhiteSpace($choice) -or $choice -match '^[Xx]$') {
+        Say-Info "Delete cancelled."
+        return
+    }
+    if ($choice -notmatch '^\d+$') { Say-Warn "Invalid selection."; return }
+
+    $idx = [int]$choice
+    if (-not $indexMap.ContainsKey($idx)) { Say-Warn "Invalid selection."; return }
+
+    $sel = $indexMap[$idx]
+    $root = Join-Path $env:USERPROFILE ".pyenv\pyenv-win\versions"
+    $rootFull = (Resolve-Path $root).Path
+    $selFull  = (Resolve-Path $sel.Folder).Path
+
+    if ($selFull -notlike ($rootFull + "\*")) {
+        Say-Err "Safety check failed: refusing to delete outside of $rootFull"
+        return
+    }
+
+    # Versuche bevorzugt 'pyenv uninstall'
+    $didUninstall = $false
+    if (Test-PyenvAvailable) {
+        try {
+            Say-Info ("pyenv uninstall -f {0}" -f $sel.Version)
+            pyenv uninstall -f $sel.Version 2>$null
+            $didUninstall = $true
+        } catch {
+            Say-Warn ("pyenv uninstall failed: {0}" -f $_.Exception.Message)
+        }
+    }
+
+    if (-not $didUninstall) {
+        try {
+            Say-Info ("Deleting folder: {0}" -f $selFull)
+            Remove-Item -LiteralPath $selFull -Recurse -Force -ErrorAction Stop
+            $didUninstall = $true
+        } catch {
+            Say-Err ("Failed to delete folder: {0}" -f $_.Exception.Message)
+            return
+        }
+    }
+
+    # Rehash, falls möglich
+    if (Test-PyenvAvailable) {
+        try { pyenv rehash 2>$null } catch {}
+    }
+
+    if ($didUninstall) { Say-Ok ("pyenv-win version '{0}' removed." -f $sel.Version) }
+}
+
+
+
+
 function Get-PyenvInstallableVersions {
     # Liefert alle von pyenv installierbaren CPython-Versionen als Liste (z.B. 3.10.11, 3.11.9, 3.12.6 ...)
     if (-not (Test-PyenvAvailable)) {
@@ -578,10 +679,7 @@ function Get-PyenvInstallableVersions {
 
 function Pick-PythonVersionFromList {
     param(
-        [string]$preferredMinor = '3.10', 
-        [string]$pyarmorMin = '3.7',
-        [string]$pyarmorMax1 = '3.11',
-        [string]$pyarmorMax2 = '3.13'     
+        [string]$preferredMinor = ''
     )
 
     $all = Get-PyenvInstallableVersions
@@ -590,40 +688,48 @@ function Pick-PythonVersionFromList {
         return $null
     }
 
-    # Nur 3.x anzeigen, und visuell kennzeichnen ob PyArmor kompatibel
+    # nur 3.x
     $candidates = $all | Where-Object { $_ -match '^3\.\d+\.\d+$' }
 
-    # sortieren: bevorzugtes Minor nach oben, dann neueste zuerst
-    $candidates = $candidates | Sort-Object {
-        $m = [version]($_)
-        $bias = if ($_.StartsWith($preferredMinor + '.')) { 0 } else { 1 }
-        "{0}-{1:0000000000}" -f $bias, ([int64]$m.Build + 1000*[int64]$m.Revision + 100000*[int64]$m.Minor + 10000000*[int64]$m.Major)
-    }
+    # sortiere neueste zuerst (kein Bias mehr)
+    $candidates = $candidates | Sort-Object {[version]$_} -Descending
 
-    # Liste rendern (max. 30 Items, sonst zu lang)
-    $show = $candidates | Select-Object -First 30
+    # Anzeige begrenzen (50)
+    $show = $candidates | Select-Object -First 50
+
     Say-Section "Installable Python-Versions (pyenv)"
     $i = 1
     foreach ($v in $show) {
         $majmin = [version]$v
-        $minor  = "{0}.{1}" -f $majmin.Major, $majmin.Minor
-        $ok =
-            (($majmin -ge [version]$pyarmorMin) -and ($majmin -le [version]$pyarmorMax1)) -or
-            (($majmin -ge [version]'3.12') -and ($majmin -le [version]$pyarmorMax2))
-        $tag = if ($ok) { "[PyArmor - OK]" } else { "[No PyArmor!]" }
-        $fc = if ($ok) { 'Green' } else { 'Yellow' }
-		Write-Host ("[{0}] {1}  {2}" -f $i, $v, $tag) -ForegroundColor $fc
+        $minor  = [version]("{0}.{1}" -f $majmin.Major,$majmin.Minor)
 
+        # Nur Mindestgrenze: ab 3.7 OK
+        $ok = ($minor -ge [version]'3.7')
+
+        # Label je nach Bereich
+        if ($ok) {
+            if ($minor -le [version]'3.11') {
+                $tag = "[PyArmor - OK (8.x/9.x)]"
+            } else {
+                $tag = "[PyArmor - OK (9.x)]"
+            }
+            $fc = 'Green'
+        } else {
+            $tag = "[No PyArmor!]"
+            $fc = 'Yellow'
+        }
+
+        Write-Host ("[{0}] {1}  {2}" -f $i, $v, $tag) -ForegroundColor $fc
         $i++
     }
+
     Write-Host "[M] Type Value"
     Write-Host "[X] Cancel"
     Write-Host -NoNewline "> "
     $choice = Read-LineWithTimeout -Seconds 20
     Write-Host ""
 
-    if ([string]::IsNullOrWhiteSpace($choice)) { return $null }
-    if ($choice -match '^[Xx]$') { return $null }
+    if ([string]::IsNullOrWhiteSpace($choice) -or $choice -match '^[Xx]$') { return $null }
     if ($choice -match '^[Mm]$') {
         Write-Host "Set Version:" -ForegroundColor Yellow
         Write-Host -NoNewline "> "
@@ -638,6 +744,8 @@ function Pick-PythonVersionFromList {
     Say-Warn "Bad Input..."
     return $null
 }
+
+
 
 # ---- UPDATED: Auswahl inkl. vorhandener venvs + Custom-Namen für neue venvs ----
 function Choose-Existing-Or-Venv {
@@ -680,7 +788,8 @@ function Choose-Existing-Or-Venv {
     }
     Say-Section ("More Options" -f $venvRoot)
     Write-Host "[V] New virtual environment "
-    Write-Host "[D] Delete environment"
+    Write-Host "[D] Delete virtual environment"
+	Write-Host "[P] Delete pyenv-win version" 
 	Write-Host "[S] Skip to default"
     Write-Host "[X] Exit`n"
 
@@ -699,30 +808,13 @@ function Choose-Existing-Or-Venv {
         Write-Host ("Auto-Start in 10s: {0}" -f $defaultCandidatePath) -ForegroundColor Yellow
     }
 	
-	# === HARDCANCEL: [X] ===
-	if ($choice -match '^[Xx]$') {
-		Say-Warn "User cancelled from menu. Exiting..."
-		exit 1 
-	}
-		
-	Write-Host -NoNewline "> "
-	$choice = Read-LineWithTimeout -Seconds 10 -SkipKey S   # <<< S skippt die Wartezeit
-	Write-Host ""
+    Write-Host -NoNewline "> "
+    $choice = Read-LineWithTimeout -Seconds 10 -SkipKey S
+    Write-Host ""
 
-	# Sofort-Skip? -> direkt Default nehmen
-	if ($choice -eq '__SKIP__') {
-		Say-Info "Skip per [S]: wähle Default sofort."
-		if ($defaultCandidatePath) {
-			return [pscustomobject]@{ Mode='existing'; PythonPath=$defaultCandidatePath; DesiredVersion=$null }
-		} else {
-			return [pscustomobject]@{ Mode='venv'; PythonPath=$null; DesiredVersion=$null }
-		}
-	}
-
-	$choice = ($choice -replace '[^\x20-\x7E]', '').Trim()
-		
-		
-    if ([string]::IsNullOrWhiteSpace($choice)) {
+    # Sofort-Skip per [S]
+    if ($choice -eq '__SKIP__') {
+        Say-Info "Skip per [S]: wähle Default sofort."
         if ($defaultCandidatePath) {
             return [pscustomobject]@{ Mode='existing'; PythonPath=$defaultCandidatePath; DesiredVersion=$null }
         } else {
@@ -730,13 +822,31 @@ function Choose-Existing-Or-Venv {
         }
     }
 
-    if ($choice -match '^[Xx]$') { return $null }
+    $choice = ($choice -replace '[^\x20-\x7E]', '').Trim()
+
+    if ($choice -match '^[Xx]$') {
+        Say-Warn "User cancelled from menu. Exiting..."
+        exit 1
+    }
+    if ([string]::IsNullOrWhiteSpace($choice)) {
+        if ($defaultCandidatePath) {
+            return [pscustomobject]@{ Mode='existing'; PythonPath=$defaultCandidatePath; DesiredVersion=$null }
+        } else {
+            return [pscustomobject]@{ Mode='venv'; PythonPath=$null; DesiredVersion=$null }
+        }
+    }
+    if ($choice -match '^[Pp]$') {
+        Remove-PyenvVersion
+        return Choose-Existing-Or-Venv -candidates (Get-PythonCandidates -expectedMinor $expectedMinor) -defaultPath $defaultPythonPath -venvRoot $venvRoot
+    }
     if ($choice -match '^[Dd]$') {
         Remove-Venv -VenvRoot $venvRoot
         return Choose-Existing-Or-Venv -candidates (Get-PythonCandidates -expectedMinor $expectedMinor) -defaultPath $defaultPythonPath -venvRoot $venvRoot
     }
+
+	
     if ($choice -match '^[VvNn]$') {
-		$verChoice = Pick-PythonVersionFromList -preferredMinor $expectedMinor
+		$verChoice = Pick-PythonVersionFromList -preferredMinor ''
 		if ([string]::IsNullOrWhiteSpace($verChoice)) {
 			Say-Info ("Keine Auswahl getroffen - nehme Default {0}" -f $desiredPythonVersion)
 
@@ -1038,34 +1148,20 @@ Say-Section "PyArmor Compatibility Recommendation"
 $pyMajor     = [int]($pyMajMin.Split('.')[0])
 $pyMinorNum  = [int]($pyMajMin.Split('.')[1])
 $pyVersion   = [version]("$pyMajor.$pyMinorNum")
-$pyarmorSupported      = $true
-$pyarmorBestTargets    = 'Best targets: Python 3.10 or 3.11 for stability and broad tooling support.'
-$pyarmorRecommendation = ''
 
 if ($pyVersion -lt [version]'3.7') {
-    $pyarmorSupported = $false
-    $pyarmorRecommendation = ("NO PyArmor support for Python {0}. Please use Python 3.10 or 3.11 with PyArmor 8.x or 9.x." -f $pyMajMin)
-}
-elseif ($pyVersion -ge [version]'3.7' -and $pyVersion -le [version]'3.11') {
-    $pyarmorRecommendation = ("Use PyArmor 8.x or 9.x with Python {0}. {1}" -f $pyMajMin, $pyarmorBestTargets)
-}
-elseif ($pyVersion -ge [version]'3.12' -and $pyVersion -le [version]'3.13') {
-    $pyarmorRecommendation = ("Use PyArmor 9.x (>= 9.1.6 preferred) with Python {0}. {1}" -f $pyMajMin, $pyarmorBestTargets)
-}
-else {
-    $pyarmorSupported = $false
-    $pyarmorRecommendation = ("NO official PyArmor support known for Python {0}. {1}" -f $pyMajMin, $pyarmorBestTargets)
-}
-
-if (-not $pyarmorSupported) {
     Say-Err "Supported by PyArmor: NO"
-    Write-Host ("Recommendation: {0}" -f $pyarmorRecommendation)
-    Say-Err "Aborting due to missing PyArmor support."
+    Write-Host ("Recommendation: NO PyArmor support for Python {0}. Use >= 3.7." -f $pyMajMin)
     exit 2
 } else {
     Say-Ok "Supported by PyArmor: YES"
-    Write-Host ("Recommendation: {0}" -f $pyarmorRecommendation)
+    if ($pyVersion -le [version]'3.11') {
+        Write-Host ("Recommendation: Use PyArmor 8.x or 9.x with Python {0}." -f $pyMajMin)
+    } else {
+        Write-Host ("Recommendation: Use PyArmor 9.x with Python {0}." -f $pyMajMin)
+    }
 }
+
 
 Write-Host "Version matrix:"
 Write-Host " - Python 3.7 - 3.11  -> PyArmor 8.x or 9.x"
