@@ -4,12 +4,12 @@ from pathlib import Path
 from datetime import datetime
 from typing import List
 import os
+import shlex
 
-# Optional tooltip import with safe fallback
-try:  # package/local import
-    from .tooltip import CreateToolTip  # type: ignore
-except Exception:  # pragma: no cover
-    def CreateToolTip(widget, text: str):  # minimal no-op fallback
+try:
+    from .tooltip import CreateToolTip
+except Exception: 
+    def CreateToolTip(widget, text: str):
         try:
             widget.tooltip_text = text
         except Exception:
@@ -38,8 +38,6 @@ PLATFORM_CHOICES = [
     'windows.x86_64,linux.x86_64',
     'Custom...'
 ]
-
-
 class PyarmorEditor:
     """Full English-only PyArmor configuration editor widget.
 
@@ -57,10 +55,10 @@ class PyarmorEditor:
         self.var_use_pyarmor = tk.BooleanVar(value=getattr(project, 'use_pyarmor', False))
         self.var_edition = tk.StringVar(value=(getattr(project, 'pyarmor_edition', None) or 'basic'))  # 'basic' | 'pro'
 
-        # Build configuration (Debug / Release) — shown at the very top
+        # Build configuration (Debug / Release)
         self.var_build_mode = tk.StringVar(value=(getattr(project, 'build_mode', None) or 'debug'))  # 'debug' | 'release'
 
-        # Dist mode: 'auto' -> dist relative to Output (or './dist' if Output empty), 'manual' -> custom dist path
+        # Dist mode: 'auto' (relative to Output) or 'manual' (custom dist path)
         self.var_dist_mode = tk.StringVar(value=getattr(project, 'pyarmor_dist_mode', 'auto'))
 
         # --- PyArmor state/flags ---
@@ -76,7 +74,7 @@ class PyarmorEditor:
         # Command dropdown (validated)
         default_cmd = getattr(project, 'pyarmor_command', None)
         if default_cmd not in ('gen', 'pack', 'obfuscate'):
-            default_cmd = 'gen'  # preferred fallback instead of "obfuscate"
+            default_cmd = 'gen'
         self.var_command = tk.StringVar(value=default_cmd)
 
         # --- Pro-only options (persisted in project) ---
@@ -89,19 +87,38 @@ class PyarmorEditor:
         # --- Platform selection state ---
         self.var_platform_choice = tk.StringVar(value='Current system (auto)')
 
-        # --- NEW: Python interpreter path (keeps backward compat with two possible attrs) ---
+        # Python interpreter path (keeps backward compat with two possible attrs)
         initial_py = getattr(project, 'pyarmor_python_exe', None) or getattr(project, 'python_exec_path', '')
         self.var_python_exec = tk.StringVar(value=initial_py or '')
+
+        # --- Pack Options state ---
+        self.var_pack_windowed = tk.BooleanVar(value=bool(getattr(project, 'pyinstaller_windowed', False)))  # False=console, True=windowed
+        self.var_pack_icon = tk.StringVar(value=getattr(project, 'pyinstaller_icon_path', ''))
 
         # Widget references, set in show()
         self.cb_platform = None
         self.e_platform_custom = None
-        self.cb_pack = None  # will be set in show()
+        self.cb_pack = None
+        self.btn_pack_opts = None
+        self._pack_quick_open = False
+
+
+    @staticmethod
+    def _quote_for_e(arg: str) -> str:
+        """Quote a path/arg safely inside the single -e string."""
+        if not arg:
+            return arg
+        if os.name == 'nt':
+            a = arg.replace('"', '\\"')
+            if ' ' in a or any(c in a for c in (';', ',', '(', ')')):
+                return f'"{a}"'
+            return a
+        return shlex.quote(arg)
 
     def show(self):
         self.win = tk.Toplevel(self.master)
         self.win.title('PyArmor Editor')
-        self.win.geometry('840x750')
+        self.win.geometry('800x800')
         self.win.transient(self.master)
         self.win.grab_set()
         try:
@@ -158,7 +175,7 @@ class PyarmorEditor:
         CreateToolTip(rb_basic, 'Basic edition: standard protection; Pro-only flags are ignored.')
         CreateToolTip(rb_pro, 'Pro edition: enables advanced hardening (RFT/BCC/JIT/Themida/FLY).')
 
-        # ===== Build targets (always active) =====
+        # ===== Build targets =====
         self.targets = ttk.LabelFrame(root, text='Build Targets')
         self.targets.grid(row=1, column=0, columnspan=2, sticky='ew', pady=6)
         self.e_script = row(self.targets, 'Script (.py):', 0, getattr(self.project, 'script', ''), file_button=True, filetypes=[('Python Files', '*.py')])
@@ -167,10 +184,10 @@ class PyarmorEditor:
         CreateToolTip(self.e_output, 'Output folder for your build artifacts.')
         self.e_output.bind('<KeyRelease>', lambda e: (self._recompute_dist_from_output(), self._rebuild_preview()))
 
-        # --- NEW: Python interpreter picker ---
+        # --- Python interpreter picker ---
         py_row = ttk.Frame(self.targets)
         py_row.grid(row=2, column=0, columnspan=2, sticky='ew', pady=2)
-        ttk.Label(py_row, text='Python interpreter (python.exe):').grid(row=0, column=0, sticky='e', padx=5)
+        ttk.Label(py_row, text='Python interpreter (python executable):').grid(row=0, column=0, sticky='e', padx=5)
         self.e_python = ttk.Entry(py_row, width=72, textvariable=self.var_python_exec)
         self.e_python.grid(row=0, column=1, sticky='ew')
         ttk.Button(
@@ -185,7 +202,6 @@ class PyarmorEditor:
         CreateToolTip(self.e_python, 'Interpreter used for running "python -m pyarmor". Example: C:\\Python310\\python.exe')
         self.targets.grid_columnconfigure(1, weight=1)
 
-        # ===== PyArmor Build (Dist & Command) =====
         self.build = ttk.LabelFrame(root, text='PyArmor Build (Dist & Command)')
         self.build.grid(row=2, column=0, columnspan=2, sticky='ew', pady=6)
 
@@ -206,22 +222,49 @@ class PyarmorEditor:
         self.e_dist_dir = row(self.build, 'PyArmor dist folder:', 1, getattr(self.project, 'pyarmor_dist_dir', ''), directory=True)
         CreateToolTip(self.e_dist_dir, 'PyArmor output directory (dist).')
         self.e_dist_dir.bind('<KeyRelease>', lambda e: self._rebuild_preview())
-
-        # Command dropdown + description
+    
         cmd_row = ttk.Frame(self.build)
-        cmd_row.grid(row=2, column=0, columnspan=2, sticky='w', pady=2)
+        cmd_row.grid(row=2, column=0, columnspan=2, sticky='ew', pady=2)
+
         ttk.Label(cmd_row, text='PyArmor command:').grid(row=0, column=0, padx=(0, 8))
+
         self.cb_command = ttk.Combobox(
-            cmd_row, textvariable=self.var_command, values=['gen', 'pack', 'obfuscate'], state='readonly', width=12
+            cmd_row, textvariable=self.var_command,
+            values=['gen', 'pack', 'obfuscate'], state='readonly', width=12
         )
         self.cb_command.grid(row=0, column=1, sticky='w')
         CreateToolTip(self.cb_command, 'Choose the PyArmor subcommand.')
+
+        self.btn_pack_opts = ttk.Button(cmd_row, text='Pack Options…', command=self._open_pack_quick)
+        self.btn_pack_opts.grid(row=0, column=2, padx=(10, 0), sticky='w')
+        CreateToolTip(self.btn_pack_opts, 'Quick settings for console/windowed and EXE icon.')
+
         self.var_cmd_desc = tk.StringVar()
-        self.lbl_cmd_desc = ttk.Label(cmd_row, textvariable=self.var_cmd_desc)
-        self.lbl_cmd_desc.grid(row=0, column=2, padx=(10, 0), sticky='w')
-        # ⇨ Beim Wechsel: Beschreibung, Pack-UI syncen, Preview neu bauen
-        self.cb_command.bind('<<ComboboxSelected>>', lambda e: (self._update_cmd_desc(), self._sync_pack_enabled(), self._apply_build_mode(), self._rebuild_preview()))
+        self.lbl_cmd_desc = ttk.Label(cmd_row, textvariable=self.var_cmd_desc, anchor='w', justify='left')
+        self.lbl_cmd_desc.grid(row=0, column=3, padx=(10, 0), sticky='ew')
+
+        cmd_row.grid_columnconfigure(0, weight=0)
+        cmd_row.grid_columnconfigure(1, weight=0)
+        cmd_row.grid_columnconfigure(2, weight=0, minsize=120)  # fixed minimum width for the button
+        cmd_row.grid_columnconfigure(3, weight=1)
+
+        def _wrap_desc(_=None):
+            avail = max(200, cmd_row.winfo_width() - 350)
+            self.lbl_cmd_desc.configure(wraplength=avail)
+
+        cmd_row.bind('<Configure>', _wrap_desc)
+
+        self.cb_command.bind(
+            '<<ComboboxSelected>>',
+            lambda e: (
+                self._update_cmd_desc(),
+                self._apply_build_mode(),
+                self._maybe_open_pack_quick(),
+                self._rebuild_preview()
+            )
+        )
         self._update_cmd_desc()
+        self._sync_pack_enabled()
 
         # ===== Security Presets =====
         self.sec = ttk.LabelFrame(root, text='Security Level')
@@ -232,78 +275,116 @@ class PyarmorEditor:
         ttk.Button(self.sec, text='Ultra', command=lambda: self._preset('Ultra')).grid(row=0, column=3, padx=5, pady=2)
         CreateToolTip(self.sec, 'Presets set recommended combinations. Hard/Ultra keep assertions OFF by default for stability.')
 
-        # ===== Advanced options =====
-        self.adv = ttk.LabelFrame(root, text='PyArmor Advanced Options')
-        self.adv.grid(row=4, column=0, columnspan=2, sticky='ew', pady=6)
+        # ===== Advanced options (English only) =====
+        self.adv = ttk.LabelFrame(root, text='PyArmor – Advanced Options')
+        self.adv.grid(row=4, column=0, columnspan=2, sticky='ew', pady=6, ipadx=4, ipady=2)
+        self.adv.grid_columnconfigure(0, weight=1)
         self.adv.grid_columnconfigure(1, weight=1)
-        self.adv.grid_columnconfigure(3, weight=1)
 
-        ttk.Label(self.adv, text='Obf code (0/1/2):').grid(row=0, column=0, sticky='e', padx=5, pady=2)
-        self.cb_obf = ttk.Combobox(self.adv, textvariable=self.var_obf_code, values=['0', '1', '2'], width=8, state='readonly')
-        self.cb_obf.grid(row=0, column=1, sticky='w')
+        # -- Left column: Obfuscation --
+        lf_obf = ttk.LabelFrame(self.adv, text='Obfuscation')
+        lf_obf.grid(row=0, column=0, sticky='nsew', padx=(6, 3), pady=6)
+        lf_obf.grid_columnconfigure(1, weight=1)
+
+        ttk.Label(lf_obf, text='Obf code (0/1/2):').grid(row=0, column=0, sticky='e', padx=6, pady=4)
+        self.cb_obf = ttk.Combobox(
+            lf_obf, textvariable=self.var_obf_code,
+            values=['0', '1', '2'], width=10, state='readonly'
+        )
+        self.cb_obf.grid(row=0, column=1, sticky='w', pady=4)
         self.cb_obf.bind('<<ComboboxSelected>>', lambda e: self._rebuild_preview())
-        CreateToolTip(self.cb_obf, 'Obfuscation level: 0=off, 1=standard, 2=aggressive (recommended).')
+        CreateToolTip(self.cb_obf, '0=off, 1=standard, 2=aggressive (recommended).')
 
-        self.ck_mix = ttk.Checkbutton(self.adv, text='Mix strings', variable=self.var_mix_str, command=self._rebuild_preview)
-        self.ck_private = ttk.Checkbutton(self.adv, text='Private', variable=self.var_private, command=self._rebuild_preview)
-        self.ck_restr = ttk.Checkbutton(self.adv, text='Restrict', variable=self.var_restrict, command=self._rebuild_preview)
-        self.ck_ai = ttk.Checkbutton(self.adv, text='Assert import', variable=self.var_assert_import, command=self._rebuild_preview)
-        self.ck_ac = ttk.Checkbutton(self.adv, text='Assert call', variable=self.var_assert_call, command=self._rebuild_preview)
-        self.ck_mix.grid(row=1, column=0, columnspan=2, sticky='w', padx=5)
-        self.ck_private.grid(row=2, column=0, columnspan=2, sticky='w', padx=5)
-        self.ck_restr.grid(row=3, column=0, columnspan=2, sticky='w', padx=5)
-        self.ck_ai.grid(row=1, column=2, columnspan=2, sticky='w', padx=5)
-        self.ck_ac.grid(row=2, column=2, columnspan=2, sticky='w', padx=5)
+        self.ck_mix = ttk.Checkbutton(
+            lf_obf, text='Mix strings',
+            variable=self.var_mix_str, command=self._rebuild_preview
+        )
+        self.ck_mix.grid(row=1, column=0, columnspan=2, sticky='w', padx=6, pady=2)
+        CreateToolTip(self.ck_mix, 'Obfuscates string literals; slight size/CPU overhead.')
 
-        CreateToolTip(self.ck_mix, 'Mix strings: obfuscate string literals; rebuilt at runtime (slight size/CPU overhead).')
-        CreateToolTip(self.ck_private, 'Private: block plain scripts from using attributes of obfuscated modules (limits introspection).')
-        CreateToolTip(self.ck_restr, 'Restrict: package-level lock; only __init__.py importable from plain code (implies Private).')
-        CreateToolTip(self.ck_ai, 'Assert import: at runtime, ensure imported modules are obfuscated (prevents mixing; implies Private).')
-        CreateToolTip(self.ck_ac, 'Assert call: at runtime, ensure callers are obfuscated; blocks calls from plain code (implies Private).')
+        self.ck_private = ttk.Checkbutton(
+            lf_obf, text='Private',
+            variable=self.var_private, command=self._rebuild_preview
+        )
+        self.ck_private.grid(row=2, column=0, columnspan=2, sticky='w', padx=6, pady=2)
 
-        # --- Platform dropdown + optional Custom Entry ---
-        ttk.Label(self.adv, text='Platform(s):').grid(row=4, column=0, sticky='e', padx=5, pady=2)
-        plat_frame = ttk.Frame(self.adv)
-        plat_frame.grid(row=4, column=1, sticky='w')
-        self.cb_platform = ttk.Combobox(plat_frame, textvariable=self.var_platform_choice, values=PLATFORM_CHOICES, state='readonly', width=28)
+        self.ck_restr = ttk.Checkbutton(
+            lf_obf, text='Restrict',
+            variable=self.var_restrict, command=self._rebuild_preview
+        )
+        self.ck_restr.grid(row=3, column=0, columnspan=2, sticky='w', padx=6, pady=2)
+
+        # -- Right column: Runtime checks --
+        lf_runtime = ttk.LabelFrame(self.adv, text='Runtime checks')
+        lf_runtime.grid(row=0, column=1, sticky='nsew', padx=(3, 6), pady=6)
+        lf_runtime.grid_columnconfigure(0, weight=1)
+
+        self.ck_ai = ttk.Checkbutton(
+            lf_runtime, text='Assert import',
+            variable=self.var_assert_import, command=self._rebuild_preview
+        )
+        self.ck_ai.grid(row=0, column=0, sticky='w', padx=6, pady=2)
+
+        self.ck_ac = ttk.Checkbutton(
+            lf_runtime, text='Assert call',
+            variable=self.var_assert_call, command=self._rebuild_preview
+        )
+        self.ck_ac.grid(row=1, column=0, sticky='w', padx=6, pady=2)
+
+        self.ck_outer = ttk.Checkbutton(
+            lf_runtime, text='Use outer key',
+            variable=self.var_use_outer_key, command=self._rebuild_preview
+        )
+        self.ck_outer.grid(row=2, column=0, sticky='w', padx=6, pady=(2, 6))
+
+        # Separator
+        ttk.Separator(self.adv, orient='horizontal').grid(
+            row=1, column=0, columnspan=2, sticky='ew', padx=6, pady=(0, 6)
+        )
+
+        # -- Target platform --
+        lf_platform = ttk.LabelFrame(self.adv, text='Target platform')
+        lf_platform.grid(row=2, column=0, columnspan=2, sticky='ew', padx=6, pady=(0, 6))
+        lf_platform.grid_columnconfigure(1, weight=1)
+
+        ttk.Label(lf_platform, text='Platform(s):').grid(row=0, column=0, sticky='e', padx=6, pady=4)
+        plat_row = ttk.Frame(lf_platform); plat_row.grid(row=0, column=1, sticky='ew')
+        plat_row.grid_columnconfigure(0, weight=0)
+        plat_row.grid_columnconfigure(1, weight=1)
+
+        self.cb_platform = ttk.Combobox(
+            plat_row, textvariable=self.var_platform_choice,
+            values=PLATFORM_CHOICES, state='readonly', width=28
+        )
         self.cb_platform.grid(row=0, column=0, sticky='w')
-        CreateToolTip(self.cb_platform, 'Choose a target platform or use "Custom..." for your own tags (comma-separated).')
-
-        self.e_platform_custom = ttk.Entry(plat_frame, width=30)
-        self.e_platform_custom.grid(row=0, column=1, padx=(6, 0))
-        self.e_platform_custom.grid_remove()
-        self.e_platform_custom.bind('<KeyRelease>', lambda e: self._rebuild_preview())
-        CreateToolTip(self.e_platform_custom, 'Custom platform tag or multiple tags, e.g., "windows.x86_64,linux.x86_64".')
-
+        CreateToolTip(self.cb_platform, 'Choose target(s) or select "Custom..." to enter tags.')
         self.cb_platform.bind('<<ComboboxSelected>>', lambda e: (self._on_platform_selected(), self._rebuild_preview()))
 
-        ttk.Label(self.adv, text='Pack:').grid(row=4, column=2, sticky='e', padx=5, pady=2)
-        self.cb_pack = ttk.Combobox(self.adv, textvariable=self.var_pack, values=['', 'onefile', 'onedir'], width=10, state='readonly')
-        self.cb_pack.grid(row=4, column=3, sticky='w')
-        self.cb_pack.bind('<<ComboboxSelected>>', lambda e: self._rebuild_preview())
-        CreateToolTip(self.cb_pack, 'Bundle mode: onedir (test first) or onefile (final).')
+        self.e_platform_custom = ttk.Entry(plat_row, width=36)
+        self.e_platform_custom.grid(row=0, column=1, sticky='ew', padx=(6, 0))
+        self.e_platform_custom.grid_remove()
+        self.e_platform_custom.bind('<KeyRelease>', lambda e: self._rebuild_preview())
 
-        ttk.Label(self.adv, text='Expired (yyyy-mm-dd):').grid(row=5, column=0, sticky='e', padx=5, pady=2)
-        self.e_expired = ttk.Entry(self.adv, width=30)
-        self.e_expired.grid(row=5, column=1, sticky='w')
+        # -- Usage limits --
+        lf_limit = ttk.LabelFrame(self.adv, text='Usage limits')
+        lf_limit.grid(row=3, column=0, columnspan=2, sticky='ew', padx=6, pady=(0, 6))
+        lf_limit.grid_columnconfigure(1, weight=1)
+        lf_limit.grid_columnconfigure(3, weight=1)
+
+        ttk.Label(lf_limit, text='Expired (YYYY-MM-DD):').grid(row=0, column=0, sticky='e', padx=6, pady=4)
+        self.e_expired = ttk.Entry(lf_limit)
+        self.e_expired.grid(row=0, column=1, sticky='ew', padx=(0, 12), pady=4)
         self.e_expired.insert(0, getattr(self.project, 'pyarmor_expired', '') or '')
         self.e_expired.bind('<KeyRelease>', lambda e: self._rebuild_preview())
-        CreateToolTip(self.e_expired, 'Expiration date (YYYY-MM-DD). App stops after this date.')
 
-        ttk.Label(self.adv, text='Bind device:').grid(row=5, column=2, sticky='e', padx=5, pady=2)
-        self.e_bind_device = ttk.Entry(self.adv, width=30)
-        self.e_bind_device.grid(row=5, column=3, sticky='w')
+        ttk.Label(lf_limit, text='Bind device:').grid(row=0, column=2, sticky='e', padx=6, pady=4)
+        self.e_bind_device = ttk.Entry(lf_limit)
+        self.e_bind_device.grid(row=0, column=3, sticky='ew', pady=4)
         self.e_bind_device.insert(0, getattr(self.project, 'pyarmor_bind_device', '') or '')
         self.e_bind_device.bind('<KeyRelease>', lambda e: self._rebuild_preview())
-        CreateToolTip(self.e_bind_device, 'Bind to device/disk serial. Reduces portability, increases protection.')
-
-        # "Use outer key" in Advanced options
-        self.ck_outer = ttk.Checkbutton(self.adv, text='Use outer key', variable=self.var_use_outer_key, command=self._rebuild_preview)
-        self.ck_outer.grid(row=6, column=0, columnspan=2, sticky='w', padx=5, pady=(4, 0))
-        CreateToolTip(self.ck_outer, 'Use external runtime key file (via --outer). Requires pyarmor gen key separately.')
 
         # ===== Pro features (Pro edition only) =====
-        self.pro = ttk.LabelFrame(root, text='PyArmor Pro Features (irreversible)')
+        self.pro = ttk.LabelFrame(root, text='PyArmor Pro Features')
         self.pro.grid(row=5, column=0, columnspan=2, sticky='ew', pady=6)
         self.ck_rft = ttk.Checkbutton(self.pro, text='RFT', variable=self.var_rft, command=self._rebuild_preview)
         self.ck_bcc = ttk.Checkbutton(self.pro, text='BCC', variable=self.var_bcc, command=self._rebuild_preview)
@@ -328,7 +409,7 @@ class PyarmorEditor:
         root.grid_rowconfigure(6, weight=1)
         self.txt_preview = scrolledtext.ScrolledText(self.preview, width=80, height=4)
         self.txt_preview.pack(fill='both', expand=True, padx=6, pady=(6, 2))
-        # NEW: small label to show chosen interpreter
+        # Interpreter label
         self.lbl_interpreter = ttk.Label(self.preview, text='', foreground='#7a7a7a')
         self.lbl_interpreter.pack(anchor='w', padx=8, pady=(0, 6))
         self._set_preview('(PyArmor disabled)' if not self.var_use_pyarmor.get() else '')
@@ -349,7 +430,7 @@ class PyarmorEditor:
         self._on_toggle_dist_mode()
         self._recompute_dist_from_output()
         self._init_platform_choice_from_project()
-        self._sync_pack_enabled()   # ⇦ Pack-UI an Command koppeln
+        self._sync_pack_enabled()
         self._rebuild_preview()
 
         if self.win and self.win.winfo_exists():
@@ -431,18 +512,103 @@ class PyarmorEditor:
         else:
             self._rebuild_preview()
 
-    # --- NEW: Pack-UI an Command koppeln ---
+    # --- Pack UI enable/disable based on command ---
     def _sync_pack_enabled(self):
-        """Enable Pack selection only for command=pack; otherwise clear & disable."""
+        """Enable Pack selection and Pack Options button only for command=pack; otherwise clear & disable."""
         cmd = (self.var_command.get() or 'gen').strip()
         try:
+            cb = self.cb_pack
+            btn = self.btn_pack_opts
             if cmd == 'pack':
-                self.cb_pack.configure(state='readonly')
+                if cb:
+                    cb.configure(state='readonly')
+                if btn:
+                    btn.configure(state='normal')
             else:
-                self.cb_pack.configure(state='disabled')
+                if cb:
+                    cb.configure(state='disabled')
                 self.var_pack.set('')
+                if btn:
+                    btn.configure(state='disabled')
         except tk.TclError:
             pass
+
+    # --- Pack Options dialog control ---
+    def _maybe_open_pack_quick(self):
+        if (self.var_command.get() or '') == 'pack':
+            self._open_pack_quick()
+            
+    def _open_pack_quick(self):
+        if self._pack_quick_open:
+            return
+        self._pack_quick_open = True
+
+        dlg = tk.Toplevel(self.win)
+        dlg.title('Pack Options…')
+        dlg.transient(self.win)
+        dlg.grab_set()
+        dlg.resizable(False, False)
+
+        def _close():
+            self._pack_quick_open = False
+            dlg.destroy()
+
+        dlg.protocol("WM_DELETE_WINDOW", _close)
+
+        frm = ttk.Frame(dlg, padding=10)
+        frm.pack(fill='both', expand=True)
+
+        # --- Bundle Mode (onefile/onedir) ---
+        group_bundle = ttk.LabelFrame(frm, text='Bundle Mode')
+        group_bundle.pack(fill='x', pady=(0, 8))
+
+        rb_onedir  = ttk.Radiobutton(group_bundle, text='Onedir (dev/test)',
+                                     value='onedir', variable=self.var_pack,
+                                     command=self._rebuild_preview)
+        rb_onefile = ttk.Radiobutton(group_bundle, text='Onefile (single EXE)',
+                                     value='onefile', variable=self.var_pack,
+                                     command=self._rebuild_preview)
+
+        rb_onedir.pack(anchor='w', padx=8, pady=2)
+        rb_onefile.pack(anchor='w', padx=8, pady=2)
+
+        CreateToolTip(group_bundle, 'Choose PyInstaller bundle mode: onedir (faster testing) or onefile (single-file release).')
+
+        # --- App mode (Console/Windowed) ---
+        group_mode = ttk.LabelFrame(frm, text='App Mode')
+        group_mode.pack(fill='x', pady=(0, 8))
+        ttk.Radiobutton(group_mode, text='Console (with console)', value=False,
+                        variable=self.var_pack_windowed,
+                        command=self._rebuild_preview).pack(anchor='w', padx=8, pady=2)
+        ttk.Radiobutton(group_mode, text='Windowed (no console)', value=True,
+                        variable=self.var_pack_windowed,
+                        command=self._rebuild_preview).pack(anchor='w', padx=8, pady=2)
+
+        # --- Icon ---
+        group_icon = ttk.LabelFrame(frm, text='EXE/App Icon')
+        group_icon.pack(fill='x', pady=(0, 8))
+        row = ttk.Frame(group_icon); row.pack(fill='x', padx=6, pady=6)
+        ttk.Label(row, text='Icon file:').pack(side='left', padx=(0, 6))
+        e = ttk.Entry(row, textvariable=self.var_pack_icon, width=54)
+        e.pack(side='left', fill='x', expand=True)
+
+        def _pick_icon():
+            path = filedialog.askopenfilename(
+                filetypes=[('Windows Icon', '*.ico'),
+                           ('macOS Icon', '*.icns'),
+                           ('PNG', '*.png'),
+                           ('All Files', '*.*')]
+            )
+            if path:
+                self.var_pack_icon.set(path)
+                self._rebuild_preview()
+
+        ttk.Button(row, text='...', width=3, command=_pick_icon).pack(side='left', padx=6)
+
+        # --- Buttons ---
+        btns = ttk.Frame(frm); btns.pack(fill='x', pady=(4, 0))
+        ttk.Button(btns, text='OK', command=lambda: (_close(), self._rebuild_preview())).pack(side='right', padx=4)
+        ttk.Button(btns, text='Cancel', command=_close).pack(side='right')
 
     # --- Presets ---
     def _preset(self, level: str):
@@ -482,7 +648,7 @@ class PyarmorEditor:
         else:
             messagebox.showinfo('Info', f'Unknown preset: {level}')
 
-        self._apply_build_mode()  # do not fight the chosen profile
+        self._apply_build_mode()
         self._rebuild_preview()
 
     # --- Build Mode handler (Debug/Release) ---
@@ -491,23 +657,20 @@ class PyarmorEditor:
         cmd = (self.var_command.get() or 'gen').strip()
 
         if cmd == 'pack':
-            # Nur beim echten Packen Voreinstellung für Pack-Modus setzen
+            # Defaults for pack mode
             if mode == 'debug':
                 self.var_pack.set('onedir')
+                self.var_pack_windowed.set(False)  # console for quick debugging
                 if (self.var_obf_code.get() or '1') not in ('0', '1', '2'):
                     self.var_obf_code.set('1')
             else:
                 self.var_pack.set('onefile')
+                self.var_pack_windowed.set(True)   # GUI by default in release
                 if self.var_obf_code.get() in ('0', '1'):
                     self.var_obf_code.set('2')
         else:
-            # Bei gen/obfuscate KEIN Packen
             self.var_pack.set('')
 
-        if not init:
-            messagebox.showinfo('Build mode', f'Switched to {mode.capitalize()}.')
-
-        # Pack-UI-Zustand aktualisieren
         self._sync_pack_enabled()
         self._rebuild_preview()
 
@@ -544,23 +707,22 @@ class PyarmorEditor:
 
     def _init_platform_choice_from_project(self):
         """Force default to 'Current system (auto)' on every open."""
-        # UI: immer auf Auto
         self.var_platform_choice.set('Current system (auto)')
-        self._on_platform_selected()  # versteckt das Custom-Feld
-        # Projektwert (falls vorhanden) neutralisieren, damit es auch beim Speichern leer bleibt
+        self._on_platform_selected()
         try:
             setattr(self.project, 'pyarmor_platform', '')
         except Exception:
             pass
 
     def _build_options_from_ui(self) -> List[str]:
-        """Build the PyArmor CLI options list based on the current UI state."""
+        """Build the PyArmor CLI options list based on the current UI state (excluding 'Auto')."""
         if not self.var_use_pyarmor.get():
             return []
 
         opts: List[str] = []
-        cmd = (self.var_command.get() or '').strip()  # << Command berücksichtigen
+        cmd = (self.var_command.get() or '').strip()
 
+        # --- Common PyArmor options ---
         obf = (self.var_obf_code.get() or '').strip()
         if obf:
             opts += ['--obf-code', obf]
@@ -581,14 +743,35 @@ class PyarmorEditor:
         if platform_txt:
             opts += ['--platform', platform_txt]
 
-        pack_mode = (self.var_pack.get() or '').strip()
-        if cmd == 'pack' and pack_mode:   # << nur bei pack!
-            opts += ['--pack']
-            if pack_mode == 'onefile':
-                opts += ['-e', '--onefile']
-            elif pack_mode == 'onedir':
-                opts += ['-e', '--onedir']
+        # --- PyInstaller flags (for single -e) ---
+        pi_flags: List[str] = []
 
+        if cmd == 'pack':
+            # pack is active -> mode MUST be set (UI guarantees this)
+            opts += ['--pack']
+            effective_pack_mode = (self.var_pack.get() or '').strip()
+
+            if effective_pack_mode == 'onefile':
+                pi_flags.append('--onefile')
+            elif effective_pack_mode == 'onedir':
+                pi_flags.append('--onedir')
+            else:
+                effective_pack_mode = 'onedir'
+                pi_flags.append('--onedir')
+
+            if self.var_pack_windowed.get():
+                pi_flags.append('--windowed')  # console is default
+
+            icon_path = (self.var_pack_icon.get() or '').strip()
+            if icon_path:
+                pi_flags.append(f'--icon {self._quote_for_e(icon_path)}')
+        else:
+            effective_pack_mode = ''
+
+        if pi_flags:
+            opts += ['-e', ' '.join(pi_flags)]
+
+        # Expiration / bind device
         expired = (self.e_expired.get() or '').strip()
         if expired:
             opts += ['--expire', expired]
@@ -617,8 +800,8 @@ class PyarmorEditor:
         else:
             dist_dir = (self.e_dist_dir.get() or '').strip() or 'dist'
 
-        # Auto-stability guard: drop assertions for onefile (nur beim Packen)
-        if cmd == 'pack' and pack_mode == 'onefile':
+        # Guard: Remove assertions for onefile (effective mode!)
+        if cmd == 'pack' and effective_pack_mode == 'onefile':
             opts = [t for t in opts if t not in ('--assert-import', '--assert-call')]
 
         # Ensure output flag present
@@ -628,7 +811,6 @@ class PyarmorEditor:
         return opts
 
     def _rebuild_preview(self):
-        # Command line preview
         if not self.var_use_pyarmor.get():
             self._set_preview('(PyArmor disabled)')
             self.lbl_interpreter.configure(text='')
@@ -645,7 +827,7 @@ class PyarmorEditor:
 
     def _analyze(self):
         issues: List[str] = []
-        helps: List[str] = []  # separate list for helpful suggestions
+        helps: List[str] = []
 
         # General: Script & Output
         script_path = (self.e_script.get() or '').strip()
@@ -672,7 +854,7 @@ class PyarmorEditor:
             issues.append(f'[ERROR] Output folder is not a directory: {output_path}')
             helps.append("[HELP] Choose a valid directory using the '...' button.")
 
-        # NEW: Interpreter checks (Windows-focused but tolerant for other OS)
+        # Interpreter checks
         pyexec = (self.var_python_exec.get() or '').strip()
         if pyexec:
             p = Path(pyexec)
@@ -752,9 +934,9 @@ class PyarmorEditor:
             else:
                 helps.append("[HELP] 'Current system (auto)' uses host platform; specify for cross-compilation.")
 
-            if pack_mode and pack_mode not in ['', 'onefile', 'onedir']:
-                issues.append(f"[ERROR] Invalid pack mode: {pack_mode} (must be empty, onefile, or onedir)")
-                helps.append('[HELP] Select from the dropdown or leave empty for default.')
+            if pack_mode and pack_mode not in ['onefile', 'onedir']:
+                issues.append(f"[ERROR] Invalid pack mode: {pack_mode} (must be onefile or onedir)")
+                helps.append('[HELP] Select a valid mode in the Pack combobox.')
 
             # Pro flags active while Basic?
             pro_flags_active = any((self.var_rft.get(), self.var_bcc.get(), self.var_jit.get(), self.var_themida.get(), self.var_fly.get()))
@@ -901,7 +1083,7 @@ class PyarmorEditor:
         p.pyarmor_dist_mode = self.var_dist_mode.get()
         p.build_mode = self.var_build_mode.get()
 
-        # NEW: store interpreter path (both attrs for compatibility with runner)
+        # Store interpreter path (both attrs for compatibility with runner)
         interp = (self.var_python_exec.get() or '').strip()
         p.python_exec_path = interp
         p.pyarmor_python_exe = interp
@@ -976,12 +1158,16 @@ class PyarmorEditor:
         # Apply Build side effects (sets e.g. onefile based on Build-Mode)
         self._apply_project_build_side_effects(p, p.build_mode)
 
-        # Finally: align onefile to pyarmor_pack again if user set it explicitly
+        # Align onefile with explicit pack choice
         if p.use_pyarmor and p.pyarmor_pack in ('onefile', 'onedir'):
             try:
                 p.onefile = (p.pyarmor_pack == 'onefile')
             except Exception:
                 pass
+
+        # Persist Pack Options selections
+        p.pyinstaller_windowed = bool(self.var_pack_windowed.get())
+        p.pyinstaller_icon_path = (self.var_pack_icon.get() or '').strip()
 
         self.saved = True
         self.win.destroy()

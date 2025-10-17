@@ -56,7 +56,7 @@ def show_about_dialog(master, style, theme_func):
 
 
     text = (
-        "Version 2.49 (Date: 17.10.2025)\n"
+        "Version 2.50 (Date: 18.10.2025)\n"
         "© 2025 by melatroid\n"
         "info@nexosoft-engineering.de\n"
         "License: MIT License\n\n"

@@ -72,6 +72,11 @@ class AutoPyPlusPlusGUI:
         self.current_apyscript: Optional[Path] = Path("myProject.apyscript")
         self.master = master
         self.config = load_config()
+        # --- Simplex API toggle (default OFF) ---
+        self.enable_simplex_api_var = tk.BooleanVar(
+            value=bool(self.config.get("enable_simplex_api", False))
+        )
+        
         # --- Hash-Check Setting (Default: on) ---
         self.config.setdefault("enable_hashcheck", True)
         self.enable_hashcheck_var = tk.BooleanVar(value=bool(self.config.get("enable_hashcheck", True)))
@@ -144,21 +149,21 @@ class AutoPyPlusPlusGUI:
         self._auto_load()
         self._register_hotkeys()        
         # --- Simplex API Watcher ---
+        self._simplex_watcher = None
         ini_path = (self.working_dir / "simplexAPI.ini")
-        self._simplex_watcher = SimplexAPIWatcher(self, ini_path, poll_interval=1.0)
-        self._simplex_watcher.start()
+        if self.enable_simplex_api_var.get():
+            self._simplex_watcher = SimplexAPIWatcher(self, ini_path, poll_interval=1.0)
+            self._simplex_watcher.start()
 
         def _on_close():
             try:
-                if hasattr(self, "_simplex_watcher"):
+                if getattr(self, "_simplex_watcher", None):
                     self._simplex_watcher.stop()
             except Exception:
                 pass
             self.master.quit()
 
-        self.master.protocol("WM_DELETE_WINDOW", _on_close)
-                        
-        
+                
     # ------------------------- Hilfsmethoden --------------------------
 
     def _build_ui(self):
