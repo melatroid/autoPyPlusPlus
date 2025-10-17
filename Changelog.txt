@@ -1,11 +1,11 @@
 
-### (preview) Version 2.50
+### (latest) Version 2.50
 - Bugfixes in windows_update
 - Enable/Disable Simplex-Api in Advanced Options
 - PyArmor works now with -gen and -pack (Pyarmoreditor the Python Path is now fallback)
 - Install more Python Versions in Virtual Environment
 
-### (latest) Version 2.49
+### Version 2.49
 - New windows_start.ps1 with Py Version set thats needet for working Pyarmor builds
 - Start Autopy++ in new envirnoment
 - Big Bugfix Update
