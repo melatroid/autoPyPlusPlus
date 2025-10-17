@@ -14,7 +14,7 @@
 | Cython      | works well (not fully tested) |
 | MSVC        | works well (not fully tested) |
 | Inspector   | works well                    |
-| Secure Compilers | Testphase              |
+| Secure Compilers | works (not fully tested) |
 
 ```
 📜 .py
@@ -312,6 +312,7 @@ gcc --version
 ```
 
 ---
+
 
 
 
