@@ -251,9 +251,8 @@ Pyarmor is not for Free, you could only create limited runs in test version
 3.) pyarmor reg -p YOURPRODUCTNAMEHERE pyarmor-regcode-7959.txt  (Creates a Registerfile)
 4.) pyarmor reg pyarmor-regfile-7959.zip  (your local licence! dont disclose!)
 5.) pyarmor -v (check registration)
-6.) Copy the pyarmor runtime snippet to the header of your py files
-7.) For BCC Builds you need the c-compiler clang.exe
-8.) Create a Virtual Environment!
+6.) For BCC Builds you need the c-compiler clang.exe
+7.) Create a Virtual Environment!
 ```
 
 ```python
@@ -318,6 +317,7 @@ gcc --version
 ```
 
 ---
+
 
 
 
