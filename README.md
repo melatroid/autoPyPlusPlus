@@ -256,12 +256,6 @@ Pyarmor is not for Free, you could only create limited runs in test version
 First Aid Manuel -> pyarmor.readthedocs.io/en/latest/tutorial/getting-started.html
 Clang Compiler   -> pyarmor.dashingsoft.com/downloads/tools/clang-9.0.zip
 
-```
-
-```python
-from pyarmor_runtime import __pyarmor__
-__pyarmor__(__name__, __file__, b'\x28\x83\x20\x58....')
-```
 ---
 # Sphinx Usage
 
@@ -320,6 +314,7 @@ gcc --version
 ```
 
 ---
+
 
 
 
