@@ -253,6 +253,7 @@ Pyarmor is not for Free, you could only create limited runs in test version
 5.) pyarmor -v (check registration)
 6.) For BCC Builds you need the c-compiler clang.exe
 7.) Create a Virtual Environment!
+8.) First Aid: pyarmor.readthedocs.io/en/latest/tutorial/getting-started.html
 ```
 
 ```python
@@ -317,6 +318,7 @@ gcc --version
 ```
 
 ---
+
 
 
 
