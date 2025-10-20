@@ -1,6 +1,7 @@
 
 ### (preview) Version 2.51
 - Python Terminal in AutoPy++
+- Add Pillow to env-setup
 
 ### (latest) Version 2.50
 - Bugfixes in windows_update
