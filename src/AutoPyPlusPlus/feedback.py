@@ -312,7 +312,7 @@ def show_feedback_dialog(
         "5) User feedback is a one-time process."
     ),
     url: str = "https://forms.gle/QTuEyava7t4bFL4JA",
-    countdown_seconds: int = 15,
+    countdown_seconds: int = 120,
     hide_close_seconds: int = 10,
 ) -> bool:
     if feedback_is_done():
