@@ -1,10 +1,10 @@
 
-### (preview) Version 2.51
+### (latest) Version 2.51
 - Python Terminal in AutoPy++
 - Add Pillow to env-setup
 - Feedback process
 
-### (latest) Version 2.50
+### Version 2.50
 - Bugfixes in windows_update
 - Enable/Disable Simplex-Api in Advanced Options
 - PyArmor works now with -gen and -pack (Pyarmoreditor the Python Path is now fallback)
