@@ -185,9 +185,10 @@ if os.name == "nt":
         if not crypt32.CryptUnprotectData(ctypes.byref(in_blob), None, ctypes.byref(opt_blob), None, None, 0, ctypes.byref(out_blob)):
             raise ctypes.WinError(ctypes.get_last_error())
         try:
-            return ctypes.string_at(out_blob.pbData, out_blob.pbData)
+            return ctypes.string_at(out_blob.pbData, out_blob.cbData)
         finally:
             kernel32.LocalFree(out_blob.pbData)
+
 
     GetWindowTextLengthW = user32.GetWindowTextLengthW
     GetWindowTextW       = user32.GetWindowTextW
@@ -311,7 +312,7 @@ def show_feedback_dialog(
         "5) User feedback is a one-time process."
     ),
     url: str = "https://forms.gle/QTuEyava7t4bFL4JA",
-    countdown_seconds: int = 120,
+    countdown_seconds: int = 15,
     hide_close_seconds: int = 10,
 ) -> bool:
     if feedback_is_done():
@@ -415,19 +416,31 @@ def show_feedback_dialog(
 
     def _set_done_and_update():
         def _on_master_ok():
+            try:
+                if os.name == "nt" and _edge_visible_now():
+                    last_seen_ts["val"] = time.time()
+            except Exception:
+                pass
+
             _write_flag(countdown_seconds, started_token["val"], last_seen_ts["val"])
-            if win.winfo_exists():
-                if os.name == "nt" and (time.time() - last_seen_ts["val"] > 10.0 or not _edge_visible_now()):
-                    status_lbl.config(
-                        text="Thank you! Note: Keep Microsoft Edge open with the form until the countdown ends.",
-                        justify="center", anchor="center"
-                    )
-                else:
-                    status_lbl.config(
-                        text="Thank you! This prompt will not be shown again.",
-                        justify="center", anchor="center"
-                    )
+
+            if not win.winfo_exists():
+                return
+            is_ok = True
+            try:
+                is_ok = (os.name != "nt") or (_edge_visible_now() and (time.time() - last_seen_ts["val"] <= 10.0))
+            except Exception:
+                pass
+
+            msg = (
+                "Thank you! This prompt will not be shown again."
+                if is_ok else
+                "Thank you! Note: Keep Microsoft Edge open with the form until the countdown ends."
+            )
+            status_lbl.config(text=msg, justify="center", anchor="center")
+
         _prompt_master_key(win, _on_master_ok)
+
 
     def _tick(remaining: int):
         if not win.winfo_exists():
