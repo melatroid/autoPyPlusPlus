@@ -19,11 +19,12 @@ DEFAULT_ALLOWED_STEMS = {
     "CPD0000000",
     "CPE0000000",
     "CPF0000000",
-    "CPG0000000"
-    #"gui",
+    "CPG0000000",
+    "feedback",
+    "gui",
     "core",
     "compiler",
-    "hashcheck",
+    "hashcheck"
     #"pyarmoreditor",
     #"projecteditor",
     #"pytesteditor",

@@ -11,6 +11,7 @@ import threading  # For running code in separate threads (concurrent tasks)
 import time  # For time-related functions (e.g., delays, measuring time)
 import configparser 
 import subprocess # For update function
+import sys, shutil # for python venv terminal
 
 from .help import show_main_helper  # Open the main in-app help window
 
@@ -19,6 +20,8 @@ from .language import LANGUAGES  # Localized UI strings
 from .hotkeys import register_hotkeys  # Register global app hotkeys
 
 from .about import show_about_dialog  # “About” dialog with app info
+
+from .feedback import show_feedback_dialog, feedback_is_done # Feedback
 
 from .general_settings import show_general_settings  # General settings dialog
 
@@ -125,11 +128,54 @@ class AutoPyPlusPlusGUI:
             "Nebula", "Midnight Forest", "Phantom", "Developer", "Onyx Grey", "Lava Flow"
         ]
         
-        default_theme = 1  # Index 1 = set_light_mode
+        default_theme = 1
         self.current_theme_index = self.config.get("theme", default_theme) % len(self.themes)
         self.themes[self.current_theme_index](self.style, master)
-        show_about_dialog(self.master, self.style, self.themes[self.current_theme_index])  
-            
+
+        
+        def _startup_modals():
+            def open_about():
+                show_about_dialog(self.master, self.style, self.themes[self.current_theme_index])
+
+            def log_problem(msg):
+                try:
+                    from tkinter import messagebox
+                    messagebox.showwarning("Startup", msg)
+                except Exception:
+                    print("[Startup]", msg)
+
+            try:
+                if feedback_is_done():
+                    open_about()
+                    return
+
+                shown = show_feedback_dialog(
+                    self.master,
+                    style=self.style,
+                    theme_func=self.themes[self.current_theme_index]
+                )
+
+                def _poll_flag():
+                    try:
+                        if feedback_is_done():
+                            open_about()
+                        else:
+                            self.master.after(1000, _poll_flag)
+                    except Exception as e:
+                        log_problem(f"Polling error: {e}")
+                        self.master.after(1000, _poll_flag)
+
+                if shown:
+                    _poll_flag()
+            except TypeError as e:
+                log_problem(f"About dialog error: {e}\nCheck show_about_dialog signature.")
+            except Exception as e:
+                log_problem(f"Startup modals error: {e}")
+
+        self.master.after(0, _startup_modals)
+
+
+                            
         # -------- Farben ----------------------------------------------
         self.color_a: str = self.config.get("color_a", "#43d6b5")   
         self.color_b: str = self.config.get("color_b", "#4a1aae")   
@@ -147,14 +193,8 @@ class AutoPyPlusPlusGUI:
         
         self._build_ui()        
         self._auto_load()
-        self._register_hotkeys()        
-        # --- Simplex API Watcher ---
-        self._simplex_watcher = None
-        ini_path = (self.working_dir / "simplexAPI.ini")
-        if self.enable_simplex_api_var.get():
-            self._simplex_watcher = SimplexAPIWatcher(self, ini_path, poll_interval=1.0)
-            self._simplex_watcher.start()
-
+        self._register_hotkeys()
+        
         def _on_close():
             try:
                 if getattr(self, "_simplex_watcher", None):
@@ -162,8 +202,16 @@ class AutoPyPlusPlusGUI:
             except Exception:
                 pass
             self.master.quit()
+            
+        self.master.protocol("WM_DELETE_WINDOW", _on_close) 
+        # --- Simplex API Watcher ---
+        self._simplex_watcher = None
+        ini_path = (self.working_dir / "simplexAPI.ini")
+        if self.enable_simplex_api_var.get():
+            self._simplex_watcher = SimplexAPIWatcher(self, ini_path, poll_interval=1.0)
+            self._simplex_watcher.start()
 
-                
+
     # ------------------------- Hilfsmethoden --------------------------
 
     def _build_ui(self):
@@ -189,9 +237,7 @@ class AutoPyPlusPlusGUI:
             CreateToolTip(b, self.texts[tip_key])
             return b
 
-        # Linke Buttons (immer erstellen)
         self.add_btn       = _btn("add_btn",       self._add,             "tooltip_add_btn")
-        # ---------------
         self.edit_btn      = _btn("edit_btn",      self._edit,            "tooltip_edit_btn")
         self.delete_btn    = _btn("delete_btn",    self._delete,          "tooltip_delete_btn")
         self.duplicate_btn = _btn("duplicate_btn", self._duplicate,       "tooltip_duplicate_btn")
@@ -410,7 +456,8 @@ class AutoPyPlusPlusGUI:
         self.menubar.add_cascade(label=self.texts.get("menu_tools", "Tools"), menu=self.tools_menu)
         self.tools_menu.add_command(label=self.texts.get("menu_inspector", "Inspector"), command=self._open_debuginspector)
         self.tools_menu.add_command(label=self.texts.get("menu_apyeditor", "ApyEditor"), command=self._open_apy_editor)
-        self.tools_menu.add_command(label=self.texts.get("menu_extensions", "Extensions"), command=self._show_extensions_popup)
+        self.tools_menu.add_separator()
+        self.tools_menu.add_command(label="🐍 Python Terminal",command=self._open_python_terminal)
 
         # ----- Build -----
         self.build_menu = tk.Menu(self.menubar, tearoff=False)
@@ -437,6 +484,7 @@ class AutoPyPlusPlusGUI:
 
         # Weitere Settings
         self.settings_menu.add_separator()
+        self.settings_menu.add_command(label=self.texts.get("menu_extensions", "Extensions"), command=self._show_extensions_popup)
         self.settings_menu.add_command(label=self.texts.get("menu_autopy_general", "Advanced"), command=self._open_general_settings)
         self.settings_menu.add_command(label=self.texts.get("menu_colors", "Mode Colors"), command=self._choose_colors)
         self.settings_menu.add_command(label=self.texts.get("menu_toggle_fullscreen", "Toggle Fullscreen"), command=self._toggle_fullscreen)
@@ -1151,7 +1199,7 @@ class AutoPyPlusPlusGUI:
         self._apply_progressbar_style()
 
     def clear_work_dir(self):
-        work_dir = Path(__file__).parent.parent
+        #work_dir = Path(__file__).parent.parent
         work_dir = self.working_dir 
         files, folders = find_cleanup_targets(work_dir)
         targets = files + folders
@@ -1387,6 +1435,52 @@ class AutoPyPlusPlusGUI:
             return max(0, int(self.config.get("pipeline_cooldown_s", getattr(self, "pipeline_cooldown_s", 0))))
         except Exception:
             return 0
+
+
+
+
+    def _open_python_terminal(self):
+        """
+        Öffnet unter Windows ein Terminal im aktuellen Python-Setting (inkl. venv),
+        so dass 'python' und 'pip' zuverlässig dieses Environment nutzen.
+        """
+        try:
+            if os.name != "nt":
+                self.status_err("Dieses Terminal ist aktuell nur für Windows implementiert.")
+                return
+
+            py = sys.executable
+            # Falls working_dir nicht existiert, ins aktuelle Verzeichnis wechseln
+            cwd = str(self.working_dir if Path(self.working_dir).exists() else Path.cwd())
+            env = os.environ.copy()
+
+            scripts_dir = str(Path(py).parent)
+            env["PATH"] = scripts_dir + os.pathsep + env.get("PATH", "")
+            
+            cmdline = (
+                f'title AutoPy🐍🐍& '
+                f'echo AutoPy🐍🐍& '
+                f'echo launching in virtual environment& '
+                f'"{py}" -V & '
+                f'doskey pip="{py}" -m pip $* & '
+                f'doskey python="{py}" $* & '
+                f'cd /d "{cwd}"'
+            )
+
+            creation = subprocess.CREATE_NEW_CONSOLE | subprocess.CREATE_NEW_PROCESS_GROUP
+
+            # Bevorzugt Windows Terminal
+            if shutil.which("wt.exe"):
+                subprocess.Popen(["wt.exe", "cmd", "/k", cmdline], cwd=cwd, env=env, creationflags=creation)
+                self.status_ok("🐍.")
+                return
+
+            # Fallback: klassisches CMD
+            subprocess.Popen(["cmd.exe", "/k", cmdline], cwd=cwd, env=env, creationflags=creation)
+            self.status_ok("🐍.")
+
+        except Exception as e:
+            self.status_err(f"Error with Terminal: {e}")
 
 
     def _run_windows_update(self, as_admin: bool = False) -> None:
