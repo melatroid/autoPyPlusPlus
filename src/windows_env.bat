@@ -1,7 +1,7 @@
 @echo off
 setlocal
 
-set "PS1=%~dp0windows_start.ps1"
+set "PS1=%~dp0windows_env.ps1"
 
 if not exist "%PS1%" (
   echo "%PS1%" Not Found.
