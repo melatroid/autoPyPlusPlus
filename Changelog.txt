@@ -1,3 +1,5 @@
+### (preview) Version 2.52
+- normal startup and evnironment start bat files
 
 ### (latest) Version 2.51
 - Python Terminal in AutoPy++
