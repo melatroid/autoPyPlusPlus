@@ -1,7 +1,9 @@
-### (preview) Version 2.52
+### (latest) Version 2.52
 - normal startup and evnironment start bat files
+- Mainmenu update
+- Export Log Bugfix
 
-### (latest) Version 2.51
+###  Version 2.51
 - Python Terminal in AutoPy++
 - Add Pillow to env-setup
 - Feedback process
