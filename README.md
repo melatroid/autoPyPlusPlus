@@ -1,9 +1,9 @@
 <img src="https://nexosoft-engineering.de/autopyplusplus/git_new.png" alt="Alt-Text" width="250" />
 <div align="center">
-    # Version 2.52 OpenSource 
+    Version 2.52 OpenSource 
 </div>
 <div align="center">
-    ## [AutoPy++ Pro➡️](https://github.com/melatroid/AutoPyPP)
+    [AutoPy++ Pro➡️](https://github.com/melatroid/AutoPyPP)
 </div>
 
 | Component   | Status                        |
@@ -317,6 +317,7 @@ gcc --version
 ```
 
 ---
+
 
 
 
