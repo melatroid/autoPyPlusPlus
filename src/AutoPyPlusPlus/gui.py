@@ -5,6 +5,7 @@ import copy # Deep Copy
 import tkinter as tk  # Tkinter: main module for creating GUIs
 from tkinter import ttk, filedialog, messagebox, colorchooser, simpledialog  # Tkinter modules for advanced GUI widgets, file dialogs, message boxes, and color pickers
 from datetime import datetime  # For working with date and time
+import tkinter.font as tkfont
 from typing import Optional  # For type hinting optional variables
 from pathlib import Path  # For object-oriented filesystem paths
 import threading  # For running code in separate threads (concurrent tasks)
@@ -123,15 +124,18 @@ class AutoPyPlusPlusGUI:
         ]
 
         self.theme_names = [
-            "Dark", "Light", "Arctic Blue", "Galaxy", "Sunset", "Forest", "Retro",
-            "Pastel", "Autumn", "Candy", "Inferno Red", "Cyberpunk", "Obsidian",
-            "Nebula", "Midnight Forest", "Phantom", "Developer", "Onyx Grey", "Lava Flow"
-        ]
+            "🌑 Dark","🌞 Light","❄️ Arctic Blue","🌌 Galaxy","🌇 Sunset","🌲 Forest",
+            "📼 Retro","🧁 Pastel","🍂 Autumn","🍬 Candy","🔥 Inferno Red","🤖 Cyberpunk",
+            "🗿 Obsidian","🌀 Nebula","🌲 Midnight Forest","👻 Phantom","💻 Developer",
+            "⚫ Onyx Grey","🌋 Lava Flow",]
         
         default_theme = 1
         self.current_theme_index = self.config.get("theme", default_theme) % len(self.themes)
         self.themes[self.current_theme_index](self.style, master)
 
+        menu_font = tkfont.nametofont("TkMenuFont")
+        menu_font.configure(size=10)          
+        self.master.option_add("*Menu.font", menu_font)
         
         def _startup_modals():
             def open_about():
@@ -470,24 +474,24 @@ class AutoPyPlusPlusGUI:
         self.settings_menu = tk.Menu(self.menubar, tearoff=False)
         self.menubar.add_cascade(label=self.texts.get("menu_settings", "Settings"), menu=self.settings_menu)
 
-        # Sprache
+        # ----- Sprache
         self.language_submenu = tk.Menu(self.settings_menu, tearoff=False)
         for lang in LANGUAGES.keys():
             self.language_submenu.add_command(label=lang, command=lambda l=lang: self._select_language(l))
-        self.settings_menu.add_cascade(label=self.texts.get("menu_language", "Language"), menu=self.language_submenu)
+        self.settings_menu.add_cascade(label=self.texts.get("menu_language", "📰 Language"), menu=self.language_submenu)
 
-        # Themes
+        # ----- Themes
         self.theme_submenu = tk.Menu(self.settings_menu, tearoff=False)
         for idx, theme_name in enumerate(self.theme_names):
             self.theme_submenu.add_command(label=theme_name, command=lambda i=idx: self._set_theme_from_menu(i))
-        self.settings_menu.add_cascade(label=self.texts.get("menu_themes", "Themes"), menu=self.theme_submenu)
+        self.settings_menu.add_cascade(label=self.texts.get("menu_themes", "🗽 Themes"), menu=self.theme_submenu)
 
-        # Weitere Settings
+        # ----- Weitere Settings
         self.settings_menu.add_separator()
-        self.settings_menu.add_command(label=self.texts.get("menu_extensions", "Extensions"), command=self._show_extensions_popup)
-        self.settings_menu.add_command(label=self.texts.get("menu_autopy_general", "Advanced"), command=self._open_general_settings)
-        self.settings_menu.add_command(label=self.texts.get("menu_colors", "Mode Colors"), command=self._choose_colors)
-        self.settings_menu.add_command(label=self.texts.get("menu_toggle_fullscreen", "Toggle Fullscreen"), command=self._toggle_fullscreen)
+        self.settings_menu.add_command(label=self.texts.get("menu_extensions", "🔋 Extensions"), command=self._show_extensions_popup)
+        self.settings_menu.add_command(label=self.texts.get("menu_autopy_general", "🏢 Advanced"), command=self._open_general_settings)
+        self.settings_menu.add_command(label=self.texts.get("menu_colors", "🌈 Mode Colors"), command=self._choose_colors)
+        self.settings_menu.add_command(label=self.texts.get("menu_toggle_fullscreen", "💻 Toggle Fullscreen"), command=self._toggle_fullscreen)
 
         # --- Update ---
         self.update_submenu = tk.Menu(self.settings_menu, tearoff=False)
@@ -499,7 +503,7 @@ class AutoPyPlusPlusGUI:
             label=self.texts.get("menu_run_windows_update_admin", "Update as Admin"),
             command=lambda: self._run_windows_update(as_admin=True)
         )
-        self.settings_menu.add_cascade(label=self.texts.get("menu_update", "Update"), menu=self.update_submenu)
+        self.settings_menu.add_cascade(label=self.texts.get("menu_update", "🔔 Update"), menu=self.update_submenu)
 
         # Hilfe & About
         self.settings_menu.add_separator()
@@ -1531,7 +1535,7 @@ class AutoPyPlusPlusGUI:
 
 
     def compile_all(self):
-        self.status_var.set("Start Export 📦")
+        self.set_status("Start Export ... 📦", hold_ms=3000) 
         if not self._check_hashes_before_build():
             return  # Abbruch
 
