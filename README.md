@@ -4,7 +4,7 @@
 # Version 2.52 OpenSource 
 <br><br>
 <div align="center">
-  <a href="https://github.com/melatroid/AutoPyPP">🐍 got to AutoPy++ Pro 🐍</a>
+  <a href="https://github.com/melatroid/AutoPyPP">🐍 go to AutoPy++ Pro 🐍</a>
 </div>
 
 
@@ -321,6 +321,7 @@ gcc --version
 ```
 
 ---
+
 
 
 
