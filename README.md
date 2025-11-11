@@ -33,7 +33,6 @@
 │   └── 🔗 .dll (Rare, Windows DLL)
 ├── 🛠️ [Cython] → 📄 .c / .cpp → [C/C++ Compiler]
 │   ├── 🔌 .pyd (Windows) / .so (Linux/Mac) (Extension module)
-│   ├── 💾 .exe (Native executable, rare)
 │   ├── 🔗 .dll (Windows DLL, rare)
 │   └── 📚 .lib (Static library for C/C++)
 └── 📖 [Sphinx] → 🌐 HTML / 📄 PDF / 📚 LaTeX / 📑 man-pages
@@ -321,6 +320,7 @@ gcc --version
 ```
 
 ---
+
 
 
 
