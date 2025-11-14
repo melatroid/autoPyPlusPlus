@@ -1,3 +1,9 @@
+
+### (Preview) Version 2.53 
+- OS Version becomes PyArmor Basic
+- Bugfixes in Cythoneditor
+- Bugfixes in Inspector
+
 ### (latest) Version 2.52
 - normal startup and evnironment start bat files
 - Mainmenu update
