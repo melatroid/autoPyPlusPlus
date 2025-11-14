@@ -16,7 +16,7 @@
 | Sphinx      | works (not fully tested)      |
 | Pytest      | works (not fully tested)      |
 | PyInstaller | works well (not fully tested) |
-| PyArmor     | Basic Works                   |
+| PyArmorBasic| works well                    |
 | Nuitka      | works      (not fully tested) |
 | Cython      | works well (not fully tested) |
 | MSVC        | works well (not fully tested) |
@@ -320,6 +320,7 @@ gcc --version
 ```
 
 ---
+
 
 
 
