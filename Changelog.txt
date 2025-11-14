@@ -1,3 +1,5 @@
+### (preview) Version 2.54
+- Update for next gen. MSVC 2026 
 
 ### (Latest) Version 2.53 
 - OS Version becomes PyArmor Basic
