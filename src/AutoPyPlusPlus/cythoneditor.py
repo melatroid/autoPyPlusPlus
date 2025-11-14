@@ -1,15 +1,115 @@
 import tkinter as tk
 from tkinter import ttk, filedialog, messagebox
 from pathlib import Path
+from typing import Optional
+from .gcceditor import GCCEditor
 
-from .gcceditor import GCCEditor 
 
 class CythonEditor:
     def __init__(self, master, project):
         self.master = master
         self.project = project
         self.saved = False
-        self.win = None
+        self.win: Optional[tk.Toplevel] = None
+
+        # Entry/List widgets created in show(); placeholders for type hints
+        self.e_script: Optional[ttk.Entry] = None
+        self.e_icon: Optional[ttk.Entry] = None
+        self.e_output: Optional[ttk.Entry] = None
+        self.e_setup_py: Optional[ttk.Entry] = None
+        self.e_include_dirs: Optional[ttk.Entry] = None
+        self.e_directives: Optional[ttk.Entry] = None
+        self.e_compile_time_env: Optional[ttk.Entry] = None
+        self.e_extra_compile_args: Optional[ttk.Entry] = None
+        self.e_extra_link_args: Optional[ttk.Entry] = None
+        self.e_output_name: Optional[ttk.Entry] = None
+        self.files_listbox: Optional[tk.Listbox] = None
+
+        # Tk variables initialized in show()
+        self.var_use_cython: Optional[tk.BooleanVar] = None
+        self.var_use_cpp: Optional[tk.BooleanVar] = None
+        self.var_boundscheck: Optional[tk.BooleanVar] = None
+        self.var_wraparound: Optional[tk.BooleanVar] = None
+        self.var_nonecheck: Optional[tk.BooleanVar] = None
+        self.var_cdivision: Optional[tk.BooleanVar] = None
+        self.var_keep_pyx: Optional[tk.BooleanVar] = None
+        self.var_language_level: Optional[tk.StringVar] = None
+        self.var_language: Optional[tk.StringVar] = None
+        self.var_cython_target_type: Optional[tk.StringVar] = None
+        self.var_build_with_setup: Optional[tk.BooleanVar] = None
+        self.var_profile: Optional[tk.BooleanVar] = None
+        self.var_linemap: Optional[tk.BooleanVar] = None
+        self.var_gdb: Optional[tk.BooleanVar] = None
+        self.var_embedsignature: Optional[tk.BooleanVar] = None
+        self.var_cplus_exceptions: Optional[tk.BooleanVar] = None
+        self.var_cpp_locals: Optional[tk.BooleanVar] = None
+        self.var_annotate: Optional[tk.BooleanVar] = None
+        self.var_target_os: Optional[tk.StringVar] = None
+
+        # convenience holder for a frame
+        self.security_frame: Optional[ttk.LabelFrame] = None
+
+    # ---------- Sync helpers: keep setup.py and output folder consistent ----------
+    def _sync_from_setup(self, *_):
+        """
+        If the setup.py field points to .../<dir>/setup.py, force the Output folder to <dir>.
+        """
+        if not self.e_setup_py or not self.e_output:
+            return
+        setup_text = self.e_setup_py.get().strip()
+        if not setup_text:
+            return
+        sp = Path(setup_text)
+        if sp.name.lower() == "setup.py":
+            self.e_output.delete(0, tk.END)
+            self.e_output.insert(0, str(sp.parent))
+
+    def _sync_from_output(self, *_):
+        """
+        Whenever Output folder changes to <dir>, force setup.py to <dir>/setup.py.
+        """
+        if not self.e_setup_py or not self.e_output:
+            return
+        out_text = self.e_output.get().strip()
+        if not out_text:
+            return
+        sp = Path(out_text) / "setup.py"
+        self.e_setup_py.delete(0, tk.END)
+        self.e_setup_py.insert(0, str(sp))
+
+    # ---- internal guard to keep mypy/pylance happy and fail early if UI not built
+    def _require_ui(self) -> None:
+        assert self.e_script is not None
+        assert self.e_icon is not None
+        assert self.e_output is not None
+        assert self.e_setup_py is not None
+        assert self.e_include_dirs is not None
+        assert self.e_directives is not None
+        assert self.e_compile_time_env is not None
+        assert self.e_extra_compile_args is not None
+        assert self.e_extra_link_args is not None
+        assert self.e_output_name is not None
+        assert self.files_listbox is not None
+
+        assert self.var_use_cython is not None
+        assert self.var_use_cpp is not None
+        assert self.var_boundscheck is not None
+        assert self.var_wraparound is not None
+        assert self.var_nonecheck is not None
+        assert self.var_cdivision is not None
+        assert self.var_keep_pyx is not None
+        assert self.var_language_level is not None
+        assert self.var_language is not None
+        assert self.var_cython_target_type is not None
+        assert self.var_build_with_setup is not None
+        assert self.var_profile is not None
+        assert self.var_linemap is not None
+        assert self.var_gdb is not None
+        assert self.var_embedsignature is not None
+        assert self.var_cplus_exceptions is not None
+        assert self.var_cpp_locals is not None
+        assert self.var_annotate is not None
+        assert self.var_target_os is not None
 
     def show(self):
         self.win = tk.Toplevel(self.master)
@@ -32,15 +132,15 @@ class CythonEditor:
 
         # ----------- 3 Spalten (Haupt-Gruppen) --------------------
         # 1. Standardoptionen (links)
-        stdopt_frame = ttk.LabelFrame(main_frame, text="Cython Options", padding=(12,8))
+        stdopt_frame = ttk.LabelFrame(main_frame, text="Cython Options", padding=(12, 8))
         stdopt_frame.grid(row=0, column=0, sticky="nswe", padx=(0, 10), pady=4, ipadx=3, ipady=3)
 
         # 2. Erweiterte Optionen (Mitte)
-        adv_frame = ttk.LabelFrame(main_frame, text="Cython Settings", padding=(12,8))
+        adv_frame = ttk.LabelFrame(main_frame, text="Cython Settings", padding=(12, 8))
         adv_frame.grid(row=0, column=1, sticky="nswe", padx=10, pady=4, ipadx=3, ipady=3)
 
         # 3. Datei- und Advanced-Eingaben (rechts)
-        file_frame = ttk.LabelFrame(main_frame, text="File & Advanced Settings", padding=(12,8))
+        file_frame = ttk.LabelFrame(main_frame, text="File & Advanced Settings", padding=(12, 8))
         file_frame.grid(row=0, column=2, sticky="nsew", padx=(10, 0), pady=4, ipadx=3, ipady=3)
         main_frame.grid_columnconfigure(2, weight=1)  # Rechts dehnbar
         main_frame.grid_rowconfigure(0, weight=0)
@@ -70,11 +170,11 @@ class CythonEditor:
 
         ttk.Separator(stdopt_frame, orient="horizontal").pack(fill="x", pady=7)
 
-        ttk.Label(stdopt_frame, text="Language Level:").pack(anchor="w", pady=(4,0))
+        ttk.Label(stdopt_frame, text="Language Level:").pack(anchor="w", pady=(4, 0))
         self.var_language_level = tk.StringVar(value=str(getattr(self.project, "cython_language_level", 3)))
         ttk.Combobox(stdopt_frame, textvariable=self.var_language_level, values=["2", "3"], width=5, state="readonly").pack(anchor="w", pady=2)
 
-        ttk.Label(stdopt_frame, text="Language (C/C++):").pack(anchor="w", pady=(7,0))
+        ttk.Label(stdopt_frame, text="Language (C/C++):").pack(anchor="w", pady=(7, 0))
         self.var_language = tk.StringVar(value=getattr(self.project, "cython_language", "c++"))
         cb_lang = ttk.Combobox(stdopt_frame, textvariable=self.var_language, values=["c", "c++"], width=6, state="readonly")
         cb_lang.pack(anchor="w", pady=2)
@@ -89,9 +189,8 @@ class CythonEditor:
             textvariable=self.var_cython_target_type,
             values=["Python Extension", "Standalone EXE"],
             width=18,
-            state="readonly"
+            state="readonly",
         ).pack(anchor="w", pady=2)
-
 
         self.var_build_with_setup = tk.BooleanVar(value=getattr(self.project, "cython_build_with_setup", True))
         ttk.Checkbutton(adv_frame, text="After run, build with setup.py?", variable=self.var_build_with_setup).pack(anchor="w", pady=2)
@@ -119,9 +218,16 @@ class CythonEditor:
 
         ttk.Separator(adv_frame, orient="horizontal").pack(fill="x", pady=7)
 
-        ttk.Label(adv_frame, text="Target OS:").pack(anchor="w", pady=(3,0))
+        ttk.Label(adv_frame, text="Target OS:").pack(anchor="w", pady=(3, 0))
         self.var_target_os = tk.StringVar(value=getattr(self.project, "cython_target_os", "auto"))
-        ttk.Combobox(adv_frame, textvariable=self.var_target_os, values=["auto", "windows", "linux", "macos"], width=10, state="readonly").pack(anchor="w", pady=2)
+        ttk.Combobox(
+            adv_frame,
+            textvariable=self.var_target_os,
+            values=["auto", "windows", "linux", "macos"],
+            width=10,
+            state="readonly",
+        ).pack(anchor="w", pady=2)
+
 
         # ------- Rechts: Datei- und Advanced-Settings -------
         def add_entry_row(label_text, var_text, row, btn_command=None, entry_width=46, filetypes=None):
@@ -133,15 +239,45 @@ class CythonEditor:
                 ttk.Button(file_frame, text="...", command=lambda: btn_command(entry, filetypes)).grid(row=row, column=2, padx=5, pady=2)
             return entry
 
-        self.e_script = add_entry_row("Source file (.py/.pyx):", getattr(self.project, "script", ""), 0, self._choose_file, filetypes=[("Python/Cython files", "*.py *.pyx")])
+        self.e_script = add_entry_row(
+            "Source file (.py/.pyx):",
+            getattr(self.project, "script", ""),
+            0,
+            self._choose_file,
+            filetypes=[("Python/Cython files", "*.py *.pyx")],
+        )
         self.e_icon = add_entry_row("Icon (.ico):", getattr(self.project, "icon", ""), 1, self._choose_file, filetypes=[("Icon files", "*.ico")])
-        self.e_output = add_entry_row("Output folder:", getattr(self.project, "cython_output_dir", ""), 2, self._choose_dir)
-        self.e_setup_py = add_entry_row("setup.py path (optional):", getattr(self.project, "cython_setup_py", "setup.py"), 3, self._choose_file, filetypes=[("Python setup file", "*.py")])
+
+        # Output folder first, since setup.py depends on it for default
+        output_dir_init = getattr(self.project, "cython_output_dir", "").strip()
+        self.e_output = add_entry_row("Output folder:", output_dir_init, 2, self._choose_dir)
+
+        # Decide initial setup.py default (if none saved yet, derive from output)
+        setup_default = getattr(self.project, "cython_setup_py", "").strip()
+        if not setup_default and output_dir_init:
+            setup_default = str(Path(output_dir_init) / "setup.py")
+
+        self.e_setup_py = add_entry_row(
+            "setup.py path (best use):",
+            setup_default or "setup.py",
+            3, self._choose_file, filetypes=[("Python setup file", "*.py")]
+        )
+
+        # If output was set but project had no stored setup path, normalize now
+        if output_dir_init and not getattr(self.project, "cython_setup_py", "").strip():
+            self.e_setup_py.delete(0, tk.END)
+            self.e_setup_py.insert(0, str(Path(output_dir_init) / "setup.py"))
+
+        # Bind syncing (focus-out and while typing)
+        self.e_setup_py.bind("<<FocusOut>>", self._sync_from_setup)
+        self.e_output.bind("<<FocusOut>>", self._sync_from_output)
+        self.e_setup_py.bind("<KeyRelease>", self._sync_from_setup)
+        self.e_output.bind("<KeyRelease>", self._sync_from_output)
 
         self.e_include_dirs = add_entry_row(
             "Include Dirs (comma separated):",
             ", ".join(getattr(self.project, "cython_include_dirs", [])),
-            4
+            4,
         )
 
         directives_dict = getattr(self.project, "cython_directives", {}) or {}
@@ -149,37 +285,47 @@ class CythonEditor:
         self.e_directives = add_entry_row(
             "Directives (key=val,key2=val2):",
             directives_str,
-            5
+            5,
         )
 
         self.e_compile_time_env = add_entry_row(
             "Compile-Time Env (key=val,key2=val2):",
-            ",".join(f"{k}={v}" for k, v in (getattr(self.project, "cython_compile_time_env", {}) or {}).items()),
-            6
+            ",".join(f"{k}={v}" for k, v in (getattr(self.project, "cython_compile_time_env", {}) or {}).items() ),
+            6,
         )
 
         self.e_extra_compile_args = add_entry_row(
             "Extra Compile Args (comma separated):",
             ", ".join(getattr(self.project, "cython_extra_compile_args", [])),
-            7
+            7,
         )
         self.e_extra_link_args = add_entry_row(
             "Extra Link Args (comma separated):",
             ", ".join(getattr(self.project, "cython_extra_link_args", [])),
-            8
+            8,
         )
         self.e_output_name = add_entry_row(
-            "Output Name (optional):",
+            "Output Name (Auto):",
             getattr(self.project, "cython_output_name", ""),  # default: leer
-            9  # nächste freie Zeile (nach extra_link_args ist 8)
+            9,  # nächste freie Zeile (nach extra_link_args ist 8)
         )
+
+        # Prefill Output Name aus dem Projektnamen (ohne Endung), falls noch leer
+        if not getattr(self.project, "cython_output_name", ""):
+            base = Path(getattr(self.project, "name", "")).stem or (Path(self.project.script).stem if getattr(self.project, "script", "") else "")
+            if base:
+                self.e_output_name.delete(0, tk.END)
+                self.e_output_name.insert(0, base)
 
         file_frame.grid_columnconfigure(1, weight=1)
 
         # --------------- Untere Zeile: Dateien, Security, Buttons ----------------
         # Zusatzdateien
-        additional_files_frame = ttk.LabelFrame(main_frame, text="Add files for your C++ build, like python310.dll or tkinter.dll\nneeded for build with c++-compiler")
-        additional_files_frame.grid(row=1, column=0, columnspan=3, sticky="nsew", pady=(18,6), padx=3)
+        additional_files_frame = ttk.LabelFrame(
+            main_frame,
+            text="Add files for your C++ build, like python310.dll or tkinter.dll\nneeded for build with c++-compiler",
+        )
+        additional_files_frame.grid(row=1, column=0, columnspan=3, sticky="nsew", pady=(18, 6), padx=3)
         additional_files_frame.grid_columnconfigure(0, weight=1)
         additional_files_frame.grid_rowconfigure(0, weight=1)
 
@@ -216,11 +362,12 @@ class CythonEditor:
             gcc_button.pack(side="left", padx=5)
 
         # Automatisch Button anzeigen oder verstecken, wenn use_cpp toggled wird
-        def toggle_gcc_button(*args):
+        def toggle_gcc_button(*_):
             if self.var_use_cpp.get():
                 gcc_button.pack(side="left", padx=5)
             else:
                 gcc_button.pack_forget()
+
         self.var_use_cpp.trace_add("write", toggle_gcc_button)
 
         self.win.protocol("WM_DELETE_WINDOW", self.on_cancel)
@@ -229,9 +376,11 @@ class CythonEditor:
 
     def open_gcc_editor(self):
         gcc_editor = GCCEditor(self.master, self.project)
-        saved = gcc_editor.show()
+        _ = gcc_editor.show()  # intentionally ignore return value
 
     def _refresh_files_listbox(self):
+        # listbox exists only after show()
+        assert self.files_listbox is not None
         self.files_listbox.delete(0, tk.END)
         if not hasattr(self.project, "additional_files"):
             self.project.additional_files = []
@@ -242,7 +391,7 @@ class CythonEditor:
         paths = filedialog.askopenfilenames(
             title="Select additional files",
             filetypes=[("All files", "*.*")],
-            initialdir=str(Path.cwd())
+            initialdir=str(Path.cwd()),
         )
         if not paths:
             return
@@ -254,6 +403,7 @@ class CythonEditor:
         self._refresh_files_listbox()
 
     def remove_selected_files(self):
+        assert self.files_listbox is not None
         selected_indices = list(self.files_listbox.curselection())
         if not selected_indices:
             messagebox.showinfo("Info", "Please select at least one file to remove.")
@@ -265,6 +415,15 @@ class CythonEditor:
         self._refresh_files_listbox()
 
     def set_security_level(self, level):
+        # require UI vars
+        assert self.var_boundscheck is not None
+        assert self.var_wraparound is not None
+        assert self.var_cdivision is not None
+        assert self.var_nonecheck is not None
+        assert self.var_keep_pyx is not None
+        assert self.var_language_level is not None
+        assert self.var_language is not None
+
         if level == "Easy":
             self.var_boundscheck.set(True)
             self.var_wraparound.set(True)
@@ -275,7 +434,7 @@ class CythonEditor:
             self.var_language.set("c++")
             messagebox.showinfo(
                 "Security Level: Easy",
-                "All security checks enabled for optimal debugging and error detection."
+                "All security checks enabled for optimal debugging and error detection.",
             )
         elif level == "Hard":
             self.var_boundscheck.set(False)
@@ -288,14 +447,17 @@ class CythonEditor:
             messagebox.showwarning(
                 "Security Level: Hard",
                 "All checks disabled! Maximum speed and harder to analyze bytecode.\n"
-                "Warning: Unsafe indices, no None check, pyx file will be deleted."
+                "Warning: Unsafe indices, no None check, pyx file will be deleted.",
             )
 
     def analyze_inputs(self):
-        issues = []
+        self._require_ui()
+
         script = self.e_script.get().strip()
         output_name = self.e_output_name.get().strip()
         output = self.e_output.get().strip()
+        issues = []
+
         if output_name:
             forbidden = set('/\\:*?"<>|')
             if any(c in forbidden for c in output_name):
@@ -303,6 +465,7 @@ class CythonEditor:
 
         icon = self.e_icon.get().strip()
         language_level = self.var_language_level.get()
+        setup_py = self.e_setup_py.get().strip()
 
         if not script:
             issues.append("Source file is empty.")
@@ -330,12 +493,28 @@ class CythonEditor:
         if language_level not in ("2", "3"):
             issues.append(f"Language level is invalid: {language_level}")
 
+        # Validate setup.py co-location with output folder
+        if setup_py:
+            sp = Path(setup_py)
+            if sp.name.lower() != "setup.py":
+                issues.append(f"setup.py path must point to a file named 'setup.py': {setup_py}")
+            if output:
+                out = Path(output)
+                try:
+                    if sp.parent.resolve() != out.resolve():
+                        issues.append("Output folder must be the directory that contains setup.py.")
+                except Exception:
+                    if str(sp.parent) != str(out):
+                        issues.append("Output folder must be the directory that contains setup.py.")
+
         if issues:
             messagebox.showwarning("Analysis Result", "\n".join(issues))
         else:
             messagebox.showinfo("Analysis Result", "All required fields are filled and valid.\nNo critical issues found!")
 
     def save(self):
+        self._require_ui()
+
         p = self.project
         p.use_cython = self.var_use_cython.get()
         p.use_cpp = self.var_use_cpp.get()
@@ -359,11 +538,12 @@ class CythonEditor:
         p.cython_annotate = self.var_annotate.get()
         p.cython_build_with_setup = self.var_build_with_setup.get()
         p.cython_target_os = self.var_target_os.get()
+        # We'll overwrite cython_setup_py below to enforce invariant
         p.cython_setup_py = self.e_setup_py.get().strip()
         p.cython_extra_compile_args = [s.strip() for s in self.e_extra_compile_args.get().split(",") if s.strip()]
         p.cython_extra_link_args = [s.strip() for s in self.e_extra_link_args.get().split(",") if s.strip()]
         p.cython_include_dirs = [s.strip() for s in self.e_include_dirs.get().split(",") if s.strip()]
-        # --- Speichere Target Type ---
+        # Speichere Target Type
         p.cython_target_type = self.var_cython_target_type.get()
 
         directives_str = self.e_directives.get().strip()
@@ -395,21 +575,30 @@ class CythonEditor:
                 messagebox.showerror("Error", "Output folder is empty!")
                 return
 
-        # --- Wenn Output Name leer, setze automatisch ---
-        if not p.cython_output_name:
-            # z.B. dateiname ohne Endung oder einfach 'output'
-            p.cython_output_name = (Path(p.script).stem if p.script else "output")
+        # Output-Name immer vom Projektnamen ableiten (ohne Endung)
+        base = Path(getattr(p, "name", "")).stem
+        if not base:  # Fallback, falls name leer
+            base = Path(p.script).stem if p.script else "output"
+        p.cython_output_name = base  # Keine Endung anhängen
 
-        # --- Falls Standalone EXE, .exe als Endung anhängen ---
-        if self.var_cython_target_type.get() == "Standalone EXE":
-            if not p.cython_output_name.lower().endswith(".exe"):
-                p.cython_output_name += ".exe"
+        # Enforce invariant: setup.py is inside the output folder
+        if p.cython_output_dir:
+            p.cython_setup_py = str(Path(p.cython_output_dir) / "setup.py")
+            # Keep the UI field consistent too, if the window is still open
+            if self.e_setup_py is not None:
+                self.e_setup_py.delete(0, tk.END)
+                self.e_setup_py.insert(0, p.cython_setup_py)
 
         self.saved = True
         if self.win:
             self.win.destroy()
 
     def build_cython_command(self):
+        # need entries and vars
+        assert self.e_script is not None
+        assert self.var_language_level is not None
+        assert self.var_cython_target_type is not None
+
         script_path = self.e_script.get().strip()
         lang_level = self.var_language_level.get()
         target_type = self.var_cython_target_type.get()
@@ -420,7 +609,6 @@ class CythonEditor:
 
         cython_cmd += ["-3" if lang_level == "3" else "-2", script_path]
         return cython_cmd
-
 
     def on_cancel(self):
         self.saved = False

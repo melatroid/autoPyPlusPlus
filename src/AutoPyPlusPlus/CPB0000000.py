@@ -4,9 +4,9 @@ from pathlib import Path
 import sys
 import shutil
 import shlex
+import os
 
 from .project import Project
-from .extension_paths_loader import load_extensions_paths
 
 
 def log_warning(log_file, msg):
@@ -27,7 +27,7 @@ def log_info(log_file, msg):
     log_file.flush()
 
 
-def _strip_pack_args_for_gen(args: list[str]) -> list[str]:
+def _strip_pack_options(args: list[str]) -> list[str]:
     out: list[str] = []
     i = 0
     while i < len(args):
@@ -36,13 +36,28 @@ def _strip_pack_args_for_gen(args: list[str]) -> list[str]:
             i += 1
             if i < len(args) and args[i] in ("onedir", "onefile"):
                 i += 1
-                continue
+            # evtl. Alt-Embed "-e <payload>" konsumieren
             if i < len(args) and args[i] == "-e":
                 i += 1
                 if i < len(args):
                     i += 1
-                continue
             continue
+        if tok == "-e":
+            i += 1  # payload überspringen
+            if i < len(args):
+                i += 1
+            continue
+
+        if tok in ("--onefile", "--onedir", "--windowed", "--console"):
+            i += 1
+            continue
+
+        if tok in ("--icon", "--distpath", "--workpath", "--specpath"):
+            i += 1
+            if i < len(args):
+                i += 1
+            continue
+
         out.append(tok)
         i += 1
     return out
@@ -85,73 +100,66 @@ def _probe_python_and_pyarmor(pyexe: str, log_file) -> bool:
 
 
 class CPB0000000:
-    """PyArmor build stage."""
+    """PyArmor build stage — nur 'gen' (Basic)."""
 
     @staticmethod
     def run_pyarmor(project: Project, log_file) -> None:
-        # 1) Interpreter wählen (GUI speichert 'python_exec_path')
+        # 1) Interpreter wählen
         python_exe = getattr(project, "python_exec_path", None)
         if python_exe:
             try:
                 python_exe = str(Path(python_exe).resolve())
             except Exception:
-                # falls Pfad komisch ist, einfach als String lassen
                 python_exe = str(python_exe)
         if not python_exe or not Path(python_exe).exists():
             if python_exe:
-                log_warning(log_file, f"Configured python interpreter does not exist: {python_exe}. "
-                                      "Falling back to current process interpreter.")
+                log_warning(
+                    log_file,
+                    f"Configured python interpreter does not exist: {python_exe}. "
+                    "Falling back to current process interpreter."
+                )
             python_exe = sys.executable
-
         log_info(log_file, f"Selected Python interpreter: {python_exe}")
 
-        # 2) Prüfen, ob PyArmor als Modul in DIESEM Interpreter verfügbar ist
+        # 2) PyArmor probe
         module_ok = _probe_python_and_pyarmor(python_exe, log_file)
 
-        # 3) PyArmor-Binary suchen, falls Modul nicht ok
+        # 3) pyarmor executable fallback
         pyarmor_path = None
         if not module_ok:
             pyarmor_path = getattr(project, "pyarmor_path", None)
             if not pyarmor_path:
-                ex_paths = load_extensions_paths(log_file)
-                cand = ex_paths.get("pyarmor")
-                if cand:
-                    pyarmor_path = cand
-                    setattr(project, "pyarmor_path", cand)
-                    log_info(log_file, f"Set pyarmor_path from extensions: {cand}")
-            if not pyarmor_path:
                 pyarmor_path = shutil.which("pyarmor")
                 if pyarmor_path:
                     log_info(log_file, f"Found pyarmor in PATH: {pyarmor_path}")
-
             if not pyarmor_path:
                 log_error(
                     log_file,
                     "PyArmor not found for this build.\n\n"
-                    "Option A) Install PyArmor into the selected interpreter:\n"
-                    f'   "{python_exe}" -m pip install -U pyarmor\n\n'
-                    "Option B) Provide a pyarmor executable path "
-                    "(extension_paths.ini → pyarmor=<full_path>)\n"
+                    f'Option A) "{python_exe}" -m pip install -U pyarmor\n'
+                    "Option B) extension_paths.ini → pyarmor=<full_path>\n"
                     "Option C) Ensure 'pyarmor' is on PATH."
                 )
                 raise RuntimeError("PyArmor unavailable as module and binary.")
 
-        # 4) Kommando aufbauen
-        if module_ok:
-            cmd: list[str] = [python_exe, "-m", "pyarmor.cli"]
-        else:
-            cmd = [pyarmor_path]  # type: ignore[arg-type]
+        # 4) base command → IMMER 'gen'
+        base_cmd: list[str] = [python_exe, "-m", "pyarmor.cli"] if module_ok else [pyarmor_path]  # type: ignore[arg-type]
+        cmd: list[str] = base_cmd + ["gen"]
 
-        command = (project.pyarmor_command or "gen").strip()
-        cmd.append(command)
+        # 5) UI-Optionen laden und PACK-Müll rauswerfen
+        user_options_raw = project.pyarmor_options or ""
+        try:
+            user_opts = shlex.split(user_options_raw, posix=False) if user_options_raw else []
+        except Exception:
+            user_opts = (user_options_raw or "").split()
 
-        if project.pyarmor_options:
-            try:
-                opts = shlex.split(project.pyarmor_options, posix=False)
-            except Exception:
-                opts = project.pyarmor_options.split()
-            cmd.extend(opts)
+        sanitized_opts = _strip_pack_options(user_opts)
+        if sanitized_opts != user_opts:
+            log_info(log_file, "Removed pack/pyinstaller options (forcing pure 'gen').")
 
+        cmd += sanitized_opts
+
+        # 6) Script anhängen
         if project.script:
             script_path = Path(project.script).resolve()
             if script_path.is_file():
@@ -160,26 +168,8 @@ class CPB0000000:
                 log_error(log_file, f"Script {project.script} not found. Aborting!")
                 raise FileNotFoundError(f"Script {project.script} not found.")
 
-        # 5) Pack-Args bei 'gen' entfernen
-        if command == "gen":
-            before = " ".join(str(x) for x in cmd)
-            if module_ok:
-                base = cmd[:4]  # [python, -m, pyarmor.cli, 'gen']
-            else:
-                base = cmd[:2]  # [pyarmor, 'gen']
-            tail_script = cmd[-1:] if project.script else []
-            opts_only = cmd[len(base):len(cmd) - (1 if project.script else 0)]
-            cleaned = _strip_pack_args_for_gen(opts_only)
-            cmd = base + cleaned + tail_script
-            after = " ".join(str(x) for x in cmd)
-            if before != after:
-                log_info(log_file, "Sanitized pack options for 'gen' (removed --pack …).")
-                log_info(log_file, f"Before: {before}")
-                log_info(log_file, f"After : {after}")
-
         log_info(log_file, f"Running PyArmor command: {' '.join(str(x) for x in cmd)}")
 
-        # 6) Ausführen (immer Logs)
         try:
             res = subprocess.run(cmd, capture_output=True, text=True)
             log_info(log_file, f"PyArmor return code: {res.returncode}")
@@ -187,6 +177,7 @@ class CPB0000000:
                 log_info(log_file, f"STDOUT:\n{res.stdout}")
             if res.stderr:
                 log_warning(log_file, f"STDERR:\n{res.stderr}")
+
             if res.returncode != 0:
                 raise subprocess.CalledProcessError(res.returncode, cmd, output=res.stdout, stderr=res.stderr)
         except subprocess.CalledProcessError as e:

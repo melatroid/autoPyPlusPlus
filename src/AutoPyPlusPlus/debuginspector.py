@@ -10,16 +10,54 @@ from .project import Project
 from .config import save_config
 
 ERROR_RECOMMENDATIONS = {
-    "permission denied": "1.) Restart System 2.) Check the file or folder permissions. Make sure the user has sufficient rights.",
-    "not found": "1.) File really exists? 2.) Verify that the file or resource exists and that the path is correct.",
-    "failed": "Review the previous outputs to identify the cause of the failure.",
-    "exit code": "Check the meaning of the exit code in the documentation or logic.",
-    "monkeypatch": "Check the usage of pytest's monkeypatch fixture. Did you import it? Is the scope correct?",
-    "capsys": "Check if 'capsys' fixture is passed correctly to your test function.",
-    "fixture": "Is your fixture correctly declared? Is the name matching?",
-    "assert ": "Check what is being asserted and compare expected/actual values.",
-    "not defined": "Did you import the module/class/function? Check for typos or circular imports.",
+    "permission denied": "🔒 Permission denied. First Aid: 1) Restart system 2) Check file/folder permissions.",
+    "not found": "🔎 Not found. First Aid: Does the file really exist? Verify the path and spelling.",
+    "failed": "💥 Failed. First Aid: Scroll up and inspect the first error message.",
+    "exit code": "🔢 Exit code detected. First Aid: Check docs/logic for this specific code.",
+    "monkeypatch": "🧪 pytest monkeypatch. First Aid: Imported correctly? Scope/fixture usage OK?",
+    "capsys": "🧪 pytest capsys. First Aid: Is the 'capsys' fixture passed into the test?",
+    "fixture": "🧩 Fixture issue. First Aid: Declared correctly and name matches?",
+    "assert ": "✅/❌ Assertion mismatch. First Aid: Compare expected vs actual values.",
+    "not defined": "📦 Name not defined. First Aid: Missing import? Typos or circular imports?",
 }
+
+# --- message map ---
+ERROR_CODE_MAP = {
+    # MSVC / Cython build
+    "C1083":  "💡 First Aid: setup.py is default in working dir! Also check filename/path & include dirs.",
+    "LNK1104":"💡 First Aid: linker cannot open file — close running EXE/DBG and fix lib/output paths.",
+    "C2065":  "💡 First Aid: undeclared identifier — header/namespace/import/typo.",
+    "C2143":  "💡 First Aid: syntax error (often missing ';' or brace) — check previous line.",
+    "C2664":  "💡 First Aid: no matching function call — fix types/signature or conversions.",
+    "LNK2001":"💡 First Aid: unresolved external symbol — add/point to the defining .lib/.obj or source.",
+    "LNK2019":"💡 First Aid: unresolved external (referenced in function) — missing definition or wrong lib order.",
+    "C1001":  "💡 First Aid: internal compiler error — simplify code or update MSVC/toolchain.",
+    "C1026":  "💡 First Aid: parser stack overflow — split overly large functions/expressions.",
+
+    # Cython specifics seen on Windows toolchains
+    "pyconfig.h(59)": "💡 First Aid: Windows SDK headers missing — install/repair Windows 10/11 SDK + set VC env.",
+    "Cannot open include file: 'io.h'": "💡 First Aid: install Windows SDK / correct VC toolset; ensure INCLUDE paths.",
+    "cl.exe' failed with exit code 2": "💡 First Aid: fix the first compile error above; verify MSVC Build Tools in PATH.",
+
+    # PyInstaller
+    "Failed to execute script": "💡 First Aid: run from console for traceback; add data/paths; bundle files with --add-data.",
+    "hidden import": "💡 First Aid: add --hidden-import <mod> or hook; check build/*warn* for missing modules.",
+    "ModuleNotFoundError": "💡 First Aid: hidden import not collected — use --hidden-import / edit .spec's hiddenimports.",
+    "DLL load failed": "💡 First Aid: install VC++/UCRT runtime; ensure bundled DLLs match OS/arch.",
+    "api-ms-win-crt": "💡 First Aid: install ‘Universal CRT’ / Visual C++ Redistributable for your Windows version.",
+
+    # Nuitka
+    "Windows SDK must be installed": "💡 First Aid: install Windows 10/11 SDK + C++ workload; use proper Developer Prompt.",
+    "scons: ***": "💡 First Aid: toolchain/env issue — verify MSVC/SDK in PATH or try --mingw64.",
+    "link @": "💡 First Aid: linker step failed — avoid non-ASCII paths; check lib locations/output perms.",
+
+    # PyArmor
+    "No module named 'pytransform'": "💡 First Aid: ship pytransform runtime (folder/DLL) with app; correct import path.",
+    "No module named 'pyarmor_runtime'": "💡 First Aid: include pyarmor_runtime_* package output with the build.",
+    "this Python version is not supported": "💡 First Aid: obfuscate with matching PyArmor core for target Python/OS.",
+    "unauthorized use of script": "💡 First Aid: check PyArmor license/registration and bound machine settings.",
+}
+
 
 def debuginspector(master: tk.Tk, logfile: str, selected: List[Project], style: ttk.Style, config: dict) -> None:
     # Fenster und Farben
@@ -53,6 +91,9 @@ def debuginspector(master: tk.Tk, logfile: str, selected: List[Project], style: 
         "pytest_summary": (r"short test summary info", "#FFFF44"),
         "pytest_line": (r"={4,}", "#666666"),
         "pytest_testcase": (r"\bdef test_\w+", "#FFFF00"),
+        # Optional: catch MSVC lines explicitly (helps show C1083 lines even if no 'failed' token)
+        "msvc_fatal": (r"(?i)\bfatal error C\d{4}\b", "#FF2222"),
+        "msvc_error": (r"(?i)\berror C\d{4}\b", "#FF4444"),
     }
 
     FONT_CONFIG = ("Segoe UI", 10)
@@ -65,6 +106,9 @@ def debuginspector(master: tk.Tk, logfile: str, selected: List[Project], style: 
         "foreground": style.lookup("TLabel", "foreground", default="#D3D7CF"),
         "font": ("Segoe UI", 8)
     }
+
+    # Color for help/First Aid lines in the lower console
+    HELP_FG = "#FFD700"  # yellow/gold
 
     if not Path(logfile).is_file():
         messagebox.showerror("Error", f"Logfile {logfile} not found.")
@@ -108,6 +152,7 @@ def debuginspector(master: tk.Tk, logfile: str, selected: List[Project], style: 
     log_selector = ttk.Combobox(btn_frame, values=[f.name for f in log_files], state="readonly")
     log_selector.pack(side="left", padx=5)
     log_selector.current(current_log_index)
+
     def change_logfile(event):
         nonlocal logfile, current_log_index
         current_log_index = log_selector.current()
@@ -117,10 +162,12 @@ def debuginspector(master: tk.Tk, logfile: str, selected: List[Project], style: 
         file_info_label.config(text=file_info)
         win.title(f"{WINDOW_TITLE} - {log_path.name}")
         load_logfile_async()
+
     log_selector.bind("<<ComboboxSelected>>", change_logfile)
 
     def open_logfile():
         os.startfile(logfile)
+
     def delete_logfile():
         if messagebox.askyesno("Confirm", f"Delete logfile {logfile}?"):
             try:
@@ -129,8 +176,9 @@ def debuginspector(master: tk.Tk, logfile: str, selected: List[Project], style: 
                 win.destroy()
             except Exception as e:
                 messagebox.showerror("Error", f"Deletion failed: {e}")
+
     def export_errors():
-        error_tags = ["failed", "not_found", "permission_denied", "pytest_fail", "pytest_error"]
+        error_tags = ["failed", "not_found", "permission_denied", "pytest_fail", "pytest_error", "msvc_fatal", "msvc_error"]
         error_patterns = [KEYWORD_PATTERNS[tag][0] for tag in error_tags if tag in KEYWORD_PATTERNS]
         errors: list[str] = []
         for log_line in lines:
@@ -142,6 +190,7 @@ def debuginspector(master: tk.Tk, logfile: str, selected: List[Project], style: 
             messagebox.showinfo("Success", "Errors exported to errors_export.txt")
         else:
             messagebox.showinfo("Info", "No errors found to export.")
+
     buttons = [
         ("Open Logfile", open_logfile, "Opens the logfile in the default editor"),
         ("Delete Logfile", delete_logfile, "Permanently deletes the logfile"),
@@ -149,17 +198,20 @@ def debuginspector(master: tk.Tk, logfile: str, selected: List[Project], style: 
     ]
 
     tooltip_label = None
+
     def show_tooltip(event, text):
         nonlocal tooltip_label
         if tooltip_label:
             tooltip_label.destroy()
         tooltip_label = tk.Label(win, text=text, **TOOLTIP_STYLE, relief="solid", borderwidth=1)
         tooltip_label.place(x=event.x_root - win.winfo_rootx() + 10, y=event.y_root - win.winfo_rooty() + 20)
+
     def hide_tooltip(event):
         nonlocal tooltip_label
         if tooltip_label:
             tooltip_label.destroy()
             tooltip_label = None
+
     for btn_text, command, tooltip in buttons:
         btn = ttk.Button(btn_frame, text=btn_text, command=command, style="TButton")
         btn.pack(side="left", padx=5, fill="x", expand=True)
@@ -177,6 +229,7 @@ def debuginspector(master: tk.Tk, logfile: str, selected: List[Project], style: 
     ttk.Checkbutton(search_frame, text="Regex", variable=regex_var).pack(side="left", padx=5)
     case_sensitive_var = tk.BooleanVar(value=False)
     ttk.Checkbutton(search_frame, text="Case Sensitive", variable=case_sensitive_var).pack(side="left", padx=5)
+
     def save_search_term():
         term = search_var.get().strip()
         if term and term not in common_terms:
@@ -184,6 +237,7 @@ def debuginspector(master: tk.Tk, logfile: str, selected: List[Project], style: 
             search_entry['values'] = common_terms
             config['saved_searches'] = common_terms
             save_config(config)
+
     ttk.Button(search_frame, text="Save Search", command=save_search_term).pack(side="left", padx=5)
     next_match_btn = ttk.Button(search_frame, text="Next Match", command=lambda: navigate_matches("next"))
     next_match_btn.pack(side="left", padx=5)
@@ -207,14 +261,19 @@ def debuginspector(master: tk.Tk, logfile: str, selected: List[Project], style: 
     scrollbar.pack(side="right", fill="y")
     text_widget = tk.Text(text_frame, wrap="word", yscrollcommand=scrollbar.set, font=FONT_CONFIG, bg=window_bg, fg=text_fg, insertbackground=text_fg)
     text_widget.pack(side="left", fill="both", expand=True)
+
     def on_scroll(*args):
         text_widget.yview(*args)
         line_numbers_widget.yview(*args)
+
     scrollbar.config(command=on_scroll)
+
     def on_text_scroll(event):
         line_numbers_widget.yview_moveto(text_widget.yview()[0])
+
     def on_line_numbers_scroll(event):
         text_widget.yview_moveto(line_numbers_widget.yview()[0])
+
     text_widget.bind("<MouseWheel>", on_text_scroll)
     line_numbers_widget.bind("<MouseWheel>", on_line_numbers_scroll)
     text_widget.bind("<Button-4>", on_text_scroll)
@@ -225,14 +284,22 @@ def debuginspector(master: tk.Tk, logfile: str, selected: List[Project], style: 
     context_menu.add_command(label="Copy Line", command=lambda: text_widget.clipboard_append(text_widget.get("insert linestart", "insert lineend")))
     context_menu.add_command(label="Show Context", command=lambda: show_error_context(None))
     text_widget.bind("<Button-3>", lambda e: context_menu.post(e.x_root, e.y_root))
+
     error_frame = ttk.Frame(main_frame)
     error_frame.pack(fill="x", pady=(5, 0))
     error_listbox = tk.Listbox(error_frame, height=7, bg=window_bg, fg="#FF0000", font=FONT_CONFIG, selectbackground="#4A4A4A")
     error_listbox.pack(side="left", fill="x", expand=True)
+
     lines: list[str] = []
     last_modified = Path(logfile).stat().st_mtime
 
     def get_error_recommendation(log_line):
+        # minimalistic: check codes first (substring, case-insensitive)
+        ll = log_line.lower()
+        for code, tip in ERROR_CODE_MAP.items():
+            if code.lower() in ll:
+                return tip
+        # fallback to generic keywords
         for key, rec in ERROR_RECOMMENDATIONS.items():
             if re.search(key, log_line, re.IGNORECASE):
                 return rec
@@ -261,6 +328,7 @@ def debuginspector(master: tk.Tk, logfile: str, selected: List[Project], style: 
             load_logfile_chunks()
             win.after(0, lambda: [apply_highlighting(), update_button_states()])
         threading.Thread(target=load, daemon=True).start()
+
     def check_file_changes():
         nonlocal last_modified
         try:
@@ -284,16 +352,25 @@ def debuginspector(master: tk.Tk, logfile: str, selected: List[Project], style: 
             text_widget.tag_raise("highlight_line")
         text_widget.config(state="disabled")
 
+    # Positions in the text widget for each error; and a mapping from listbox rows to these positions
     error_positions: list[str] = []
+    row_to_err_idx: list[int] = []
 
     def apply_highlighting():
         nonlocal error_positions
+        # reset listbox and mappings
+        error_listbox.delete(0, "end")
+        row_to_err_idx.clear()
         error_positions.clear()
+
         text_widget.config(state="normal")
         stats = {tag: 0 for tag in KEYWORD_PATTERNS}
-        error_listbox.delete(0, "end")
-        critical_tags = ["failed", "permission_denied", "not_found", "pytest_fail", "pytest_error"]
+        critical_tags = ["failed", "permission_denied", "not_found", "pytest_fail", "pytest_error", "msvc_fatal", "msvc_error"]
         text_widget.tag_configure("highlight_line", background="#4A4A4A")
+
+        # dedupe by source line so each error line is listed once
+        added_error_lines: set[int] = set()
+
         for tag, (pattern, color) in KEYWORD_PATTERNS.items():
             text_widget.tag_configure(tag, foreground=color, font=("Segoe UI", 10, "bold"))
             for i, log_line in enumerate(lines, 1):
@@ -301,10 +378,31 @@ def debuginspector(master: tk.Tk, logfile: str, selected: List[Project], style: 
                     text_widget.tag_add(tag, f"{i}.{match.start()}", f"{i}.{match.end()}")
                     stats[tag] += 1
                     if tag.startswith("error") or tag in critical_tags:
-                        recommendation = get_error_recommendation(log_line)
-                        rec_text = f" | First Aid: {recommendation}" if recommendation else ""
-                        error_listbox.insert("end", f"Line {i}: {log_line.strip()}{rec_text}")
+                        if i in added_error_lines:
+                            continue
+                        added_error_lines.add(i)
+
+                        # Base error row
+                        base_text = f"Line {i}: {log_line.strip()}"
+                        error_listbox.insert("end", base_text)
+
+                        # record target position for this error row
                         error_positions.append(f"{i}.0")
+                        row_to_err_idx.append(len(error_positions) - 1)
+
+                        # Optional recommendation row – maps to same error index
+                        recommendation = get_error_recommendation(log_line)
+                        if recommendation:
+                            tip_text = f"   {recommendation}"
+                            error_listbox.insert("end", tip_text)
+                            tip_idx = error_listbox.size() - 1
+                            try:
+                                error_listbox.itemconfig(tip_idx, foreground=HELP_FG)
+                            except Exception:
+                                pass
+                            # map tip row to the same error index as the base row
+                            row_to_err_idx.append(len(error_positions) - 1)
+
         # Stacktrace und Testnamen speziell hervorheben
         for i, log_line in enumerate(lines, 1):
             # Pytest-Trace
@@ -313,10 +411,12 @@ def debuginspector(master: tk.Tk, logfile: str, selected: List[Project], style: 
             # Testfunktion
             if re.search(r"\bdef test_\w+", log_line):
                 text_widget.tag_add("pytest_testcase", f"{i}.0", f"{i}.end")
+
         text_widget.tag_configure("value", foreground="#FFFF00")
         for i, log_line in enumerate(lines, 1):
             for match in re.finditer(r"\b0x[0-9a-fA-F]+\b|\b\d{4}-\d{2}-\d{2}\b|\bexit code \d+\b", log_line):
                 text_widget.tag_add("value", f"{i}.{match.start()}", f"{i}.{match.end()}")
+
         text_widget.tag_configure("custom", foreground="#FF00FF")
         apply_custom_pattern()
         stats_text = " | ".join(f"{tag.capitalize()}: {count}" for tag, count in stats.items())
@@ -324,26 +424,38 @@ def debuginspector(master: tk.Tk, logfile: str, selected: List[Project], style: 
         text_widget.config(state="disabled")
 
     def jump_to_error(event):
+        # Robust: use explicit row->error index mapping
+        if not error_positions or error_listbox.size() == 0:
+            return
+
+        sel = error_listbox.curselection()
+        if not sel:
+            return
+
+        idx = sel[0]
+        if idx < 0 or idx >= len(row_to_err_idx):
+            return
+
+        err_idx = row_to_err_idx[idx]
+        if err_idx < 0 or err_idx >= len(error_positions):
+            return
+
+        target = error_positions[err_idx]
+
         text_widget.config(state="normal")
-        text_widget.tag_remove("highlight_line", "1.0", "end")
-        selection = error_listbox.curselection()
-        if selection and len(error_positions) > selection[0]:
-            index = selection[0]
-            line_pos = error_positions[index]
-            try:
-                line_num = int(line_pos.split(".")[0])
-                text_widget.see(line_pos)
-                text_widget.mark_set("insert", line_pos)
-                text_widget.tag_add("highlight_line", f"{line_num}.0", f"{line_num + 1}.0")
-                if "search" in text_widget.tag_names():
-                    text_widget.tag_raise("highlight_line", "search")
-                else:
-                    text_widget.tag_raise("highlight_line")
-            except ValueError as e:
-                print(f"Error parsing line position {line_pos}: {e}")
-        else:
-            print("No valid selection or error_positions empty")
-        text_widget.config(state="disabled")
+        try:
+            text_widget.tag_remove("highlight_line", "1.0", "end")
+            line_num = int(target.split(".")[0])
+            text_widget.see(target)
+            text_widget.mark_set("insert", target)
+            text_widget.tag_add("highlight_line", f"{line_num}.0", f"{line_num + 1}.0")
+            if "search" in text_widget.tag_names():
+                text_widget.tag_raise("highlight_line", "search")
+            else:
+                text_widget.tag_raise("highlight_line")
+        finally:
+            text_widget.config(state="disabled")
+
     error_listbox.bind("<Double-1>", jump_to_error)
 
     def apply_custom_pattern():
@@ -358,12 +470,14 @@ def debuginspector(master: tk.Tk, logfile: str, selected: List[Project], style: 
             except re.error:
                 messagebox.showerror("Invalid Pattern", "Invalid regular expression.")
         text_widget.config(state="disabled")
+
     custom_pattern_var.trace_add("write", lambda *_: apply_custom_pattern())
 
     text_widget.bind("<Button-1>", lambda event: [text_widget.mark_set("insert", text_widget.index("@%d,%d" % (event.x, event.y))), update_line_highlight()])
     text_widget.bind("<KeyPress>", lambda event: [win.after(0, update_line_highlight)])
 
     matches: list[str] = []
+
     def search_text(*args):
         text_widget.config(state="normal")
         text_widget.tag_remove("search", "1.0", "end")
@@ -441,7 +555,6 @@ def debuginspector(master: tk.Tk, logfile: str, selected: List[Project], style: 
 
     text_widget.bind("<Double-1>", show_error_context)
 
-    # Fancy: Fehler Tooltip für Listbox mit Empfehlungen
     def error_listbox_tooltip(event):
         index = error_listbox.nearest(event.y)
         if 0 <= index < error_listbox.size():
@@ -451,6 +564,7 @@ def debuginspector(master: tk.Tk, logfile: str, selected: List[Project], style: 
                 show_tooltip(event, f"{line}\n\nTipp: {rec}")
             else:
                 show_tooltip(event, line)
+
     error_listbox.bind("<Motion>", error_listbox_tooltip)
     error_listbox.bind("<Leave>", hide_tooltip)
 
