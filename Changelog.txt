@@ -1,6 +1,7 @@
 ### (preview) Version 2.54
 - Update for next gen. MSVC 2026 
 - https://aka.ms/vs/stable/vs_BuildTools.exe
+- PyInstaller import bugfix with pyarmor runtime
 
 ### (Latest) Version 2.53 
 - OS Version becomes PyArmor Basic
