@@ -20,6 +20,7 @@ DEFAULT_ALLOWED_STEMS = {
     "CPE0000000",
     "CPF0000000",
     "CPG0000000",
+    "CPH0000000",
     "feedback",
     "gui",
     "core",

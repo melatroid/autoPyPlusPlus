@@ -43,11 +43,11 @@ def show_about_dialog(master, style, theme_func):
         from PIL import Image, ImageTk
 
         git_img_raw = Image.open("git.png")
-        git_img_raw = git_img_raw.resize((250, 250), Image.LANCZOS)  # Hohe Qualität
+        git_img_raw = git_img_raw.resize((250, 250), Image.LANCZOS)
         git_img = ImageTk.PhotoImage(git_img_raw)
 
         git_label = ttk.Label(main_frame, image=git_img)
-        git_label.image = git_img  # Referenz halten, damit das Bild nicht vom GC entfernt wird
+        git_label.image = git_img
         git_label.grid(row=row, column=0, pady=(0, 8))
         row += 1
 
@@ -57,8 +57,8 @@ def show_about_dialog(master, style, theme_func):
 
     text = (
         "- Opensource Version -\n\n"
-        "Version 2.52 (Date: 29.10.2025)\n"
-        "© 2025 by melatroid\n"
+        "Version 2.54 (Date: 02.07.2026)\n"
+        "© 2026 by melatroid\n"
         "info@nexosoft-engineering.de\n"
         "License: MIT License\n\n"
         "Software is a lot of work\n please respect it.\n"

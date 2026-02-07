@@ -61,8 +61,16 @@ class Project:
         self.nuitka_path: str | None = None
         self.cython_path: str | None = None
         self.cpp_path: str | None = None
+        # ── MicroPython / mpy-cross options ─────────────────────────────────
+        self.use_mpycross: bool = False
+        self.mpy_cross_path: str | None = None
+        self.mpy_compile_dir: str = ""  
+        self.mpy_output_dir: str = ""  
+        self.mpy_arch: str = ""
+        self.mpy_opt: int | None = None 
+        self.mpy_extra_opts: str = "" 
+        self.mpy_exclude_glob: str = "" 
 
-        # >>> NEW: selected Python interpreter (persisted)
         # Keep two attribute names for backward/forward compatibility.
         self.python_exec_path: str = ""       # preferred attribute
         self.pyarmor_python_exe: str = ""     # legacy/alias attribute
@@ -294,6 +302,17 @@ class Project:
             "exclude_tcl": self.exclude_tcl,
             "include_pyarmor_runtime": self.include_pyarmor_runtime,
             "build_mode": self.build_mode,
+            
+            # ── MicroPython / mpy-cross ──────────────
+            "use_mpycross": self.use_mpycross,
+            "mpy_cross_path": self.mpy_cross_path,
+            "mpy_compile_dir": self.mpy_compile_dir,
+            "mpy_output_dir": self.mpy_output_dir,
+            "mpy_arch": self.mpy_arch,
+            "mpy_opt": self.mpy_opt,
+            "mpy_extra_opts": self.mpy_extra_opts,
+            "mpy_exclude_glob": self.mpy_exclude_glob,
+
 
             # ── PyArmor options ──────────────
             "pyarmor_command": self.pyarmor_command,
@@ -464,6 +483,15 @@ class Project:
             "build_mode",
             "release" if d.get("onefile", False) else "debug",
         )
+        # ── MicroPython / mpy-cross ─────────────────────────────────────────
+        p.use_mpycross = d.get("use_mpycross", False)
+        p.mpy_cross_path = d.get("mpy_cross_path", None)
+        p.mpy_compile_dir = d.get("mpy_compile_dir", "")
+        p.mpy_output_dir = d.get("mpy_output_dir", "")
+        p.mpy_arch = d.get("mpy_arch", "")
+        p.mpy_opt = d.get("mpy_opt", None)
+        p.mpy_extra_opts = d.get("mpy_extra_opts", "")
+        p.mpy_exclude_glob = d.get("mpy_exclude_glob", "")
 
         # ── PyArmor options ─────────────────────────────────────────────────
         p.pyarmor_command = d.get("pyarmor_command", "gen")

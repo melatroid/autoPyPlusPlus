@@ -15,6 +15,7 @@ from .CPD0000000 import CPD0000000  # Cython
 from .CPE0000000 import CPE0000000  # C++ Compiler
 from .CPF0000000 import CPF0000000  # Pytest
 from .CPG0000000 import CPG0000000  # Sphinx
+from .CPH0000000 import CPH0000000  # mpy-cross (MicroPython)
 
 
 # =====================================================================
@@ -193,6 +194,13 @@ def compile_single(project: Project, log_file, compiler: str = "both") -> str:
 
         compiled = False
 
+        # --- mpy-cross (MicroPython .mpy) ---
+        if compiler in ("mpy", "both") and getattr(project, "use_mpycross", False):
+            CPH0000000.run_mpycross(project, log_file)
+            compiled = True
+        else:
+            pass
+
         # --- PyArmor ---
         if compiler in ("pyarmor", "both") and project.use_pyarmor:
             CPB0000000.run_pyarmor(project, log_file)
@@ -219,7 +227,13 @@ def compile_single(project: Project, log_file, compiler: str = "both") -> str:
             pass
 
         # --- PyInstaller (nur wenn keine der obigen Routen aktiv ist oder explizit gewählt) ---
-        if compiler in ("pyinstaller", "both") and not project.use_pyarmor and not project.use_nuitka and not project.use_cython:
+        if (
+            compiler in ("pyinstaller", "both")
+            and not project.use_pyarmor
+            and not project.use_nuitka
+            and not project.use_cython
+            and not getattr(project, "use_mpycross", False)
+        ):
             # >>> Add-Data sicher und plattformrichtig aufbereiten
             backup_add_data, prepared = _prepare_add_data_for_pyinstaller(project, lambda s: log_file.write(s))
             try:
@@ -285,7 +299,7 @@ def compile_projects(
     """
     Compile multiple projects in parallel in the given mode and with the selected compiler.
     - mode: "A", "B" or "C" to select the projects.
-    - compiler: "pyarmor", "nuitka", "cython", "pyinstaller" or "both".
+    - compiler: "pyarmor", "nuitka", "cython", "pyinstaller", "mpy" or "both".
     """
     selected_projects = [
         p for p in projects

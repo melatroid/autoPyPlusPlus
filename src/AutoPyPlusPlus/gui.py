@@ -30,6 +30,8 @@ from .simplex_api import SimplexAPIWatcher  # Watches simplexAPI.ini and reacts 
 
 from .projecteditor import ProjectEditor  # Editor UI for regular projects
 
+from .mpyeditor import MpyEditor
+
 from .debuginspector import debuginspector  # Viewer for compile logs & diagnostics
 
 from .compiler import compile_projects  # Orchestrates the compilation pipeline
@@ -458,6 +460,7 @@ class AutoPyPlusPlusGUI:
         # ----- Tools -----
         self.tools_menu = tk.Menu(self.menubar, tearoff=False)
         self.menubar.add_cascade(label=self.texts.get("menu_tools", "Tools"), menu=self.tools_menu)
+        self.tools_menu.add_command(label="🏢 Py to mpy", command=self._open_mpy_editor)
         self.tools_menu.add_command(label=self.texts.get("menu_inspector", "Inspector"), command=self._open_debuginspector)
         self.tools_menu.add_command(label=self.texts.get("menu_apyeditor", "ApyEditor"), command=self._open_apy_editor)
         self.tools_menu.add_separator()
@@ -684,7 +687,11 @@ class AutoPyPlusPlusGUI:
         apy_path = str(self.current_apyscript) if self.current_apyscript else ""
         apyeditor_window = ApyEditor(self.master, apyscript_file=apy_path, style=self.style)
         apyeditor_window.show()
-        
+
+    def _open_mpy_editor(self):
+        win = MpyEditor(self.master, style=self.style)
+        win.show()
+
     def _open_general_settings(self):
         show_general_settings(self.master, self.config, self.style, self.themes[self.current_theme_index])
         
