@@ -5,7 +5,7 @@
 ### (Latest) Version 2.54
 - Addet mpy-cross tool
 
-### (Latest) Version 2.53 
+### Version 2.53 
 - OS Version becomes PyArmor Basic
 - Bugfixes in Cythoneditor
 - Bugfixes in Inspector
