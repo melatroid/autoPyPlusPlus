@@ -1,7 +1,7 @@
 <img src="https://nexosoft-engineering.de/autopyplusplus/git_new.png" alt="Alt-Text" width="250" />
 
 
-# Version 2.53 OpenSource 
+# Version 2.54 OpenSource 
 <br><br>
 <div align="center">
   <a href="https://github.com/melatroid/AutoPyPP">🐍 go to AutoPy++ Pro 🐍</a>
@@ -320,6 +320,7 @@ gcc --version
 ```
 
 ---
+
 
 
 
